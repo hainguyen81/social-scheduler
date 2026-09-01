@@ -1,0 +1,26 @@
+{
+    "terminal.integrated.env.windows": {
+        "PYTHONSTARTUP": "${workspaceFolder}/.libs/modules_loader.py"
+    },
+	"python.analysis.extraPaths": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/.libs",
+        "${workspaceFolder}/.ai",
+        "${workspaceFolder}/.ai/.agents"
+    ],
+    "python.analysis.autoSearchPaths": true,
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/.libs",
+        "${workspaceFolder}/.ai",
+        "${workspaceFolder}/.ai/.agents"
+    ],
+    "flake8.enabled": false,
+    "pylint.args": [
+        "--disable=C0111,C0301,W1203,W4902,C0303,W0201,C0305,W1309,C0103,C0304"
+    ],
+    "pylint.path": [
+        "[\".ai\", \".libs\"]"
+    ],
+    "python.terminal.activateEnvInCurrentTerminal": true
+}

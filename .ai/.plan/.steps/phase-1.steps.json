@@ -1,0 +1,211 @@
+{
+    "phase_id": 1,
+    "phase_name": "Khởi tạo khung Microservices và di trú lược đồ cơ sở dữ liệu ban đầu",
+    "phase_description": "Xây dựng hạ tầng kỹ thuật nền tảng cho dự án social-scheduler, bao gồm descriptor build cha-con cho kiến trúc Microservices sử dụng Spring Boot 3 và Spring Cloud, đồng thời thiết lập toàn bộ lược đồ quan hệ ban đầu thông qua Flyway DDL cho bốn dịch vụ nghiệp vụ cốt lõi, đảm bảo tính cô lập kiến trúc và trật tự phụ thuộc nghiêm ngặt trước khi triển khai logic nghiệp vụ",
+    "objectives": "Khởi tạo descriptor build cha-con cho toàn bộ kiến trúc Microservices trên nền tảng Spring Boot 3.3.x và Spring Cloud 2023.x, thiết lập quản lý phụ thuộc tập trung qua Maven dependencyManagement, đồng thời di trú toàn bộ lược đồ quan hệ ban đầu cho bốn dịch vụ nghiệp vụ cốt lõi thông qua Flyway DDL, đảm bảo tính cô lập kiến trúc nghiêm ngặt và tuân thủ nguyên tắc schema-per-tenant trước khi triển khai logic nghiệp vụ ở các giai đoạn tiếp theo",
+    "project_name": "social-scheduler",
+    "global_context_file": ".ai/.context/social-scheduler.global.blueprint.md",
+    "source_target_dir": "sources/",
+    "days": [
+        {
+            "day": 1,
+            "context_file": ".ai/.plan/.context/phase-1.context.blueprint.md",
+            "context_section": "Ngày 1: Khởi tạo descriptor build cha-con và hạ tầng Spring Cloud",
+            "sub_tasks": [
+                {
+                    "id": "D1_ST1",
+                    "agent": "Coder",
+                    "desc": "Khởi tạo descriptor Maven cha tại đường dẫn ./sources/backend/pom.xml với khai báo packaging=pom, liệt kê đầy đủ các module con gồm user-service, schedule-service, ai-service, rate-limit-service và api-gateway. Khai báo thẻ parent tham chiếu tới spring-boot-starter-parent phiên bản 3.3.5 và quản lý dependencyManagement cho spring-cloud-dependencies 2023.0.3. Định nghĩa properties java.version=21, maven.compiler.source=21, maven.compiler.target=21. Khai báo dependencyManagement bao gồm Spring Boot Starter Parent 3.3.5, Spring Cloud Starter, Flyway Core 10.20.x, PostgreSQL Driver 42.7.x, Apache Kafka Client 3.7.x, Lettuce Redis Client 6.4.x, OAuth2 Resource Server 6.3.x, Bucket4j Core 8.10.x, OpenAI Java SDK 0.18.x. Đảm bảo descriptor biên dịch thành công qua lệnh mvn validate từ thư mục ./sources/backend/. Khóa cứng mọi giá trị phiên bản trong properties để đảm bảo tính nhất quán giữa các module con.",
+                    "targeted_tags": [
+                        "[ARC-000]"
+                    ],
+                    "components": [
+                        "./sources/backend/pom.xml"
+                    ]
+                },
+                {
+                    "id": "D1_ST2",
+                    "agent": "Coder",
+                    "desc": "Sinh descriptor Maven con tại ./sources/backend/user-service/pom.xml với thẻ parent tham chiếu chính xác groupId, artifactId, version của descriptor cha. Khai báo artifactId=user-service, version=1.0.0, packaging=jar. Phần dependencies bao gồm Spring Boot Starter Web 3.3.5, Spring Boot Starter Data JPA 3.3.5, Spring Boot Starter Security 3.3.5, Spring Boot Starter OAuth2 Resource Server 3.3.5, Spring Boot Starter Validation 3.3.5, Spring Boot Starter Actuator 3.3.5, Flyway Core 10.20.x, Flyway Database PostgreSQL 10.20.x, PostgreSQL Driver 42.7.x, Lombok 1.18.34, Springdoc OpenAPI Starter WebMVC UI 2.6.x. Cấu hình build với spring-boot-maven-plugin 3.3.5 có mainClass trỏ về org.nlh4j.socialscheduler.userservice.UserServiceApplication và flyway-maven-plugin 10.20.x cấu hình url, user, password đọc từ biến môi trường. Đảm bảo biên dịch sạch qua mvn -f ./sources/backend/user-service/pom.xml compile và thực thi nguyên tắc OWASP A06 bằng cách khoá cứng tất cả phiên bản dependency.",
+                    "targeted_tags": [
+                        "[ARC-000]"
+                    ],
+                    "components": [
+                        "./sources/backend/user-service/pom.xml"
+                    ]
+                },
+                {
+                    "id": "D1_ST3",
+                    "agent": "Coder",
+                    "desc": "Sinh descriptor Maven con tại ./sources/backend/schedule-service/pom.xml với parent tham chiếu descriptor cha, artifactId=schedule-service, version=1.0.0, packaging=jar. Phần dependencies thêm Spring Boot Starter Web 3.3.5, Spring Boot Starter Data JPA 3.3.5, Spring Kafka 3.2.x, Spring Data Redis (Lettuce) 3.3.5, Spring Boot Starter Validation 3.3.5, Spring Boot Starter Actuator 3.3.5, Flyway Core 10.20.x, Flyway Database PostgreSQL 10.20.x, PostgreSQL Driver 42.7.x, RestClient (Spring Framework 6.1.x), Springdoc OpenAPI Starter WebMVC UI 2.6.x, Lombok 1.18.34, Resilience4j Spring Boot 3 Starter 2.2.x. Cấu hình build với spring-boot-maven-plugin có mainClass org.nlh4j.socialscheduler.scheduleservice.ScheduleServiceApplication và flyway-maven-plugin 10.20.x. Tích hợp annotation processor của Lombok trong build và cấu hình HikariCP mặc định 50 kết nối qua biến môi trường. Đảm bảo descriptor biên dịch sạch qua mvn -f ./sources/backend/schedule-service/pom.xml compile.",
+                    "targeted_tags": [
+                        "[ARC-000]"
+                    ],
+                    "components": [
+                        "./sources/backend/schedule-service/pom.xml"
+                    ]
+                },
+                {
+                    "id": "D1_ST4",
+                    "agent": "Coder",
+                    "desc": "Sinh descriptor Maven con tại ./sources/backend/ai-service/pom.xml với parent tham chiếu descriptor cha, artifactId=ai-service, version=1.0.0, packaging=jar. Phần dependencies thêm Spring Boot Starter Web 3.3.5, Spring Boot Starter WebFlux 3.3.5 (cho OpenAI WebClient), Spring Boot Starter Data JPA 3.3.5, Spring Boot Starter Validation 3.3.5, Spring Boot Starter Actuator 3.3.5, Flyway Core 10.20.x, Flyway Database PostgreSQL 10.20.x, PostgreSQL Driver 42.7.x, OpenAI Java SDK 0.18.x, Caffeine Cache 3.1.x, Springdoc OpenAPI Starter WebMVC UI 2.6.x, Lombok 1.18.34, Resilience4j Spring Boot 3 Starter 2.2.x. Cấu hình build với spring-boot-maven-plugin có mainClass org.nlh4j.socialscheduler.aiservice.AiServiceApplication và flyway-maven-plugin 10.20.x. Kích hoạt khả năng reactive thông qua việc bao gồm WebFlux starter. Biên dịch sạch qua mvn -f ./sources/backend/ai-service/pom.xml compile.",
+                    "targeted_tags": [
+                        "[ARC-000]"
+                    ],
+                    "components": [
+                        "./sources/backend/ai-service/pom.xml"
+                    ]
+                },
+                {
+                    "id": "D1_ST5",
+                    "agent": "Coder",
+                    "desc": "Sinh descriptor Maven con tại ./sources/backend/rate-limit-service/pom.xml với parent tham chiếu descriptor cha, artifactId=rate-limit-service, version=1.0.0, packaging=jar. Phần dependencies thêm Spring Boot Starter Web 3.3.5, Spring Boot Starter Data Redis (Lettuce) 3.3.5, Spring Boot Starter Validation 3.3.5, Spring Boot Starter Actuator 3.3.5, Flyway Core 10.20.x, Flyway Database PostgreSQL 10.20.x, PostgreSQL Driver 42.7.x, Bucket4j Core 8.10.x, Bucket4j Redis 8.10.x (Lettuce integration), Lombok 1.18.34, Springdoc OpenAPI Starter WebMVC UI 2.6.x. Cấu hình build với spring-boot-maven-plugin có mainClass org.nlh4j.socialscheduler.ratelimitservice.RateLimitServiceApplication và flyway-maven-plugin 10.20.x. Đảm bảo dependency Bucket4j Redis tích hợp chính xác để hỗ trợ giải thuật Token Bucket phân tán. Biên dịch sạch qua mvn -f ./sources/backend/rate-limit-service/pom.xml compile.",
+                    "targeted_tags": [
+                        "[ARC-000]"
+                    ],
+                    "components": [
+                        "./sources/backend/rate-limit-service/pom.xml"
+                    ]
+                },
+                {
+                    "id": "D1_ST6",
+                    "agent": "Tester",
+                    "desc": "Sinh script shell POSIX-compliant tại ./sources/infra/test/maven-build-integration.sh với shebang #!/usr/bin/env bash và cờ set -euo pipefail để dừng ngay khi phát hiện lỗi. Trình tự thực thi gồm: (1) mvn -f ./sources/backend/pom.xml clean validate xác minh cấu trúc POM cha, (2) mvn -f ./sources/backend/pom.xml dependency:resolve kiểm tra khả năng tải dependency từ Maven Central, (3) mvn -f ./sources/backend/user-service/pom.xml compile cho dịch vụ người dùng, (4) mvn -f ./sources/backend/schedule-service/pom.xml compile cho dịch vụ lịch đăng bài, (5) mvn -f ./sources/backend/ai-service/pom.xml compile cho dịch vụ AI/ML, (6) mvn -f ./sources/backend/rate-limit-service/pom.xml compile cho dịch vụ giới hạn tỷ lệ. Mỗi bước ghi log dòng lệnh, phiên bản Maven mvn --version và trạng thái thoát. Trả về mã thoát 0 khi tất cả descriptor biên dịch sạch, mã thoát 1 khi có lỗi. Thực thi chmod +x sau khi tạo tệp và tích hợp báo cáo thời gian bằng time cho mỗi module.",
+                    "targeted_tags": [
+                        "[ARC-000]"
+                    ],
+                    "components": [
+                        "INTEGRATION_SCOPE;./sources/infra/test/maven-build-integration.sh"
+                    ]
+                },
+                {
+                    "id": "D1_ST7",
+                    "agent": "Reviewer",
+                    "desc": "Thực hiện kiểm tra chất lượng toàn bộ descriptor build cha-con đã được tạo tại các tác vụ con 1.1 đến 1.5. Xác minh thẻ parent của mỗi descriptor con trỏ chính xác về groupId, artifactId, version của descriptor cha, đảm bảo không sai lệch namespace. Rà soát dependencyManagement để đảm bảo không khai báo trùng lặp phiên bản Spring Boot, Spring Cloud, Flyway, PostgreSQL Driver. Kiểm tra plugin spring-boot-maven-plugin được khai báo đầy đủ tại tất cả descriptor con với mainClass trỏ chính xác về lớp ứng dụng tương ứng. Xác nhận plugin flyway-maven-plugin được cấu hình đồng nhất tại tất cả module có di trú schema. Phát hiện xung đột version giữa các module và đề xuất chiến lược khắc phục bằng cách khoá version trong properties của descriptor cha. Đối chiếu tất cả mã định danh truy vết [ARC-000] xuất hiện đúng một lần tại mỗi descriptor. Tạo báo cáo review ghi nhận điểm đạt và điểm cần cải thiện.",
+                    "targeted_tags": [
+                        "[ARC-000]"
+                    ],
+                    "components": [
+                        "./sources/backend/pom.xml"
+                    ]
+                },
+                {
+                    "id": "D1_ST8",
+                    "agent": "Doc",
+                    "desc": "Soạn thảo tài liệu Markdown tại ./sources/docs/architecture/MicroservicesOverviewBlueprint.md mô tả sơ đồ kiến trúc Microservices gồm năm dịch vụ user-service, schedule-service, ai-service, rate-limit-service, api-gateway. Tài liệu phải bao gồm sơ đồ Mermaid miêu tả luồng giao tiếp giữa API Gateway và các dịch vụ nội bộ qua Kafka topic social.scheduler.events. Nêu rõ quy ước đặt tên package org.nlh4j.socialscheduler.<service> cho tất cả module Java. Mô tả cơ chế schema-per-tenant trong PostgreSQL với bốn schema user_schema, schedule_schema, ai_schema, rate_limit_schema. Bảng liệt kê ma trận trách nhiệm giữa các dịch vụ và mã định danh truy vết [ARC-000]. Đề cập rõ ràng công nghệ cốt lõi: Spring Boot 3.3.x, Spring Cloud 2023.x, Apache Kafka 3.7.x, Redis 7.x (Lettuce), PostgreSQL 16.x, Flyway 10.x. Tài liệu phải có mục lục, phần giới thiệu, sơ đồ kiến trúc, ma trận dịch vụ và phần tham chiếu.",
+                    "targeted_tags": [
+                        "[ARC-000]"
+                    ],
+                    "components": [
+                        "./sources/docs/architecture/MicroservicesOverviewBlueprint.md",
+                        "./sources/docs/architecture/ENTERPRISE_SYSTEM_ARCHITECTURE_BLUEPRINT.md",
+                        "./sources/docs/architecture/CENTRAL_ENDPOINT_API_CONTRACT_SPECS.md",
+                        "./sources/docs/architecture/CROSS_PLATFORM_INTEGRATED_BUSINESS_FLOWS.md",
+                        "./sources/docs/security/ENTERPRISE_SECURITY_OWASP_COMPLIANCE_MATRIX.md",
+                        "./sources/docs/security/CENTRAL_MONITORING_LOGGING_ARCHITECTURE.md"
+                    ]
+                }
+            ]
+        },
+        {
+            "day": 2,
+            "context_file": ".ai/.plan/.context/phase-1.context.blueprint.md",
+            "context_section": "Ngày 2: Di trú schema cơ sở dữ liệu và tài liệu catalog",
+            "sub_tasks": [
+                {
+                    "id": "D2_ST1",
+                    "agent": "Coder",
+                    "desc": "Sinh script Flyway tại ./sources/backend/user-service/src/main/resources/db/migration/V1__init_users.sql thực thi di trú schema ban đầu cho bảng users. Đầu tiên tạo schema user_schema thông qua CREATE SCHEMA IF NOT EXISTS user_schema. Tạo bảng users với các cột theo đúng thứ tự: user_id UUID NOT NULL, tenant_id VARCHAR(64) NOT NULL, email VARCHAR(255) NOT NULL, password_hash VARCHAR(255) NOT NULL, role VARCHAR(32) NOT NULL, enabled BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP. Khai báo khóa chính pk_users trên cột user_id thông qua CONSTRAINT pk_users PRIMARY KEY (user_id). Khai báo khóa duy nhất uk_users_tenant_email trên cặp cột (tenant_id, email) để đảm bảo email là duy nhất trong phạm vi tenant. Khai báo ràng buộc kiểm tra ck_users_role với tập giá trị cho phép ('ADMIN', 'USER', 'SCHEDULER', 'ANALYST') thông qua CHECK (role IN (...)). Tạo chỉ mục phụ trợ idx_users_tenant trên cột tenant_id để tối ưu truy vấn đa-tenant. Đảm bảo bảng được tạo trong schema user_schema thông qua tiền tố schema trước tên bảng. Tuân thủ nguyên tắc OWASP A03 bằng cách sử dụng kiểu UUID cho khóa chính thay vì SERIAL.",
+                    "targeted_tags": [
+                        "[DAT-001]",
+                        "[DAT-ALL (1 to 3)]"
+                    ],
+                    "components": [
+                        "./sources/backend/user-service/src/main/resources/db/migration/V1__init_users.sql"
+                    ]
+                },
+                {
+                    "id": "D2_ST2",
+                    "agent": "Coder",
+                    "desc": "Sinh script Flyway tại ./sources/backend/schedule-service/src/main/resources/db/migration/V1__init_schedules.sql thực thi di trú schema ban đầu cho bảng schedules. Đầu tiên tạo schema schedule_schema thông qua CREATE SCHEMA IF NOT EXISTS schedule_schema. Tạo bảng schedules với các cột theo đúng thứ tự: schedule_id UUID NOT NULL, user_id UUID NOT NULL, tenant_id VARCHAR(64) NOT NULL, platform VARCHAR(32) NOT NULL, content TEXT NOT NULL, scheduled_time TIMESTAMP NOT NULL, status VARCHAR(16) NOT NULL, actual_sent_time TIMESTAMP, retry_count INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP. Khai báo khóa chính phức hợp pk_schedules trên bộ bốn cột (schedule_id, user_id, platform, scheduled_time). Khai báo khóa ngoại fk_schedules_user tham chiếu cột user_id của schema user_schema.users thông qua FOREIGN KEY (user_id) REFERENCES user_schema.users(user_id). Khai báo ràng buộc kiểm tra ck_schedules_platform với tập giá trị cho phép ('FACEBOOK', 'INSTAGRAM', 'TIKTOK'). Khai báo ràng buộc kiểm tra ck_schedules_status với tập giá trị cho phép ('PENDING', 'SENT', 'FAILED', 'CANCELLED'). Tạo chỉ mục phụ trợ idx_schedules_user_status trên cặp cột (user_id, status) và chỉ mục idx_schedules_tenant_time trên cặp cột (tenant_id, scheduled_time) để tối ưu hiệu năng truy vấn lịch đăng bài theo tenant và theo khoảng thời gian. Tuân thủ nguyên tắc schema-per-tenant và OWASP A01 thông qua cột tenant_id trong mọi câu truy vấn.",
+                    "targeted_tags": [
+                        "[DAT-001]",
+                        "[DAT-ALL (1 to 3)]"
+                    ],
+                    "components": [
+                        "./sources/backend/schedule-service/src/main/resources/db/migration/V1__init_schedules.sql"
+                    ]
+                },
+                {
+                    "id": "D2_ST3",
+                    "agent": "Coder",
+                    "desc": "Sinh script Flyway tại ./sources/backend/ai-service/src/main/resources/db/migration/V1__init_performance_metrics.sql thực thi di trú schema ban đầu cho bảng performance_metrics. Đầu tiên tạo schema ai_schema thông qua CREATE SCHEMA IF NOT EXISTS ai_schema. Tạo bảng performance_metrics với các cột theo đúng thứ tự: performance_id UUID NOT NULL, post_id UUID NOT NULL, tenant_id VARCHAR(64) NOT NULL, likes INTEGER NOT NULL DEFAULT 0, comments INTEGER NOT NULL DEFAULT 0, shares INTEGER NOT NULL DEFAULT 0, collected_at TIMESTAMP NOT NULL. Khai báo khóa chính phức hợp pk_performance trên bộ ba cột (performance_id, post_id, collected_at). Khai báo khóa ngoại fk_performance_schedule tham chiếu cột schedule_id của schema schedule_schema.schedules thông qua FOREIGN KEY (post_id) REFERENCES schedule_schema.schedules(schedule_id). Khai báo ba ràng buộc kiểm tra ck_performance_likes, ck_performance_comments, ck_performance_shares đảm bảo giá trị số nguyên không âm >= 0. Tạo chỉ mục phụ trợ idx_performance_post trên cột post_id để tối ưu truy vấn theo bài đăng. Tuân thủ nguyên tắc OWASP A03 bằng cách sử dụng kiểu UUID cho mọi khóa chính và khóa ngoại.",
+                    "targeted_tags": [
+                        "[DAT-002]",
+                        "[DAT-ALL (1 to 3)]"
+                    ],
+                    "components": [
+                        "./sources/backend/ai-service/src/main/resources/db/migration/V1__init_performance_metrics.sql"
+                    ]
+                },
+                {
+                    "id": "D2_ST4",
+                    "agent": "Coder",
+                    "desc": "Sinh script Flyway tại ./sources/backend/rate-limit-service/src/main/resources/db/migration/V1__init_rate_limits.sql thực thi di trú schema ban đầu cho bảng rate_limits. Đầu tiên tạo schema rate_limit_schema thông qua CREATE SCHEMA IF NOT EXISTS rate_limit_schema. Tạo bảng rate_limits với các cột theo đúng thứ tự: rate_limit_id UUID NOT NULL, user_id UUID NOT NULL, tenant_id VARCHAR(64) NOT NULL, endpoint VARCHAR(255) NOT NULL, request_count INTEGER NOT NULL, window_start TIMESTAMP NOT NULL, window_end TIMESTAMP NOT NULL. Khai báo khóa chính phức hợp pk_rate_limits trên bộ ba cột (rate_limit_id, endpoint, window_start). Khai báo khóa ngoại fk_rate_limits_user tham chiếu cột user_id của schema user_schema.users thông qua FOREIGN KEY (user_id) REFERENCES user_schema.users(user_id). Khai báo ràng buộc kiểm tra ck_rate_limits_endpoint với tập giá trị cho phép ('/api/v1/schedules', '/api/v1/recommendations', '/api/v1/rate-limits', '/api/v1/users') để ngăn chặn ghi log endpoint ngoài whitelist. Khai báo ràng buộc kiểm tra ck_rate_limits_count đảm bảo request_count >= 0. Tạo chỉ mục phụ trợ idx_rate_limits_window trên bộ ba cột (user_id, endpoint, window_start) để tối ưu truy vấn cửa sổ giới hạn tỷ lệ.",
+                    "targeted_tags": [
+                        "[DAT-003]",
+                        "[DAT-ALL (1 to 3)]"
+                    ],
+                    "components": [
+                        "./sources/backend/rate-limit-service/src/main/resources/db/migration/V1__init_rate_limits.sql"
+                    ]
+                },
+                {
+                    "id": "D2_ST5",
+                    "agent": "Tester",
+                    "desc": "Sinh lớp kiểm thử tích hợp tại ./sources/backend/user-service/src/test/java/org/nlh4j/socialscheduler/userservice/UserSchemaMigrationIT.java sử dụng Testcontainers PostgreSQL phiên bản 16-alpine. Lớp kiểm thử phải được đánh dấu annotation @SpringBootTest và @Testcontainers để Spring tự động quản lý vòng đời container. Khai báo container PostgreSQL với phiên bản postgres:16-alpine và cấu hình container với biến môi trường POSTGRES_DB=socialscheduler_test, POSTGRES_USER=test, POSTGRES_PASSWORD=test. Lớp kiểm thử phải trỏ Flyway vào script ./sources/backend/user-service/src/main/resources/db/migration/V1__init_users.sql thông qua annotation @Sql hoặc cấu hình datasource động. Xác minh các bảng users được tạo với đầy đủ cột thông qua câu truy vấn SELECT column_name FROM information_schema.columns WHERE table_schema = 'user_schema' AND table_name = 'users'. Xác minh ràng buộc khóa chính tồn tại thông qua truy vấn information_schema.table_constraints. Xác minh ràng buộc khóa duy nhất uk_users_tenant_email. Xác minh ràng buộc kiểm tra ck_users_role hoạt động đúng bằng cách thử chèn giá trị role = 'INVALID_ROLE' và khẳng định ngoại lệ DataIntegrityViolationException được ném ra. Đảm bảo kiểm thử thất bại khi chèn giá trị role không thuộc tập cho phép.",
+                    "targeted_tags": [
+                        "[DAT-001]",
+                        "[DAT-002]",
+                        "[DAT-003]",
+                        "[DAT-ALL (1 to 3)]"
+                    ],
+                    "components": [
+                        "INTEGRATION_SCOPE;./sources/backend/user-service/src/main/resources/db/migration/V1__init_users.sql;./sources/backend/user-service/src/test/java/org/nlh4j/socialscheduler/userservice/UserSchemaMigrationIT.java"
+                    ]
+                },
+                {
+                    "id": "D2_ST6",
+                    "agent": "Reviewer",
+                    "desc": "Rà soát toàn bộ bốn tệp Flyway DDL đã được sinh ra tại các tác vụ con 2.1 đến 2.4 nhằm đảm bảo tính toàn vẹn tham chiếu giữa các schema. Xác minh ràng buộc khóa ngoại fk_schedules_user tham chiếu chính xác cột user_id của schema user_schema.users. Xác minh ràng buộc khóa ngoại fk_performance_schedule tham chiếu chính xác cột schedule_id của schema schedule_schema.schedules. Xác minh ràng buộc khóa ngoại fk_rate_limits_user tham chiếu chính xác cột user_id của schema user_schema.users. Xác minh mọi cột tenant_id đều có chỉ mục phụ trợ nhằm đảm bảo hiệu năng truy vấn đa tenant. Đánh giá chiến lược schema-per-tenant và đề xuất bổ sung cột tenant_id vào khóa chính phức hợp của bảng schedules và performance_metrics nếu cần thiết. Kiểm tra tính nhất quán của tập giá trị enum trong các ràng buộc CHECK giữa schema và logic nghiệp vụ dự kiến. Rà soát việc sử dụng kiểu UUID cho khóa chính nhằm đảm bảo chống enumeration attack theo OWASP A07. Lập báo cáo review ghi nhận các phát hiện và đề xuất cải tiến.",
+                    "targeted_tags": [
+                        "[DAT-001]",
+                        "[DAT-002]",
+                        "[DAT-003]",
+                        "[DAT-ALL (1 to 3)]"
+                    ],
+                    "components": [
+                        "./sources/backend/schedule-service/src/main/resources/db/migration/V1__init_schedules.sql"
+                    ]
+                },
+                {
+                    "id": "D2_ST7",
+                    "agent": "Doc",
+                    "desc": "Soạn thảo tài liệu Markdown tại ./sources/docs/architecture/DatabaseSchemaCatalog.md mô tả chi tiết bốn bảng dữ liệu cốt lõi users, schedules, performance_metrics, rate_limits. Tài liệu phải chứa bốn bảng Markdown liệt kê cột, kiểu dữ liệu, ràng buộc khóa chính, khóa ngoại, ràng buộc kiểm tra và chỉ mục cho từng bảng. Kèm theo sơ đồ Mermaid ER miêu tả quan hệ giữa users, schedules, performance_metrics và rate_limits thông qua các khóa ngoại đã khai báo. Nêu rõ chiến lược schema-per-tenant: bốn schema user_schema, schedule_schema, ai_schema, rate_limit_schema được cô lập theo bounded context. Mô tả quy trình thực thi di trú Flyway: phiên bản V1__init_<table_name>.sql được áp dụng tự động khi khởi động dịch vụ tương ứng. Tài liệu phải có mục lục, phần giới thiệu, bốn bảng mô tả chi tiết, sơ đồ ER, phần chiến lược schema-per-tenant và phần tham chiếu mã định danh truy vết [DAT-001], [DAT-002], [DAT-003], [DAT-ALL (1 to 3)].",
+                    "targeted_tags": [
+                        "[DAT-001]",
+                        "[DAT-002]",
+                        "[DAT-003]",
+                        "[DAT-ALL (1 to 3)]"
+                    ],
+                    "components": [
+                        "./sources/docs/architecture/DatabaseSchemaCatalog.md",
+                        "./sources/docs/database/PHYSICAL_ERD_RELATIONAL_MAPPING.md",
+                        "./sources/docs/database/ENTERPRISE_DATA_DICTIONARY_SPEC.md",
+                        "./sources/docs/database/DATABASE_MIGRATION_VERSIONING_RUNBOOK.md"
+                    ]
+                }
+            ]
+        }
+    ]
+}

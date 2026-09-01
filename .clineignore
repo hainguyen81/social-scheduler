@@ -1,0 +1,56 @@
+# ==========================================
+# 1. BUILD & COMPILATION OUTPUTS (Token Optimization)
+# ==========================================
+# Exclude compiled classes, binaries, and temporary build artifacts
+**/target/
+**/build/
+**/.gradle/
+**/out/
+**/bin/
+.secrets/
+**/.secrets/**
+secrets/
+**/secrets/**
+sources/.history/
+
+# ==========================================
+# 2. IDE & SYSTEM CONFIGURATIONS
+# ==========================================
+# Exclude editor-specific files to prevent noise
+**/.idea/
+**/.vscode/
+**/*.iml
+**/*.ipr
+**/*.iws
+**/.settings/
+**/.classpath
+**/.project
+**/.factorypath
+
+# ==========================================
+# 3. SECURITY & SENSITIVE DATA
+# ==========================================
+# Protect local secrets, passwords, API keys, and keystores
+**/application-local.properties
+**/application-local.yml
+**/*.env
+**/*.jks
+**/*.p12
+**/*.pem
+
+# ==========================================
+# 4. LOGS & HEAVY ARTIFACTS
+# ==========================================
+# Prevent AI from reading runtime logs and compressed binaries
+**/logs/
+**/*.log
+**/*.jar
+**/*.war
+**/*.zip
+**/*.tar.gz
+
+# ==========================================
+# 5. GENERATED SOURCES (Optional)
+# ==========================================
+# Exclude auto-generated code (e.g., MapStruct, QueryDSL, Lombok)
+**/generated-sources/

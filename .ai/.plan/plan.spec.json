@@ -1,0 +1,28 @@
+{
+    "project_name": "social-scheduler",
+    "requirements": "sources/storage/business-analysis/social-scheduler/requirements.md",
+    "num_phases": 5,
+    "total_days": 11,
+    "phases": [
+        {
+            "phase": 1,
+            "days": 2
+        },
+        {
+            "phase": 2,
+            "days": 2
+        },
+        {
+            "phase": 3,
+            "days": 2
+        },
+        {
+            "phase": 4,
+            "days": 2
+        },
+        {
+            "phase": 5,
+            "days": 3
+        }
+    ]
+}

@@ -1,0 +1,187 @@
+{
+    "phase_id": 4,
+    "phase_name": "Giới hạn tỷ lệ xác thực đầu vào và bộ xử lý ngoại lệ tập trung",
+    "phase_description": "Triển khai hoàn chỉnh tầng bảo vệ chủ động cho hệ thống social-scheduler thông qua xác thực payload nghiêm ngặt bằng Jakarta Validation cho mô-đun lịch đăng bài, tích hợp bộ giới hạn tỷ lệ Redis Token Bucket trả về HTTP 429 khi vượt ngưỡng, đồng thời thiết lập bộ xử lý ngoại lệ tập trung chuẩn hóa mã lỗi và thông điệp phản hồi theo nguyên tắc OWASP A04 và A05",
+    "objectives": "Khởi tạo DTO ScheduleRequestDto với các ràng buộc Jakarta Validation nghiêm ngặt (theo yêu cầu [REQ-003]); xây dựng SchedulePayloadValidator sử dụng ConstraintValidator để thực thi quy tắc nghiệp vụ phức tạp và whitelist domain chống SSRF; triển khai RedisTokenBucketStrategy với Redis Lua script đảm bảo tính nguyên tử; tạo lớp ngoại lệ RateLimitExceededException trả về HTTP 429; triển khai RateLimiterService với caching 1 giây; xây dựng RateLimitController với hai endpoint check và reset (chỉ dành cho Admin); tích hợp RateLimitGatewayFilter tại API Gateway trích xuất userId từ JWT; triển khai GlobalExceptionHandler sử dụng @RestControllerAdvice chuẩn hóa mã lỗi theo nguyên tắc OWASP A04 và A05 kèm timestamp và correlationId cho mỗi phản hồi theo OWASP A09",
+    "project_name": "social-scheduler",
+    "global_context_file": ".ai/.context/social-scheduler.global.blueprint.md",
+    "source_target_dir": "sources/",
+    "days": [
+        {
+            "day": 1,
+            "context_file": ".ai/.plan/.context/phase-4.context.blueprint.md",
+            "context_section": "Khởi tạo Rate Limiter, DTO lịch đăng bài và Bộ xử lý Ngoại lệ Tập trung",
+            "sub_tasks": [
+                {
+                    "id": "D1_ST1",
+                    "agent": "Coder",
+                    "desc": "Tạo lớp ScheduleRequestDto tại ./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/dto/ScheduleRequestDto.java sử dụng Java Record (public record ScheduleRequestDto(...)) với các annotation Jakarta Validation 3.0 nghiêm ngặt. Trường platform (String) annotate @NotBlank(message = \"platform is required\") @Pattern(regexp = \"^(Facebook|Instagram|TikTok)$\", message = \"platform must be one of Facebook, Instagram, TikTok\") để ngăn chặn injection giá trị ngoài whitelist theo [REQ-003]. Trường content (String) annotate @NotBlank(message = \"content cannot be blank\") @Size(min = 1, max = 5000, message = \"content must not exceed 5000 characters\"). Trường scheduledTime (OffsetDateTime) annotate @NotNull(message = \"scheduledTime is required\") @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = \"yyyy-MM-dd'T'HH:mm:ss.SSSXXX\") @Future(message = \"scheduledTime must be in the future\") để đảm bảo thời gian đăng bài luôn ở tương lai [EXC-002]. Trường mediaUrls (List<String>) annotate @Size(max = 10, message = \"mediaUrls must not exceed 10 items\"). Trường tenantId (UUID) annotate @NotNull(message = \"tenantId is required\") để đảm bảo cô lập dữ liệu đa tenant theo [NFR-003]. Áp dụng @Builder (Lombok) và @JsonInclude(JsonInclude.Include.NON_NULL).",
+                    "targeted_tags": [
+                        "[REQ-003]",
+                        "[EXC-002]"
+                    ],
+                    "components": [
+                        "./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/dto/ScheduleRequestDto.java"
+                    ]
+                },
+                {
+                    "id": "D1_ST2",
+                    "agent": "Coder",
+                    "desc": "Tạo ba tệp nguồn tại package validator cho SchedulePayloadValidator: (1) ./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/validator/SchedulePayloadValidator.java đóng vai trò annotation marker @interface ValidSchedulePayload với @Constraint(validatedBy = {}); (2) ./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/validator/SchedulePayloadValidatorImpl.java implements ConstraintValidator<ValidSchedulePayload, ScheduleRequestDto> thực thi quy tắc nghiệp vụ phức tạp. Logic xác thực: kiểm tra scheduledTime không nằm trong khoảng 90 ngày tới (ChronoUnit.DAYS.between(LocalDateTime.now(), request.scheduledTime()) <= 90) theo [REQ-003]; xác thực mediaUrls chỉ chứa URL thuộc whitelist domain cấu hình tĩnh trong application-schedule-service.yml dưới key app.security.media-url-whitelist (mặc định: cdn.socialscheduler.com, s3.socialscheduler.com, storage.googleapis.com/social-scheduler-prod) chống SSRF; xác thực content không chứa pattern nguy hiểm <script>, javascript:, data:text/html thông qua regex whitelist theo OWASP A03; kiểm tra platform và content phù hợp (TikTok không cho phép content vượt quá 2200 ký tự). Phương thức isValid() trả về true nếu tất cả quy tắc thỏa mãn, ngược lại ghi log WARN với correlation ID và ném ConstraintViolationException [EXC-002]. (3) Inject validator vào DTO thông qua annotation @ValidSchedulePayload trên lớp ScheduleRequestDto.",
+                    "targeted_tags": [
+                        "[REQ-003]",
+                        "[EXC-002]"
+                    ],
+                    "components": [
+                        "./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/validator/SchedulePayloadValidator.java",
+                        "./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/validator/SchedulePayloadValidatorImpl.java"
+                    ]
+                },
+                {
+                    "id": "D1_ST3",
+                    "agent": "Coder",
+                    "desc": "Tạo lớp ./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/strategy/RedisTokenBucketStrategy.java đánh dấu @Component và @Slf4j (Lombok). Triển khai interface RateLimitStrategy với phương thức RateLimitResult tryConsume(String userId, String endpoint, int tokens) trả về đối tượng chứa allowed, remainingTokens, retryAfterSeconds. Inject RedisTemplate<String, String> thông qua constructor cấu hình với LettuceConnectionFactory tại RedisConfig. Tải Lua script từ classpath resource ./sources/backend/rate-limit-service/src/main/resources/scripts/token-bucket.lua thông qua DefaultRedisScript<Long> bean. Script Lua đảm bảo tính nguyên tử với logic: (1) Kiểm tra sự tồn tại khóa rate_limit:{userId}:{endpoint}; (2) Nếu chưa tồn tại, khởi tạo bucket với capacity=100, tokens=capacity, lastRefillTimestamp=now; (3) Tính số token cần bổ sung dựa trên refillRate=60 token/phút; (4) Cập nhật tokens = min(capacity, tokens + refillAmount); (5) Nếu tokens >= requestedTokens, trừ token và trả về {1, remainingTokens}; (6) Ngược lại trả về {0, 0} và retryAfterSeconds. Cấu hình @ConfigurationProperties(prefix = \"rate-limit.token-bucket\"): capacity=100, refillRatePerMinute=60, keyPrefix=\"rate_limit:\" [REQ-003]. Khi tryConsume trả về allowed=false, ném RateLimitExceededException kèm retryAfterSeconds [EXC-005]. Bổ sung metric Micrometer rate_limit.tokens.consumed.total và rate_limit.exceeded.total. Sử dụng structured logging với MDC context correlationId, userId, endpoint, tokensRequested, tokensRemaining theo OWASP A09.",
+                    "targeted_tags": [
+                        "[REQ-003]",
+                        "[EXC-005]"
+                    ],
+                    "components": [
+                        "./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/strategy/RedisTokenBucketStrategy.java",
+                        "./sources/backend/rate-limit-service/src/main/resources/scripts/token-bucket.lua"
+                    ]
+                },
+                {
+                    "id": "D1_ST4",
+                    "agent": "Coder",
+                    "desc": "Tạo lớp ./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/exception/RateLimitExceededException.java kế thừa RuntimeException với annotation @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS) để Spring tự động trả về HTTP 429 [EXC-005]. Khai báo các trường private final: userId (UUID), endpoint (String), retryAfterSeconds (long), timestamp (OffsetDateTime). Bổ sung constructor nhận ba tham số userId, endpoint, retryAfterSeconds để khởi tạo giá trị và sinh timestamp = OffsetDateTime.now(). Triển khai các phương thức getter cho bốn trường. Override phương thức getMessage() trả về thông điệp cấu trúc \"Rate limit exceeded for userId={userId} endpoint={endpoint} retryAfterSeconds={retryAfterSeconds}\" bằng MessageFormat hỗ trợ internationalization. Áp dụng @Slf4j ghi log WARN trong constructor với userId, endpoint hỗ trợ giám sát và phát hiện lạm dụng theo OWASP A09. Bổ sung constructor phụ nhận Throwable cause hỗ trợ chaining exception từ Redis client. Đảm bảo lớp ngoại lệ được GlobalExceptionHandler tại schedule-service bắt và chuyển đổi thành ErrorResponse chuẩn với HTTP 429, header Retry-After.",
+                    "targeted_tags": [
+                        "[EXC-005]"
+                    ],
+                    "components": [
+                        "./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/exception/RateLimitExceededException.java"
+                    ]
+                },
+                {
+                    "id": "D1_ST5",
+                    "agent": "Tester",
+                    "desc": "Tạo lớp kiểm thử ./sources/backend/schedule-service/src/test/java/org/nlh4j/socialscheduler/scheduleservice/validator/SchedulePayloadValidatorTest.java sử dụng JUnit 5 kết hợp AssertJ và Jakarta Validation ValidatorFactory (Validation.buildDefaultValidatorFactory()). Sử dụng @ExtendWith(MockitoExtension.class) cho validator layer. Viết các trường hợp kiểm thử: (1) validatePayload_whenAllFieldsValid_thenNoConstraintViolations - khởi tạo ScheduleRequestDto đầy đủ trường hợp lệ, khẳng định validator.validate(payload) trả về danh sách rỗng [REQ-003]; (2) validatePayload_whenPlatformNotInWhitelist_thenConstraintViolation - platform=\"YouTube\", khẳng định có đúng một constraint violation với message chứa \"platform must be one of Facebook, Instagram, TikTok\"; (3) validatePayload_whenContentExceeds5000Characters_thenConstraintViolation - content 5001 ký tự, khẳng định constraint violation với message chứa \"content must not exceed 5000 characters\"; (4) validatePayload_whenScheduledTimeInPast_thenConstraintViolation - scheduledTime = now - 1 hour [EXC-002]; (5) validatePayload_whenScheduledTimeBeyond90Days_thenConstraintViolation - scheduledTime = now + 91 days [REQ-003]; (6) validatePayload_whenMediaUrlOutsideWhitelist_thenConstraintViolation - mediaUrls chứa domain ngoài whitelist; (7) validatePayload_whenContentContainsScriptTag_thenConstraintViolation - content chứa <script>alert('xss')</script> chống XSS theo OWASP A03 [EXC-002]; (8) validatePayload_whenMissingRequiredField_thenConstraintViolation - bỏ trống từng trường @NotNull/@NotBlank. Sử dụng ParameterizedTest với @ValueSource cho platform không hợp lệ. Đảm bảo độ phủ mã nguồn đạt tối thiểu 85%.",
+                    "targeted_tags": [
+                        "[REQ-003]",
+                        "[EXC-002]"
+                    ],
+                    "components": [
+                        "./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/dto/ScheduleRequestDto.java;./sources/backend/schedule-service/src/test/java/org/nlh4j/socialscheduler/scheduleservice/validator/SchedulePayloadValidatorTest.java"
+                    ]
+                }
+            ]
+        },
+        {
+            "day": 2,
+            "context_file": ".ai/.plan/.context/phase-4.context.blueprint.md",
+            "context_section": "Hoàn thiện Service, Controller, Gateway Filter và Tài liệu Hợp đồng OpenAPI",
+            "sub_tasks": [
+                {
+                    "id": "D2_ST1",
+                    "agent": "Coder",
+                    "desc": "Tạo lớp ./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/service/RateLimiterService.java đánh dấu @Service, @Transactional(readOnly = true) và @Slf4j. Inject các dependency thông qua constructor: RedisTokenBucketStrategy tokenBucketStrategy, CaffeineCacheManager cacheManager. Triển khai phương thức chính RateLimitResult checkRateLimit(UUID userId, String endpoint): (Bước 1) Sinh cache key theo định dạng rateLimit:{userId}:{endpoint}; (Bước 2) Kiểm tra cache với TTL 1 giây thông qua @Cacheable(cacheNames = \"rateLimitCache\", key = \"#userId + ':' + #endpoint\", sync = true) [REQ-003]; (Bước 3) Nếu cache miss, gọi tokenBucketStrategy.tryConsume(userId.toString(), endpoint, 1); (Bước 4) Trả về RateLimitResult chứa allowed, remainingTokens, retryAfterSeconds; (Bước 5) Ghi log INFO cho allowed=true và WARN cho allowed=false [EXC-005]. Triển khai phương thức resetLimit(UUID userId, String endpoint) annotated @PreAuthorize(\"hasRole('ADMIN')\") gọi tokenBucketStrategy.reset() và xóa cache entry. Bổ sung metric Micrometer rate_limit.check.duration (timer) và rate_limit.reset.total (counter). Cấu hình Caffeine cache tại RateLimitCacheConfig với expireAfterWrite=1s, maximumSize=50000. Structured logging với MDC context correlationId, userId, endpoint.",
+                    "targeted_tags": [
+                        "[REQ-003]",
+                        "[EXC-005]"
+                    ],
+                    "components": [
+                        "./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/service/RateLimiterService.java"
+                    ]
+                },
+                {
+                    "id": "D2_ST2",
+                    "agent": "Coder",
+                    "desc": "Tạo lớp ./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/controller/RateLimitController.java với annotation @RestController và @RequestMapping(\"/api/v1/rate-limits\"). Triển khai hai endpoint: (1) POST /check (đường dẫn đầy đủ POST /api/v1/rate-limits/check) nhận RateLimitCheckRequestDto annotated @Valid kích hoạt Jakarta Validation, gọi RateLimiterService.checkRateLimit(request.userId(), request.endpoint()) và trả về ResponseEntity<RateLimitCheckResponseDto> với HTTP 200 chứa remainingTokens và retryAfterSeconds [REQ-003]. (2) POST /reset (đường dẫn đầy đủ POST /api/v1/rate-limits/reset) chỉ khả dụng cho vai trò Admin với annotation @PreAuthorize(\"hasRole('ADMIN')\") [EXC-005], nhận RateLimitResetRequestDto chứa userId và endpoint, gọi RateLimiterService.resetLimit() và trả về ResponseEntity<RateLimitResetResponseDto> với success=true và message=\"Giới hạn tỷ lệ đã được đặt lại thành công.\". Bổ sung annotation @Operation và @ApiResponse từ Springdoc OpenAPI. Inject RateLimiterService thông qua constructor. Sử dụng @Slf4j ghi log có cấu trúc với MDC context userId, endpoint, correlationId theo OWASP A09. Đối với endpoint /check, controller xử lý RateLimitExceededException bằng cách để GlobalExceptionHandler tại schedule-service bắt và chuyển đổi thành HTTP 429 với header Retry-After.",
+                    "targeted_tags": [
+                        "[REQ-003]",
+                        "[EXC-005]"
+                    ],
+                    "components": [
+                        "./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/controller/RateLimitController.java"
+                    ]
+                },
+                {
+                    "id": "D2_ST3",
+                    "agent": "Coder",
+                    "desc": "Tạo lớp ./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/filter/RateLimitGatewayFilter.java kế thừa AbstractGatewayFilterFactory<RateLimitGatewayFilter.Config> để can thiệp trước khi yêu cầu đến microservice [REQ-003]. Khai báo lớp static Config chứa các thuộc tính: capacity (mặc định 100), refillRatePerMinute (mặc định 60), enabledEndpoints (danh sách các route áp dụng filter, mặc định /api/v1/schedules/**, /api/v1/recommendations/**, /api/v1/ai/**). Override apply(Config config) trả về GatewayFilter với luồng xử lý: (Bước 1) Kiểm tra path hiện tại có nằm trong config.enabledEndpoints không; (Bước 2) Trích xuất JWT token từ header Authorization: Bearer <token>; (Bước 3) Parse JWT token bằng JwtDecoder lấy claim sub (userId) và tenant_id; (Bước 4) Gọi RateLimiterService.checkRateLimit(userId, requestPath) thông qua WebClient hoặc OpenFeign client với timeout 100ms; (Bước 5) Nếu allowed=false, đặt HTTP status 429, header Retry-After: {retryAfterSeconds}, body JSON chứa errorCode=\"RATE_LIMIT_EXCEEDED\", message, timestamp, correlationId và return; (Bước 6) Ngược lại chain.filter(exchange) [EXC-005]. Bổ sung metric Micrometer gateway.rate_limit.requests.total với tag outcome=allowed|blocked. Đăng ký filter với tên RateLimit trong application-gateway.yml. Đảm bảo filter hoạt động bất đồng bộ (reactive) không chặn event loop.",
+                    "targeted_tags": [
+                        "[REQ-003]",
+                        "[EXC-005]"
+                    ],
+                    "components": [
+                        "./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/filter/RateLimitGatewayFilter.java"
+                    ]
+                },
+                {
+                    "id": "D2_ST4",
+                    "agent": "Coder",
+                    "desc": "Tạo lớp ./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/exception/GlobalExceptionHandler.java đánh dấu @RestControllerAdvice và @Slf4j để bắt tất cả ngoại lệ từ các controller trong schedule-service [EXC-002]. Triển khai bốn phương thức: (1) @ExceptionHandler(MethodArgumentNotValidException.class) trích xuất BindingResult.getFieldErrors() tạo ValidationErrorResponse chứa errorCode=\"VALIDATION_FAILED\", message=\"Dữ liệu đầu vào không hợp lệ. Vui lòng kiểm tra lại các trường được đánh dấu.\", fieldErrors array chứa {field, rejectedValue, errorMessage}, trả về HTTP 400 [EXC-002]. (2) @ExceptionHandler(JwtException.class) trả về ErrorResponse với errorCode=\"TOKEN_EXPIRED\", message=\"Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.\", HTTP 401 [EXC-002]. (3) @ExceptionHandler({SocialPlatformException.class, HttpServerErrorException.class, ResourceAccessException.class}) trả về ErrorResponse với errorCode=\"UPSTREAM_SERVICE_ERROR\", message=\"Dịch vụ bên thứ ba tạm thời không khả dụng. Hệ thống sẽ tự động thử lại.\", HTTP 502, kích hoạt cơ chế thử lại với backoff lũy thừa thông qua @Retry của Resilience4j [EXC-003]. (4) @ExceptionHandler(RateLimitExceededException.class) trả về HTTP 429 với errorCode=\"RATE_LIMIT_EXCEEDED\", message=\"Yêu cầu đã bị từ chối do vượt quá giới hạn tỷ lệ cho phép. Vui lòng thử lại sau {retryAfterSeconds} giây.\", header Retry-After [EXC-005]. Mỗi phản hồi kèm timestamp=OffsetDateTime.now() và correlationId từ MDC context hoặc header X-Correlation-Id theo OWASP A09. Bổ sung @ExceptionHandler(Exception.class) trả về HTTP 500 với errorCode=\"INTERNAL_SERVER_ERROR\" không tiết lộ stack trace theo OWASP A09.",
+                    "targeted_tags": [
+                        "[EXC-002]",
+                        "[EXC-003]",
+                        "[EXC-005]"
+                    ],
+                    "components": [
+                        "./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/exception/GlobalExceptionHandler.java"
+                    ]
+                },
+                {
+                    "id": "D2_ST5",
+                    "agent": "Tester",
+                    "desc": "Tạo lớp kiểm thử ./sources/backend/rate-limit-service/src/test/java/org/nlh4j/socialscheduler/ratelimitservice/strategy/RedisTokenBucketStrategyTest.java sử dụng JUnit 5 kết hợp Testcontainers Redis (org.testcontainers:redis:2.2.x) và @DynamicPropertySource để khởi tạo Redis container thực tế. Sử dụng @SpringBootTest với @Testcontainers và @Container static RedisContainer redis = new RedisContainer(\"redis:7.2-alpine\"). Inject RedisTokenBucketStrategy thông qua @Autowired. Viết các trường hợp kiểm thử: (1) tryConsume_whenBucketIsFull_thenReturnAllowedTrue - bucket 100 token, gọi tryConsume(userId, endpoint, 1), khẳng định result.isAllowed()==true và result.getRemainingTokens()==99; (2) tryConsume_whenBucketIsEmpty_thenThrowRateLimitExceededException - tiêu thụ 100 token liên tiếp, lần 101 ném RateLimitExceededException với retryAfterSeconds [EXC-005]; (3) tryConsume_whenTokensRefilledAfterDelay_thenBucketRestored - Thread.sleep(2000) chờ refill, khẳng định bucket bổ sung 2 token [REQ-003]; (4) tryConsume_concurrentRequests_thenAtomicityPreserved - ExecutorService với 100 luồng đồng thời gọi tryConsume, khẳng định tổng allowed=true không vượt quá capacity=100; (5) tryConsume_differentEndpoints_thenIndependentBuckets - khẳng định bucket quản lý độc lập theo endpoint; (6) tryConsume_multipleTokensAtOnce_thenSubtractCorrectly - tryConsume(userId, endpoint, 5), remainingTokens==95. Sử dụng @BeforeEach flush Redis và khởi tạo RateLimiterConfig. AssertJ cho fluent assertion. Độ phủ mã nguồn đạt tối thiểu 85%.",
+                    "targeted_tags": [
+                        "[REQ-003]",
+                        "[EXC-005]"
+                    ],
+                    "components": [
+                        "./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/strategy/RedisTokenBucketStrategy.java;./sources/backend/rate-limit-service/src/test/java/org/nlh4j/socialscheduler/ratelimitservice/strategy/RedisTokenBucketStrategyTest.java"
+                    ]
+                },
+                {
+                    "id": "D2_ST6",
+                    "agent": "Tester",
+                    "desc": "Tạo lớp kiểm thử ./sources/backend/schedule-service/src/test/java/org/nlh4j/socialscheduler/scheduleservice/exception/GlobalExceptionHandlerIntegrationTest.java sử dụng @WebMvcTest(controllers = ScheduleController.class) kết hợp @MockBean ScheduleService và @Import(GlobalExceptionHandler.class). Inject MockMvc thông qua @Autowired MockMvc mockMvc. Sử dụng ObjectMapper để serialize/deserialize JSON payload. Viết các kịch bản: (1) handleValidationException_whenPayloadInvalid_thenReturn400 - gửi POST request payload thiếu platform, khẳng định HTTP 400, body errorCode=\"VALIDATION_FAILED\", fieldErrors chứa thông tin trường vi phạm, correlationId không null [EXC-002] [REQ-003]; (2) handleTokenExpired_whenJwtInvalid_thenReturn401 - cấu hình @MockBean JwtDecoder ném JwtException, HTTP 401, body errorCode=\"TOKEN_EXPIRED\" [EXC-002]; (3) handleUpstreamError_whenSocialPlatformThrows_thenReturn502 - @MockBean ScheduleService.createSchedule() ném SocialPlatformException, HTTP 502, errorCode=\"UPSTREAM_SERVICE_ERROR\", correlationId không null [EXC-003]; (4) handleRateLimitExceeded_thenReturn429WithRetryAfter - @MockBean RateLimiterService ném RateLimitExceededException(userId, endpoint, 60), HTTP 429, header Retry-After: 60, errorCode=\"RATE_LIMIT_EXCEEDED\" [EXC-005]; (5) handleGenericException_whenUnexpectedError_thenReturn500WithoutStackTrace - RuntimeException(\"Database connection failed\"), HTTP 500, errorCode=\"INTERNAL_SERVER_ERROR\", không tiết lộ stack trace theo OWASP A09. Sử dụng header().string(\"X-Correlation-Id\", notNullValue()) xác minh correlation ID trong response header. Độ phủ mã nguồn đạt tối thiểu 85% cho GlobalExceptionHandler.",
+                    "targeted_tags": [
+                        "[REQ-003]",
+                        "[EXC-002]",
+                        "[EXC-003]",
+                        "[EXC-005]"
+                    ],
+                    "components": [
+                        "INTEGRATION_SCOPE;./sources/backend/schedule-service/src/test/java/org/nlh4j/socialscheduler/scheduleservice/exception/GlobalExceptionHandlerIntegrationTest.java"
+                    ]
+                },
+                {
+                    "id": "D2_ST7",
+                    "agent": "Reviewer",
+                    "desc": "Thực hiện đánh giá chuyên sâu mã nguồn cho toàn bộ tệp Giai đoạn 4: RedisTokenBucketStrategy, RateLimiterService, RateLimitController, ScheduleRequestDto, SchedulePayloadValidator, GlobalExceptionHandler, RateLimitGatewayFilter và RateLimitExceededException [REQ-003]. Kiểm tra OWASP Top 10: (1) A03 (Injection) - RedisTokenBucketStrategy sử dụng Lua script tham số hóa qua KEYS[] và ARGV[], KHÔng có string concatenation cho key construction; SchedulePayloadValidator sử dụng whitelist domain cho mediaUrls thay vì blacklist, chống SSRF. (2) A04 (Insecure Design) - cơ chế defense-in-depth thông qua Rate Limiter làm lớp bảo vệ thứ hai sau JWT, capacity và refillRate đọc từ external config chứ không hardcode [EXC-002]. (3) A05 (Security Misconfiguration) - GlobalExceptionHandler không tiết lộ stack trace, chỉ trả về errorCode và message thân thiện; CORS không cấu hình allowedOrigins=\"*\". (4) Xác minh không có mã thông tin nhạy cảm (API key, JWT signing secret, Redis password) hardcode trong source code, tất cả đọc từ biến môi trường hoặc Secret Manager [NFR-002]. (5) Đánh giá hiệu suất thuật toán Redis Token Bucket dưới tải 1000 request/giây qua JMeter hoặc k6, xác minh p95<5ms cho tryConsume. (6) Kiểm tra SonarQube Quality Gate: trùng lặp dưới 3%, Cyclomatic không vượt quá 10 mỗi phương thức, không có code smell BLOCKER/CRITICAL. Đề xuất bốn cải tiến: (a) Bổ sung distributed tracing với OpenTelemetry; (b) Triển khai circuit breaker cho Redis client sử dụng Resilience4j; (c) Thêm rate limit dashboard trong Grafana; (d) Tách GlobalExceptionHandler thành các lớp chuyên biệt theo bounded context. Ghi nhận vấn đề vào nhật ký review và tạo pull request sửa lỗi nếu phát hiện BLOCKER hoặc CRITICAL theo SonarQube Quality Gate [EXC-003] [EXC-005].",
+                    "targeted_tags": [
+                        "[REQ-003]",
+                        "[EXC-002]",
+                        "[EXC-003]",
+                        "[EXC-005]"
+                    ],
+                    "components": [
+                        "./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/service/RateLimiterService.java"
+                    ]
+                },
+                {
+                    "id": "D2_ST8",
+                    "agent": "Doc",
+                    "desc": "Tạo tệp OpenAPI 3.0 chuẩn YAML tại ./sources/docs/api/ValidationAndRateLimitContract.yaml mô tả đầy đủ hai endpoint POST /api/v1/rate-limits/check, POST /api/v1/rate-limits/reset và bổ sung chi tiết endpoint POST /api/v1/schedules với các ràng buộc validation. Khai báo metadata: openapi: 3.0.3, info: {title: \"Social Scheduler - Validation and Rate Limit API Contract\", version: \"1.0.0\", description: \"Hợp đồng API cho module xác thực đầu vào và giới hạn tỷ lệ\"}. Định nghĩa components.securitySchemes.bearerAuth với type: http, scheme: bearer, bearerFormat: JWT. Khai báo components.schemas: RateLimitCheckRequest (userId UUID required, endpoint string 1-255 required), RateLimitCheckResponse (allowed boolean, remainingTokens integer, retryAfterSeconds long), RateLimitResetRequest (userId UUID, endpoint string), RateLimitResetResponse (success boolean, message string Vietnamese), ScheduleRequestDto (tenantId UUID required, platform string regex ^(Facebook|Instagram|TikTok)$ required, content string 1-5000 required, scheduledTime date-time required future, mediaUrls array of string max 10), ValidationErrorResponse (errorCode string, message string, fieldErrors array of {field, rejectedValue, errorMessage}, timestamp, correlationId), ErrorResponse (errorCode, message, timestamp, correlationId). Định nghĩa paths./api/v1/rate-limits/check.post với phản hồi 200, 401 (TOKEN_EXPIRED), 429 (RATE_LIMIT_EXCEEDED với header Retry-After). Định nghĩa paths./api/v1/rate-limits/reset.post với security bearerAuth yêu cầu role ADMIN, phản hồi 200, 401, 403 (INSUFFICIENT_ROLE). Định nghĩa paths./api/v1/schedules.post với phản hồi 201, 400 (VALIDATION_FAILED), 401, 429. Bổ sung examples cho mỗi trường hợp request và response. Sử dụng $ref tái sử dụng schema. Tích hợp ví dụ cấu hình gateway filter trong info.description hoặc extension field x-gateway-config.",
+                    "targeted_tags": [
+                        "[DOC-001]",
+                        "[REQ-003]"
+                    ],
+                    "components": [
+                        "./sources/docs/api/ValidationAndRateLimitContract.yaml"
+                    ]
+                }
+            ]
+        }
+    ]
+}

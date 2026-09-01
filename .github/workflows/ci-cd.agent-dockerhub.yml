@@ -1,0 +1,162 @@
+# ==============================================================================
+# 🐳 DOCKERHUB SUB-AGENT REMOTE REGISTRY PUBLICATION WORKFLOW
+# ==============================================================================
+# Activated via --release flags to package production components.
+# Authenticates and pushes multi-stage native container packages upstream.
+# ==============================================================================
+
+name: "🐳 Agent Worker: Docker"
+
+on:
+  workflow_call:
+    inputs:
+      phase:
+        description: '🌗 Target Phase indicator passed from master pipeline'
+        required: true
+        type: string
+      day:
+        description: '🗓️ Target operational execution Day number'
+        required: true
+        type: string
+
+# permissions for GitHub Actions READ/WRITE
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+# enviroment
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  LANG: 'C.UTF-8'
+  LC_ALL: 'C.UTF-8'
+
+jobs:
+  execute_dockerhub:
+    name: "🐳 Execute Building and Pushing Docker Image"
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Check whether allow for running workflow
+      - name: 🛡️ Gatekeeper - Validate Administrative Access
+        env:
+          ALLOW_AGENTS: ${{ secrets.ALLOW_AGENTS }}
+        if: ${{ env.ALLOW_AGENTS != 'true' }}
+        run: |
+          echo "❌ Deployment is administratively DISABLED via GitHub Secrets (secrets.ALLOW_AGENTS is not true)."
+          echo "Terminating pipeline execution immediately to protect production infrastructure."
+          exit 1 # Require Admin Rights
+      
+      # Step 1: Clone the active daily isolated feature branch into the runner execution pool
+      - name: "📦 Clone Workspace Branch Assets"
+        uses: actions/checkout@v7
+        with:
+          ref: "features/development-phase-${{ inputs.phase }}-day-${{ inputs.day }}"
+          path: '.'
+          fetch-depth: 0
+          clean: true
+      
+      # Step 1.1: Debug project check-out structure
+      - name: "⚙️ Config $PROJECT_WORKSPACE enviroment after checking out"
+        id: project-workspace
+        run: |
+          CURRENT_PWD=$(pwd)
+          echo "PROJECT_WORKSPACE=$CURRENT_PWD" >> $GITHUB_ENV
+          echo "project_workspace=$CURRENT_PWD" >> $GITHUB_OUTPUT
+          echo "⚙️ >> PROJECT_WORKSPACE: $CURRENT_PWD"
+          
+          # Debug step: Verify files exist physically in the workspace console log before AI execution path starts
+          echo "🐛 [DEBUG] Auditing active workspace files presence (../../):"
+          ls -la ../../
+          echo "🐛 [DEBUG] Auditing active workspace files presence (../):"
+          ls -la ../
+          echo "🐛 [DEBUG] Auditing active workspace files presence (./):"
+          ls -la ./
+          echo "🐛 [DEBUG] Auditing active workspace files presence (membership-hub/):"
+          if [ -d "membership-hub" ]; then ls -la membership-hub/; fi
+          echo "🐛 [DEBUG] Auditing active workspace files presence (.ai/):"
+          if [ -d ".ai" ]; then ls -la .ai/; fi
+      
+      # Step 2: Provision a clean Python 3.10 virtual space to run local container automation scripts
+      - name: "🐍 Provision Python 3.10 Sandboxed Runtime"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      # Step 2.1: Satisfy upstream communication dependencies by executing pip manager installs
+      - name: "🛠️ Install Enterprise Cloud API Connecting Libraries"
+        working-directory: ${{ env.PROJECT_WORKSPACE }}
+        run: |
+          echo "⚡ Upgrading deployment packet management frameworks..."
+          python -m pip install --upgrade pip
+          
+          echo "📦 Securing vendor connection pipelines for generative network systems..."
+          pip install requests google-generativeai openai anthropic
+          
+          # mapping JSON
+          pip install jinja2
+          
+          # to check sql file
+          pip install sqlfluff
+          
+          # to check YAML, YML
+          pip install PyYAML
+          
+          # to check properties
+          pip install jproperties
+
+      # Step 3: Connect to Docker Hub APIs and stream dual multi-stage native compiled application layers
+      - name: "🐳 Trigger Agent Worker: Docker"
+        working-directory: ${{ env.PROJECT_WORKSPACE }}
+        env:
+          # specify root path to load modules
+          PROJECT_WORKSPACE: ${{ env.PROJECT_WORKSPACE }}
+          PYTHONPATH: ${{ env.PROJECT_WORKSPACE }}
+          
+          # specify agents folder path to load by `.libs/project_agents_package_loader.py`
+          AGENTS_PACKAGE_PATH: ${{ env.PROJECT_WORKSPACE }}/.ai
+          
+          # docker secrets
+          DOCKERHUB_SECRETS: ${{ secrets.DOCKERHUB_SECRETS }}
+        run: |
+          echo "🐳 Launching Docker Hub container build and registry publication pipes..."
+          # `_0d_ai._0d_agents._0d_sub_0u_agents.agent_0u_docker` --> `.ai/.agents/.sub_agents/agent_docker.py`
+          python3 .libs/agent_launcher.py _0d_ai._0d_agents._0d_sub_0u_agents.agent_0u_docker --phase "${{ inputs.phase }}" --day "${{ inputs.day }}"
+      
+      # if running stanalone
+      - name: "🚀 Standalone Push - Secure Isolated Code Assets"
+        # conditions in run script
+        shell: bash
+        env:
+          BRANCH_NAME: 'features/development-phase-${{ inputs.phase }}-day-${{ inputs.day }}'
+        run: |
+          echo "🧩 Executing immediate isolated branch push for Coder Agent..."
+          
+          # config GIT
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@://github.com"
+          
+          # add all agent works
+          git add -A
+          
+          # Only commit if there are explicit architectural diff changes detected
+          if git diff --cached --quiet; then
+              echo "⚠️ Operational Notice: No data state changes detected. Skipping repository commit."
+          else
+              echo "📝 Committing system state changes..."
+              git commit -m "feat(standalone): [ AI Docker Agent ] dynamic architecture layer compiled for Phase ${{ inputs.phase }} Day ${{ inputs.day }}" || true
+              
+              # ✅ ENTERPRISE HOTFIX: Pull new changes and rebase to avoid conflicts fast-forward
+              echo "🔄 Checking if remote branch $BRANCH_NAME exists..."
+              if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
+                  echo "🔄 Pulling latest upstream tree from $BRANCH_NAME and executing explicit contextual rebase..."
+                  git pull --rebase -X theirs origin $BRANCH_NAME
+              else
+                  echo "ℹ️ Remote branch $BRANCH_NAME does not exist yet. Skipping rebase."
+              fi
+              
+              echo "📤 Pushing secure data changes upstream to repository branch..."
+              git push origin HEAD:"refs/heads/$BRANCH_NAME"
+              echo "✅ Standalone assets successfully pushed upstream to origin/$BRANCH_NAME"
+          fi

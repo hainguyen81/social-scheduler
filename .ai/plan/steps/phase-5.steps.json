@@ -1,0 +1,214 @@
+{
+    "phase_id": 5,
+    "phase_name": "Triển khai hạ tầng DevOps tài liệu kiến trúc và vận hành hệ thống",
+    "phase_description": "Giai đoạn 5 tập trung hoàn thiện hạ tầng triển khai và đóng gói tài liệu cho hệ thống social-scheduler. Sản phẩm bàn giao gồm container hóa đa giai đoạn cho bốn dịch vụ backend, hạ tầng GCP được mô hình hóa bằng Terraform, manifest Kubernetes cho GKE, tích hợp quan sát hệ thống với Prometheus và Grafana, cùng bộ ba tài liệu kỹ thuật Blueprint, Runbook và CI/CD",
+    "objectives": "Hoàn thiện hạ tầng triển khai (DevOps Infrastructure) và đóng gói tài liệu doanh nghiệp (Enterprise Documentation) cho hệ thống social-scheduler, bao gồm: (1) Container hóa đa giai đoạn cho bốn dịch vụ backend user-service, schedule-service, ai-service, rate-limit-service sử dụng eclipse-temurin:21-jdk-jammy và eclipse-temurin:21-jre-jammy; (2) Khởi tạo hạ tầng GCP bằng Terraform (VPC, Cloud Router, Cloud NAT, GKE Autopilot, Cloud SQL, Memorystore); (3) Tạo manifest Kubernetes cho GKE (Deployment, Service, HPA, Ingress, ConfigMap); (4) Tích hợp Prometheus + Grafana cho Observability; (5) Đóng gói ba tài liệu kỹ thuật SocialSchedulerBlueprint.md, DeploymentRunbook.md và CicdPipeline.md.",
+    "project_name": "social-scheduler",
+    "global_context_file": ".ai/.context/social-scheduler.global.blueprint.md",
+    "source_target_dir": "sources/",
+    "days": [
+        {
+            "day": 1,
+            "context_file": ".ai/.plan/.context/phase-5.context.blueprint.md",
+            "context_section": "Khởi tạo Container hóa đa giai đoạn cho bốn dịch vụ Backend",
+            "sub_tasks": [
+                {
+                    "id": "D1_ST1",
+                    "agent": "Docker",
+                    "desc": "Tạo Dockerfile đa giai đoạn (multi-stage) tại ./sources/infra/docker/user-service/Dockerfile sử dụng syntax docker/dockerfile:1.6. Giai đoạn build sử dụng base image eclipse-temurin:21-jdk-jammy với WORKDIR /build, sao chép ./sources/backend/user-service/pom.xml, mvnw, thư mục .mvn, thực thi ./mvnw -B -ntp -q -f pom.xml dependency:go-offline để tải trước dependencies, sau đó sao chép thư mục src và thực thi ./mvnw -B -ntp -q -DskipTests package để đóng gói JAR. Giai đoạn runtime chuyển sang base image eclipse-temurin:21-jre-jammy nhẹ hơn, tạo nhóm hệ thống appgroup và người dùng appuser (UID 1001) để chạy container không đặc quyền, sao chép file JAR từ giai đoạn build sang /app/app.jar, cấu hình biến môi trường JAVA_OPTS=\"-XX:+UseContainerSupport -XX:MaxRAMPercentage=1.0 -XX:+ExitOnOutOfMemoryError\" và SPRING_PROFILES_ACTIVE=docker, mở cổng EXPOSE 8081, định nghĩa HEALTHCHECK gọi wget -qO- http://127.0.0.1:8081/actuator/health kiểm tra \"status\":\"UP\" với interval 30 giây, timeout 5 giây, start-period 40 giây, retries 3 lần. ENTRYPOINT sử dụng sh -c để truyền biến JAVA_OPTS vào lệnh java -jar. Thẻ [NFR-001] yêu cầu đảm bảo footprint image thấp và độ trễ khởi động dưới 200ms.",
+                    "targeted_tags": [
+                        "[NFR-001]"
+                    ],
+                    "components": [
+                        "./sources/infra/docker/user-service/Dockerfile"
+                    ]
+                },
+                {
+                    "id": "D1_ST2",
+                    "agent": "Docker",
+                    "desc": "Tạo Dockerfile đa giai đoạn tại ./sources/infra/docker/schedule-service/Dockerfile tái sử dụng pattern multi-stage. Giai đoạn build sử dụng eclipse-temurin:21-jdk-jammy với WORKDIR /build, sao chép ./sources/backend/schedule-service/pom.xml, mvnw, .mvn, chạy ./mvnw -B -ntp -q -f pom.xml dependency:go-offline để tải dependencies bao gồm Spring Kafka client và Spring Data Redis (Lettuce), sao chép src và build JAR. Giai đoạn runtime sử dụng eclipse-temurin:21-jre-jammy, tạo appuser (UID 1001) thuộc appgroup, sao chép JAR sang /app/app.jar. Cấu hình biến môi trường JAVA_OPTS=\"-XX:+UseG1GC -XX:MaxRAMPercentage=1.0 -XX:+ExitOnOutOfMemoryError\" để tối ưu G1GC cho thông lượng cao, SPRING_PROFILES_ACTIVE=docker, KAFKA_BOOTSTRAP_SERVERS=kafka:9092, REDIS_HOST=redis. Mở cổng EXPOSE 8082, định nghĩa HEALTHCHECK gọi wget -qO- http://127.0.0.1:8082/actuator/health với cùng tham số interval/timeout/start-period/retries. ENTRYPOINT sử dụng sh -c để truyền JAVA_OPTS. Thẻ [NFR-001] yêu cầu đảm bảo thông lượng trên 1000 request/phút được duy trì khi chạy trong container thông qua tối ưu G1GC.",
+                    "targeted_tags": [
+                        "[NFR-001]"
+                    ],
+                    "components": [
+                        "./sources/infra/docker/schedule-service/Dockerfile"
+                    ]
+                },
+                {
+                    "id": "D1_ST3",
+                    "agent": "Docker",
+                    "desc": "Tạo Dockerfile đa giai đoạn tại ./sources/infra/docker/ai-service/Dockerfile duy trì pattern multi-stage. Giai đoạn build sử dụng eclipse-temurin:21-jdk-jammy với WORKDIR /build, sao chép ./sources/backend/ai-service/pom.xml, mvnw, .mvn, chạy ./mvnw -B -ntp -q -f pom.xml dependency:go-offline để tải OpenAI Java SDK 0.18.x và WebClient, sao chép src và build JAR. Giai đoạn runtime sử dụng eclipse-temurin:21-jre-jammy, tạo appuser (UID 1001) thuộc appgroup, sao chép JAR sang /app/app.jar. Cấu hình biến môi trường JAVA_OPTS=\"--add-opens=java.base/java.lang=ALL-UNNAMED -XX:+UseContainerSupport -XX:MaxRAMPercentage=1.0\" để tránh cảnh báo reflection từ thư viện AI SDK, SPRING_PROFILES_ACTIVE=docker. Biến OPENAI_API_KEY được đọc từ Kubernetes Secret thông qua cơ chế env injection tại thời điểm triển khai. Mở cổng EXPOSE 8083, định nghĩa HEALTHCHECK gọi wget -qO- http://127.0.0.1:8083/actuator/health với cùng tham số. ENTRYPOINT sử dụng sh -c. Thẻ [NFR-001] yêu cầu độ trễ khởi động dưới 200ms và footprint image thấp.",
+                    "targeted_tags": [
+                        "[NFR-001]"
+                    ],
+                    "components": [
+                        "./sources/infra/docker/ai-service/Dockerfile"
+                    ]
+                },
+                {
+                    "id": "D1_ST4",
+                    "agent": "Docker",
+                    "desc": "Tạo Dockerfile đa giai đoạn tại ./sources/infra/docker/rate-limit-service/Dockerfile đóng gói rate-limit-service với pattern multi-stage. Giai đoạn build sử dụng eclipse-temurin:21-jdk-jammy với WORKDIR /build, sao chép ./sources/backend/rate-limit-service/pom.xml, mvnw, .mvn, chạy ./mvnw -B -ntp -q -f pom.xml dependency:go-offline để tải Bucket4j Core 8.x và Bucket4j Redis 8.x, sao chép src và build JAR. Giai đoạn runtime sử dụng eclipse-temurin:21-jre-jammy, tạo appuser (UID 1001) thuộc appgroup, sao chép JAR sang /app/app.jar. Cấu hình biến môi trường JAVA_OPTS=\"-XX:+UseContainerSupport -XX:MaxRAMPercentage=1.0\", SPRING_PROFILES_ACTIVE=docker, REDIS_HOST=redis. Mở cổng EXPOSE 8084, định nghĩa HEALTHCHECK gọi wget -qO- http://127.0.0.1:8084/actuator/health với cùng tham số interval 30 giây, timeout 5 giây, start-period 40 giây, retries 3 lần. Đảm bảo container chạy dưới người dùng không đặc quyền appuser. ENTRYPOINT sử dụng sh -c. Thẻ [NFR-001] yêu cầu duy trì độ trễ dưới 200ms khi xử lý giới hạn tỷ lệ.",
+                    "targeted_tags": [
+                        "[NFR-001]"
+                    ],
+                    "components": [
+                        "./sources/infra/docker/rate-limit-service/Dockerfile"
+                    ]
+                }
+            ]
+        },
+        {
+            "day": 2,
+            "context_file": ".ai/.plan/.context/phase-5.context.blueprint.md",
+            "context_section": "Khởi tạo hạ tầng GCP bằng Terraform và Manifest Kubernetes cho GKE",
+            "sub_tasks": [
+                {
+                    "id": "D2_ST1",
+                    "agent": "GCP",
+                    "desc": "Khởi tạo module Terraform root cho hạ tầng social-scheduler trong vùng asia-southeast1. Khai báo khối terraform { required_version = \">= 1.6.0\" } và required_providers cho google (version ~> 5.10) và google-beta (version ~> 5.10). Cấu hình backend gcs tại bucket socialscheduler-tfstate với prefix terraform/state để lưu trữ state file an toàn. Khai báo provider \"google\" với project = var.project_id và region = var.region. Định nghĩa biến project_id (mặc định social-scheduler-prod), region (mặc định asia-southeast1), cluster_name (mặc định socialscheduler-gke). Import bốn module con: module \"vpc\" từ ./vpc.tf, module \"gke\" từ ./gke.tf, module \"cloudsql\" từ ./cloudsql.tf, module \"memorystore\" từ ./memorystore.tf. Khai báo ba output: gke_endpoint từ module.gke.endpoint, redis_host từ module.memorystore.host, db_instance từ module.cloudsql.connection_name. Thẻ [NFR-002] yêu cầu bảo mật theo chuẩn OWASP và mã hóa dữ liệu nhạy cảm; thẻ [NFR-003] yêu cầu cô lập đa tenant và khả năng mở rộng ngang.",
+                    "targeted_tags": [
+                        "[NFR-002]",
+                        "[NFR-003]"
+                    ],
+                    "components": [
+                        "./sources/infra/terraform/gcp/main.tf"
+                    ]
+                },
+                {
+                    "id": "D2_ST2",
+                    "agent": "GCP",
+                    "desc": "Tạo ./sources/infra/terraform/gcp/vpc.tf định nghĩa custom VPC với tài nguyên google_compute_network \"socialscheduler_vpc\" (name socialscheduler-vpc, auto_create_subnetworks = false, routing_mode = \"REGIONAL\"). Tạo subnet google_compute_subnetwork \"gke_subnet\" (name socialscheduler-gke-subnet, region var.region, ip_cidr_range = \"10.10.1.0/24\", network trỏ về VPC) với hai secondary IP ranges: gke-pods (CIDR 10.20.0.0/16) cho pods và gke-services (CIDR 10.30.0.0/20) cho services. Cấu hình google_compute_router \"router\" (name socialscheduler-router, region var.region, network trỏ về VPC) và google_compute_router_nat \"nat\" (name socialscheduler-nat, router trỏ về socialscheduler-router, region var.region, nat_ip_allocate_option = \"AUTO_ONLY\", source_subnetwork_ip_ranges_to_nat = \"ALL_SUBNETWORKS_ALL_IP_RANGES\") để cung cấp egress an toàn. Tạo hai firewall rules: google_compute_firewall \"allow_internal\" cho phép TCP port 0-65535 từ CIDR 10.10.0.0/16 và google_compute_firewall \"allow_https\" cho phép TCP port 80, 443 từ 0.0.0.0/0 với target tag https-server. Thẻ [NFR-002] yêu cầu giới hạn CORS và phát hiện DDoS; thẻ [NFR-003] yêu cầu dự phòng cao.",
+                    "targeted_tags": [
+                        "[NFR-002]",
+                        "[NFR-003]"
+                    ],
+                    "components": [
+                        "./sources/infra/terraform/gcp/vpc.tf"
+                    ]
+                },
+                {
+                    "id": "D2_ST3",
+                    "agent": "GCP",
+                    "desc": "Tạo ./sources/infra/terraform/gcp/gke.tf cấu hình GKE Autopilot cluster thông qua tài nguyên google_container_cluster \"socialscheduler_gke\" với name = var.cluster_name, location = var.region, enable_autopilot = true, network trỏ về google_compute_network.socialscheduler_vpc.id, subnetwork trỏ về google_compute_subnetwork.gke_subnet.id. Cấu hình ip_allocation_policy với cluster_secondary_range_name = \"gke-pods\" và services_secondary_range_name = \"gke-services\". Bật workload_identity_config với workload_pool = \"${var.project_id}.svc.id.goog\". Bật binary_authorization với evaluation_mode = \"PROJECT_SINGLETON_POLICY_ENFORCE\" để thực thi chính sách bảo mật hình ảnh. Định nghĩa maintenance_policy với recurring_window (start_time = \"2026-09-01T02:00:00Z\", end_time = \"2026-09-01T06:00:00Z\", recurrence = \"FREQ=WEEKLY;BYDAY=SA,SU\"). Cấu hình release_channel với channel = \"REGULAR\". Tạo Service Account google_service_account \"gke_sa\" (account_id socialscheduler-gke-sa, display_name Social Scheduler GKE Service Account) và google_project_iam_member \"gke_sa_roles\" với for_each = toset([\"roles/logging.logWriter\", \"roles/monitoring.metricWriter\", \"roles/cloudsql.client\", \"roles/redis.editor\"]). Thẻ [NFR-002] yêu cầu che giấu dữ liệu nhạy cảm, [NFR-003] yêu cầu mở rộng theo chiều ngang.",
+                    "targeted_tags": [
+                        "[NFR-002]",
+                        "[NFR-003]"
+                    ],
+                    "components": [
+                        "./sources/infra/terraform/gcp/gke.tf"
+                    ]
+                },
+                {
+                    "id": "D2_ST4",
+                    "agent": "GKE",
+                    "desc": "Tạo ./sources/infra/kubernetes/socialscheduler/base/deployment.yaml định nghĩa Deployment cho schedule-service chạy 3 bản sao (replicas: 3) với strategy.type = RollingUpdate, rollingUpdate.maxSurge = 1, rollingUpdate.maxUnavailable = 0 để đảm bảo zero-downtime deployment. Sử dụng selector.matchLabels.app = schedule-service. Template metadata chứa labels app=schedule-service, version=1.0.0, track=stable và annotations prometheus.io/scrape: \"true\", prometheus.io/path: \"/actuator/prometheus\", prometheus.io/port: \"8082\" để Prometheus scrape metrics. Spec chứa serviceAccountName: socialscheduler-ksa, automountServiceAccountToken: false. Container schedule-service sử dụng image asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/schedule-service:1.0.0, imagePullPolicy: Always, port 8082 tên http. Cấu hình envFrom tham chiếu configMapRef: schedule-service-config và secretRef: schedule-service-secrets. Resources: requests: {cpu: \"250m\", memory: \"512Mi\"}, limits: {cpu: \"500m\", memory: \"768Mi\"}. Probes: readinessProbe.httpGet.path: /actuator/health/readiness (initialDelaySeconds: 20, periodSeconds: 10, failureThreshold: 3), livenessProbe.httpGet.path: /actuator/health/liveness (initialDelaySeconds: 60, periodSeconds: 20, failureThreshold: 3). Thẻ [NFR-003] yêu cầu mở rộng ngang tự động và sẵn sàng cao.",
+                    "targeted_tags": [
+                        "[NFR-003]"
+                    ],
+                    "components": [
+                        "./sources/infra/kubernetes/socialscheduler/base/deployment.yaml"
+                    ]
+                },
+                {
+                    "id": "D2_ST5",
+                    "agent": "GKE",
+                    "desc": "Tạo ./sources/infra/kubernetes/socialscheduler/base/service.yaml khai báo ba tài nguyên Kubernetes. Service schedule-service (namespace socialscheduler, type: ClusterIP, selector.app: schedule-service) mở port 80 forward đến targetPort: 8082 protocol TCP tên http. HorizontalPodAutoscaler schedule-service-hpa (namespace socialscheduler, scaleTargetRef: apiVersion: apps/v1, kind: Deployment, name: schedule-service) cấu hình minReplicas: 3, maxReplicas: 20, metrics gồm hai Resource targets: CPU averageUtilization: 60 và memory averageUtilization: 70. Ingress schedule-service-ingress (namespace socialscheduler) sử dụng ingressClassName: nginx với annotations nginx.ingress.kubernetes.io/rewrite-target: / và nginx.ingress.kubernetes.io/proxy-body-size: \"8m\". Cấu hình TLS với secretName: socialscheduler-tls cho host api.socialscheduler.local. Rules định nghĩa path /api/v1/schedules với pathType: Prefix trỏ về backend service schedule-service port 80. Thẻ [NFR-003] yêu cầu khả năng mở rộng theo chiều ngang.",
+                    "targeted_tags": [
+                        "[NFR-003]"
+                    ],
+                    "components": [
+                        "./sources/infra/kubernetes/socialscheduler/base/service.yaml",
+                        "./sources/infra/kubernetes/socialscheduler/base/hpa.yaml",
+                        "./sources/infra/kubernetes/socialscheduler/base/ingress.yaml"
+                    ]
+                },
+                {
+                    "id": "D2_ST6",
+                    "agent": "GKE",
+                    "desc": "Tạo ./sources/infra/kubernetes/socialscheduler/base/configmap.yaml khai báo hai tài nguyên Kubernetes. ConfigMap schedule-service-config (namespace socialscheduler) chứa các khóa cấu hình: SPRING_PROFILES_ACTIVE: \"docker\", KAFKA_BOOTSTRAP_SERVERS: \"kafka.kafka.svc.cluster.local:9092\", REDIS_HOST: \"redis-master.redis.svc.cluster.local\", REDIS_PORT: \"6379\", APP_TENANT_HEADER: \"X-Tenant-Id\", LOG_LEVEL_ROOT: \"INFO\". Secret schedule-service-secrets (namespace socialscheduler, type: Opaque) sử dụng stringData chứa các khóa nhạy cảm: JWT_SIGNING_KEY: \"REPLACE_WITH_BASE64_256BIT_KEY\", OAUTH2_ISSUER_URI: \"https://auth.socialscheduler.local\", FACEBOOK_APP_SECRET: \"REPLACE_WITH_FB_SECRET\", INSTAGRAM_APP_SECRET: \"REPLACE_WITH_IG_SECRET\", TIKTOK_CLIENT_SECRET: \"REPLACE_WITH_TIKTOK_SECRET\". Lưu ý các giá trị mẫu cần được thay thế bằng giá trị thực tế từ Secret Manager khi triển khai production. Thẻ [NFR-003] yêu cầu cấu hình đa tenant thông qua header.",
+                    "targeted_tags": [
+                        "[NFR-003]"
+                    ],
+                    "components": [
+                        "./sources/infra/kubernetes/socialscheduler/base/configmap.yaml"
+                    ]
+                },
+                {
+                    "id": "D2_ST7",
+                    "agent": "GCP",
+                    "desc": "Tạo ./sources/infra/observability/prometheus.yaml định nghĩa ConfigMap prometheus-config (namespace observability) chứa cấu hình Prometheus tại khóa prometheus.yml. Cấu hình global: scrape_interval: 15s, evaluation_interval: 15s. Định nghĩa scrape job socialscheduler-services sử dụng kubernetes_sd_configs với role: pod. Áp dụng bốn relabel_configs: (1) giữ các pod có annotation prometheus.io/scrape=true (action keep, regex true); (2) giữ các pod thuộc namespace socialscheduler (action keep, regex socialscheduler); (3) thay thế __address__ bằng giá trị annotation prometheus.io/port (action replace, regex ([^:]+)(?::\\d+)?, replacement ${1}); (4) gán label service từ pod label app (target_label: service). Thẻ [NFR-001] yêu cầu đảm bảo độ trễ dưới 200ms được theo dõi liên tục.",
+                    "targeted_tags": [
+                        "[NFR-001]"
+                    ],
+                    "components": [
+                        "./sources/infra/observability/prometheus.yaml"
+                    ]
+                },
+                {
+                    "id": "D2_ST8",
+                    "agent": "GCP",
+                    "desc": "Tạo ./sources/infra/observability/grafana-dashboard.json định nghĩa dashboard Grafana chuẩn 10.x với ba panel chính. Panel 1 (timeseries) HTTP Request Latency P95 (ms) sử dụng Prometheus expression histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{namespace=\"socialscheduler\"}[5m]))) với legendFormat: {{service}}, datasource prometheus, unit ms, thresholds xanh cho giá trị dưới 200 và đỏ cho giá trị trên 200. Panel 2 (stat) Rate Limited Requests (HTTP 429) sử dụng expression sum(rate(http_server_requests_seconds_count{namespace=\"socialscheduler\", status=\"429\"}[5m])). Panel 3 (timeseries) CPU Usage per Pod sử dụng expression sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"socialscheduler\"}[5m])) với legendFormat: {{pod}}. Dashboard metadata: schemaVersion: 39, tags: [\"socialscheduler\", \"observability\"], timezone: browser, editable: true, title: \"Social Scheduler - Service Overview\". Thẻ [NFR-001] yêu cầu trực quan hóa hiệu năng liên tục.",
+                    "targeted_tags": [
+                        "[NFR-001]"
+                    ],
+                    "components": [
+                        "./sources/infra/observability/grafana-dashboard.json"
+                    ]
+                }
+            ]
+        },
+        {
+            "day": 3,
+            "context_file": ".ai/.plan/.context/phase-5.context.blueprint.md",
+            "context_section": "NGÀY 3: Đóng gói bộ Tài liệu Kiến trúc Runbook Vận hành và Quy trình CI/CD",
+            "sub_tasks": [
+                {
+                    "id": "D3_ST1",
+                    "agent": "Doc",
+                    "desc": "Soạn thảo tài liệu Markdown tại ./sources/docs/architecture/SocialSchedulerBlueprint.md trình bày kiến trúc microservices của social-scheduler. Tài liệu phải bao gồm mục lục và sáu phần nội dung chính. Phần 1 trình bày sơ đồ ngữ cảnh (System Context) sử dụng sơ đồ Mermaid flowchart LR miêu tả User và Admin truy cập API Gateway, Gateway định tuyến đến bốn dịch vụ user-service, schedule-service, ai-service, rate-limit-service, schedule-service publish sự kiện vào Kafka topic schedule.events, ai-service tiêu thụ sự kiện từ Kafka, rate-limit-service sử dụng Redis Token Bucket, schedule-service kết nối Facebook Graph API, Instagram Graph API và TikTok Open API, ai-service gọi OpenAI Completion API, các dịch vụ lưu trữ dữ liệu trong Cloud SQL Postgres. Phần 2 trình bày sơ đồ container (Container Diagram) chi tiết các thành phần kỹ thuật bên trong mỗi microservice. Phần 3 trình bày sơ đồ thành phần (Component Diagram) cho schedule-service. Phần 4 trình bày hai sơ đồ tuần tự: luồng lập lịch đăng bài (User → Gateway → ScheduleService → Kafka → IntegrationService → SocialPlatform) và luồng đề xuất AI (User → Gateway → AIService → OpenAI). Phần 5 trình bày ma trận RBAC ánh xạ bốn vai trò [ARC-001] Admin, [ARC-002] User, [ARC-003] Scheduler, [ARC-004] Analyst sang quyền hạn cụ thể. Phần 6 trình bày chính sách bảo mật [ARC-006] tuân thủ OWASP Top 10 và chỉ tiêu hiệu năng [NFR-001], [NFR-002], [NFR-003]. Bảng cuối tài liệu ánh xạ các Tag ID [DAT-001], [DAT-002], [DAT-003] sang bảng dữ liệu tương ứng.",
+                    "targeted_tags": [
+                        "[DOC-001]"
+                    ],
+                    "components": [
+                        "./sources/docs/architecture/SocialSchedulerBlueprint.md"
+                    ]
+                },
+                {
+                    "id": "D3_ST2",
+                    "agent": "Doc",
+                    "desc": "Soạn thảo runbook vận hành tại ./sources/docs/operations/DeploymentRunbook.md cho môi trường production GCP. Tài liệu gồm bốn phần chính. Phần 1 trình bày điều kiện tiên quyết: cài đặt công cụ gcloud CLI phiên bản 450.0.0 trở lên, kubectl phiên bản 1.28 trở lên, terraform phiên bản 1.6.0 trở lên, quyền truy cập IAM với các role roles/owner, roles/container.admin, roles/cloudsql.admin. Phần 2 trình bày quy trình triển khai hạ tầng [NFR-002]: chạy gcloud auth login, cd ./sources/infra/terraform/gcp, terraform init (khởi tạo backend GCS), terraform plan -out=tfplan (xem trước thay đổi), terraform apply tfplan (triển khai VPC, GKE, Cloud SQL, Memorystore). Phần 3 trình bày quy trình triển khai ứng dụng [NFR-003]: cấu hình kubeconfig với gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1, tạo namespace kubectl create namespace socialscheduler, áp dụng manifest kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/prod, kiểm tra trạng thái kubectl rollout status deployment/schedule-service -n socialscheduler. Phần 4 trình bày quy trình rollback bằng kubectl rollout undo deployment/schedule-service -n socialscheduler và danh sách kiểm tra sau triển khai gồm smoke test endpoint /actuator/health, kiểm tra metrics Prometheus qua GET /api/v1/query?query=up, kiểm tra dashboard Grafana. Cuối tài liệu liệt kê các câu lệnh khẩn cấp khi gặp sự cố HTTP 429 tràn ngập (tăng bucket capacity), khi job Kafka lỗi (kiểm tra consumer group lag), khi Cloud SQL vượt dung lượng (mở rộng instance).",
+                    "targeted_tags": [
+                        "[DOC-001]"
+                    ],
+                    "components": [
+                        "./sources/docs/operations/DeploymentRunbook.md"
+                    ]
+                },
+                {
+                    "id": "D3_ST3",
+                    "agent": "Doc",
+                    "desc": "Tạo ./sources/docs/operations/CicdPipeline.md mô tả chi tiết pipeline GitHub Actions gồm chín giai đoạn tuần tự. Giai đoạn 1 lint chạy Checkstyle và SpotBugs trên mã nguồn Java, ESLint trên mã nguồn TypeScript. Giai đoạn 2 unit-test chạy JUnit 5 và Mockito cho backend services, Jest cho frontend. Giai đoạn 3 integration-test chạy Testcontainers với PostgreSQL, Redis, Kafka container thực tế. Giai đoạn 4 build-image xây dựng Docker image đa giai đoạn cho bốn dịch vụ. Giai đoạn 5 push-image đẩy image lên Google Artifact Registry tại asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/. Giai đoạn 6 deploy-staging áp dụng manifest Kubernetes cho môi trường staging. Giai đoạn 7 smoke-test gọi các endpoint /actuator/health và kiểm tra metrics. Giai đoạn 8 approval yêu cầu approval gate từ Technical Lead thông qua GitHub Environments. Giai đoạn 9 deploy-prod triển khai production với rolling update strategy. Tài liệu ghi rõ biến bí mật cần cấu hình trong GitHub Secrets: GCP_SA_KEY (service account key JSON), ARTIFACT_REGISTRY (path registry), KUBECONFIG_PROD (kubeconfig base64 encoded). Phần cuối trình bày chiến lược Git Flow với các nhánh main, develop, feature/*, release/*, hotfix/* và quy ước Conventional Commits (ví dụ feat(scheduler): add schedule validation). Tích hợp sơ đồ Mermaid flowchart TD minh họa chín giai đoạn trên.",
+                    "targeted_tags": [
+                        "[DOC-001]"
+                    ],
+                    "components": [
+                        "./sources/docs/operations/CicdPipeline.md"
+                    ]
+                },
+                {
+                    "id": "D3_ST4",
+                    "agent": "Doc",
+                    "desc": "Tạo ./sources/docs/architecture/SecurityComplianceMatrix.md trình bày ma trận tuân thủ ánh xạ từng yêu cầu OWASP Top 10 sang biện pháp giảm thiểu cụ thể trong hệ thống social-scheduler. Tài liệu gồm bảy mục ánh xạ chính. Mục A01 (Broken Access Control) ánh xạ sang cơ chế RBAC bốn vai trò [ARC-001] Admin, [ARC-002] User, [ARC-003] Scheduler, [ARC-004] Analyst được thực thi bởi Spring Security và API Gateway. Mục A02 (Cryptographic Failures) ánh xạ sang mã hóa TLS 1.3 đầu cuối, JWT với thuật toán RS256, key rotation mỗi 90 ngày theo [NFR-002]. Mục A03 (Injection) ánh xạ sang sử dụng JPA Parameter Binding thông qua Hibernate PreparedStatement, whitelist domain cho mediaUrls, HTML Sanitizer cho nội dung bài đăng. Mục A04 (Insecure Design) ánh xạ sang cơ chế Rate Limiter với Redis Token Bucket theo [REQ-003], defense-in-depth thông qua Rate Limit Gateway Filter. Mục A05 (Security Misconfiguration) ánh xạ sang CORS Whitelist không sử dụng wildcard *, security headers nghiêm ngặt Content-Security-Policy, X-Content-Type-Options: nosniff, Strict-Transport-Security. Mục A07 (Identification and Authentication Failures) ánh xạ sang OAuth2 Resource Server với JWT Decoder, xử lý token hết hạn trả về HTTP 401. Mục A09 (Logging Failures) ánh xạ sang tích hợp Prometheus + Grafana, structured logging với correlation ID, LogScrubbingInterceptor tự động che giấu PII.",
+                    "targeted_tags": [
+                        "[DOC-001]",
+                        "[NFR-002]"
+                    ],
+                    "components": [
+                        "./sources/docs/architecture/SecurityComplianceMatrix.md"
+                    ]
+                }
+            ]
+        }
+    ]
+}
