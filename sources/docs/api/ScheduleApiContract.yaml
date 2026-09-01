@@ -1,0 +1,453 @@
+```yaml
+# [REQ-001] [ARC-005]
+openapi: 3.0.3
+info:
+  title: Social Scheduler - Schedule API Contract
+  version: 1.0.0
+  description: Enterprise OpenAPI 3.0.3 specification for multi-platform social media post scheduling, governing endpoints for Facebook, Instagram, and TikTok integration within the social-scheduler ecosystem under package org.nlh4j.socialscheduler.
+  contact:
+    name: Enterprise System Architecture Team
+    email: architecture@nlh4j.org
+servers:
+  - url: https://api.socialscheduler.local/api/v1
+    description: Production Enterprise API Gateway Cluster
+  - url: https://staging-api.socialscheduler.local/api/v1
+    description: Staging Environment Gateway Cluster
+
+paths:
+  /schedules:
+    post:
+      summary: Create a new publishing schedule
+      description: Ingests a new social media post scheduling request, validates payload constraints, checks rate limits via Redis Token Bucket, and publishes a schedule.created event to Apache Kafka.
+      operationId: createSchedule
+      tags:
+        - Schedules
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          description: Tenant isolation identifier for multi-tenancy schema routing [DAT-001]
+          schema:
+            type: string
+            example: "tenant_enterprise_01"
+      requestBody:
+        required: true
+        description: Schedule creation payload containing platform, content, and scheduled time.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleRequest'
+            examples:
+              validFacebookPost:
+                summary: Valid Facebook Scheduling Example
+                value:
+                  platform: "Facebook"
+                  content: "Announcing our new enterprise cloud release! #Tech #Cloud"
+                  scheduledTime: "2026-09-01T10:30:00Z"
+                  mediaUrls:
+                    - "https://cdn.socialscheduler.local/media/tenant_01/banner.png"
+      responses:
+        '201':
+          description: Schedule successfully created with status PENDING [REQ-001]
+          headers:
+            Location:
+              description: URI of the newly created schedule resource
+              schema:
+                type: string
+                example: "/api/v1/schedules/uuid-v4-identifier"
+            X-Trace-Id:
+              description: Distributed tracing correlation ID
+              schema:
+                type: string
+                example: "trace-987654321"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleResponse'
+              examples:
+                createdResponse:
+                  summary: Successful Creation Response
+                  value:
+                    scheduleId: "a1b2c3d4-e5f6-7890-abcd-ef0123456789"
+                    userId: "f9e8d7c6-b5a4-3210-fedc-ba9876543210"
+                    tenantId: "tenant_enterprise_01"
+                    platform: "Facebook"
+                    content: "Announcing our new enterprise cloud release! #Tech #Cloud"
+                    scheduledTime: "2026-09-01T10:30:00Z"
+                    status: "PENDING"
+                    retryCount: 0
+                    createdAt: "2026-08-31T15:13:55Z"
+        '400':
+          description: Validation Failed - Invalid request body or malformed parameters [EXC-002]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Unauthorized - Token expired or invalid signature [EXC-002]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                tokenExpired:
+                  summary: Token Expired Example
+                  value:
+                    errorCode: "TOKEN_EXPIRED"
+                    message: "The provided JWT bearer token has expired. Please re-authenticate."
+                    timestamp: "2026-08-31T15:13:55Z"
+                    traceId: "trace-12345"
+        '403':
+          description: Forbidden - Insufficient role permissions [ARC-001]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                example:
+                  errorCode: "INSUFFICIENT_ROLE"
+                  message: "User lacks the required role (SCHEDULER or ADMIN) to execute this action."
+                  timestamp: "2026-08-31T15:13:55Z"
+                  traceId: "trace-12345"
+        '429':
+          description: Too Many Requests - Rate limit exceeded [EXC-005]
+          headers:
+            Retry-After:
+              description: Number of seconds to wait before making a new request
+              schema:
+                type: integer
+                example: 60
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                example:
+                  errorCode: "RATE_LIMIT_EXCEEDED"
+                  message: "Rate limit exceeded for endpoint /api/v1/schedules. Try again in 60 seconds."
+                  timestamp: "2026-08-31T15:13:55Z"
+                  traceId: "trace-12345"
+        '500':
+          description: Internal Server Error - Upstream database or Kafka broker failure [EXC-001]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /schedules/{scheduleId}:
+    get:
+      summary: Retrieve schedule details by identifier
+      description: Fetches a single schedule record belonging to the authenticated tenant and user.
+      operationId: getScheduleById
+      tags:
+        - Schedules
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: scheduleId
+          in: path
+          required: true
+          description: Unique UUID of the schedule resource
+          schema:
+            type: string
+            format: uuid
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved schedule record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleResponse'
+        '401':
+          description: Unauthorized [EXC-002]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden [ARC-001]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Schedule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Cancel and delete an existing schedule
+      description: Soft or hard deletes a pending schedule record. If already SENT, cancellation is rejected.
+      operationId: deleteSchedule
+      tags:
+        - Schedules
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: scheduleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Schedule successfully cancelled and deleted
+        '401':
+          description: Unauthorized [EXC-002]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden [ARC-001]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Schedule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /schedules/{scheduleId}/status:
+    put:
+      summary: Update status of an existing schedule
+      description: Transitions a schedule status between PENDING, SENT, FAILED, and CANCELLED, typically invoked by worker dispatcher or integration adapters.
+      operationId: updateScheduleStatus
+      tags:
+        - Schedules
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: scheduleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [PENDING, SENT, FAILED, CANCELLED]
+                  example: "SENT"
+      responses:
+        '200':
+          description: Status successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleResponse'
+        '400':
+          description: Validation Failed - Invalid status transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Unauthorized [EXC-002]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden [ARC-001]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Schedule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter JWT Bearer token issued by auth-service. Mapped to Spring Security OAuth2 Resource Server.
+
+  schemas:
+    ScheduleRequest:
+      type: object
+      required:
+        - platform
+        - content
+        - scheduledTime
+      properties:
+        platform:
+          type: string
+          pattern: '^(Facebook|Instagram|TikTok)$'
+          minLength: 1
+          maxLength: 32
+          description: Target social media platform. Must strictly match Facebook, Instagram, or TikTok.
+          example: "Facebook"
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Post text content. Sanitized by HtmlSanitizer to prevent XSS.
+          example: "Announcing our new enterprise cloud release! #Tech #Cloud"
+        scheduledTime:
+          type: string
+          format: date-time
+          description: Target execution timestamp in ISO-8601 UTC format.
+          example: "2026-09-01T10:30:00Z"
+        mediaUrls:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uri
+          description: Optional array of media attachments hosted on authorized CDN/S3.
+          example: ["https://cdn.socialscheduler.local/media/banner.png"]
+
+    ScheduleResponse:
+      type: object
+      required:
+        - scheduleId
+        - userId
+        - tenantId
+        - platform
+        - content
+        - scheduledTime
+        - status
+        - retryCount
+        - createdAt
+      properties:
+        scheduleId:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-7890-abcd-ef0123456789"
+        userId:
+          type: string
+          format: uuid
+          example: "f9e8d7c6-b5a4-3210-fedc-ba9876543210"
+        tenantId:
+          type: string
+          example: "tenant_enterprise_01"
+        platform:
+          type: string
+          enum: [Facebook, Instagram, TikTok]
+          example: "Facebook"
+        content:
+          type: string
+          example: "Announcing our new enterprise cloud release! #Tech #Cloud"
+        scheduledTime:
+          type: string
+          format: date-time
+          example: "2026-09-01T10:30:00Z"
+        status:
+          type: string
+          enum: [PENDING, SENT, FAILED, CANCELLED]
+          example: "PENDING"
+        actualSentTime:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        retryCount:
+          type: integer
+          minimum: 0
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-08-31T15:13:55Z"
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - errorCode
+        - message
+        - fieldErrors
+        - timestamp
+      properties:
+        errorCode:
+          type: string
+          example: "VALIDATION_FAILED"
+        message:
+          type: string
+          example: "Validation failed for request payload."
+        fieldErrors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "platform"
+              rejectedValue:
+                type: string
+                example: "Twitter"
+              errorMessage:
+                type: string
+                example: "Must match pattern ^(Facebook|Instagram|TikTok)$"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-08-31T15:13:55Z"
+        traceId:
+          type: string
+          example: "trace-12345"
+
+    ErrorResponse:
+      type: object
+      required:
+        - errorCode
+        - message
+        - timestamp
+      properties:
+        errorCode:
+          type: string
+          example: "TOKEN_EXPIRED"
+        message:
+          type: string
+          example: "The provided JWT bearer token has expired."
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-08-31T15:13:55Z"
+        traceId:
+          type: string
+          example: "trace-12345"
+
+  # [TRACEABILITY_MATRIX_REFERENCE]
+  # - REQ-001: Integrated multi-platform publishing schedule endpoints (/schedules)
+  # - ARC-005: OAuth2 Resource Server & JWT bearerAuth security definition
+  # - ARC-001: RBAC 4-role enforcement mapping (ADMIN, USER, SCHEDULER, ANALYST)
+  # - EXC-002: Token expiration handling returning HTTP 401 with TOKEN_EXPIRED code
+  # - EXC-005: Rate Limiting via Redis Token Bucket returning HTTP 429 with Retry-After header
+  # - DAT-001: Multi-tenant schema isolation enforced via X-Tenant-Id header mapping
+```
