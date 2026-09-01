@@ -1,3 +1,38 @@
+# Day 1: model cohere/north-mini-code:free - API Endpoint https://openrouter.ai/api/v1
+* **Production source codebase at SOURCE destination**: INTEGRATION_SCOPE
+* **Production source codebase generated at TARGET destination**: ./sources/backend/pom.xml
+* **📝 Prompt / Tasks / Data**:
+### 🏢 ENTERPRISE SYSTEM DATA LAYER INJECTION
+*   Target Project Identity Safe Name: social-scheduler
+*   Enforced Java Package Prefix Base: org.nlh4j.socialscheduler
+*   Target Component Destination Path: `./sources/backend/pom.xml` (Must map to sources/backend/ or sources/frontend/)
+*   Context Module Context Reference Path: `INTEGRATION_SCOPE`
+
+### SOURCE CODE UNDER AUDIT (VERIFICATION TARGET)
+* **Target Code Component Payload For Comprehensive Review:**
+<EXISTING_CODE_UNDER_AUDIT>
+
+</EXISTING_CODE_UNDER_AUDIT>
+
+
+### ❌ REAL RAW COMPILER ERROR LOGS (CRITICAL FIX TARGET)
+The codebase above triggered the following compiler or runtime exceptions. You MUST analyze this stack trace or log error text to pinpoint and auto-patch the root cause:
+```text
+True
+```
+*   Operational Modality Activated: COMPILER_FIXER_MODE
+
+
+### 📋 EXECUTION SUB-TASKS TO ENFORCE
+['Thực hiện kiểm tra chất lượng toàn bộ descriptor build cha-con đã được tạo tại các tác vụ con 1.1 đến 1.5. Xác minh thẻ parent của mỗi descriptor con trỏ chính xác về groupId, artifactId, version của descriptor cha, đảm bảo không sai lệch namespace. Rà soát dependencyManagement để đảm bảo không khai báo trùng lặp phiên bản Spring Boot, Spring Cloud, Flyway, PostgreSQL Driver. Kiểm tra plugin spring-boot-maven-plugin được khai báo đầy đủ tại tất cả descriptor con với mainClass trỏ chính xác về lớp ứng dụng tương ứng. Xác nhận plugin flyway-maven-plugin được cấu hình đồng nhất tại tất cả module có di trú schema. Phát hiện xung đột version giữa các module và đề xuất chiến lược khắc phục bằng cách khoá version trong properties của descriptor cha. Đối chiếu tất cả mã định danh truy vết [ARC-000] xuất hiện đúng một lần tại mỗi descriptor. Tạo báo cáo review ghi nhận điểm đạt và điểm cần cải thiện.']
+
+---
+
+### ⚙️ LEAD REVIEWER/FIXER EXECUTION INSTRUCTION:
+Please read the comprehensive architectural constraints, workspace folder routing rules, sub-task specifications, and potential compiler log streams provided above. Automatically evaluate the error signatures or static code anomalies to construct either a fully patched backend Java component or a frontend TypeScript/Next.js asset. 
+
+Ensure that you read the exact Tag IDs from the `['[ARC-000]']` variable, merge them seamlessly with any pre-existing tags inside the source payload, and permanently inject/preserve those exact Tag IDs within the generated code's Javadoc documentation or file header comments. The final code must be completely self-contained and compiler-ready. Emit the production source code inside a single valid markdown code block now.
+* **📝 Response**:
 ```xml
 <project>
     <model>
@@ -121,3 +156,4 @@
             <!-- PostgreSQL Driver -->
             <dependency>
                 <groupId>org.postgresql</
+
