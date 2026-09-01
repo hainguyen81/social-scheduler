@@ -1,0 +1,97 @@
+<project>
+    <name>social-scheduler</name>
+    <version>1.0 (Cơ sở)</version>
+    <description>Khởi tạo khung dự án Microservices (Social Scheduler) với descriptor build cha-con chuẩn Spring Boot 3, Spring Cloud, Kafka client, JPA, Flyway, OAuth2 Resource Server, Redis. Di trú schema ban đầu cho bốn dịch vụ nghiệp vụ cốt lõi: user-service, schedule-service, ai-service, rate-limit-service.</description>
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <spring-boot.version>3.3.5</spring-boot.version>
+        <spring-cloud.version>2023.0.3</spring-cloud.version>
+        <flyway.version>10.20.x</flyway.version>
+        <postgresql.driver.version>42.7.x</postgresql.driver.version>
+        <kafka.client.version>3.7.x</kafka.client.version>
+        <lettuce.redis.client.version>6.4.x</lettuce.redis.client.version>
+        <oauth2.resource.server.version>6.3.x</oauth2.resource.server.version>
+        <bucket4j.core.version>8.10.x</bucket4j.core.version>
+        <openai.java.sdk.version>0.18.x</openai.java.sdk.version>
+    </properties>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot Parent -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Spring Cloud -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Flyway Core -->
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-core</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+
+            <!-- PostgreSQL Driver -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.driver.version}</version>
+            </dependency>
+
+            <!-- Apache Kafka Client -->
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>${kafka.client.version}</version>
+            </dependency>
+
+            <!-- Lettuce Redis Client -->
+            <dependency>
+                <groupId>io.lettuce</groupId>
+                <artifactId>lettuce-core</artifactId>
+                <version>${lettuce.redis.client.version}</version>
+            </dependency>
+
+            <!-- OAuth2 Resource Server -->
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-oauth2-resource-server</artifactId>
+                <version>${oauth2.resource.server.version}</version>
+            </dependency>
+
+            <!-- Bucket4j Core -->
+            <dependency>
+                <groupId>com.bucket4j</groupId>
+                <artifactId>bucket4j-core</artifactId>
+                <version>${bucket4j.core.version}</version>
+            </dependency>
+
+            <!-- OpenAI Java SDK -->
+            <dependency>
+                <groupId>com.openai</groupId>
+                <artifactId>openai-java</artifactId>
+                <version>${openai.java.sdk.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <modules>
+        <module>user-service</module>
+        <module>schedule-service</module>
+        <module>ai-service</module>
+        <module>rate-limit-service</module>
+        <module>api-gateway</module>
+    </modules>
+</project>
