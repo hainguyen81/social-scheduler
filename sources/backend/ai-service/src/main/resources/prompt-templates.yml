@@ -1,0 +1,118 @@
+package org.nlh4j.socialscheduler.aiservice.service;
+
+import java.time.OffsetDateTime;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import org.nlh4j.socialscheduler.aiservice.exception.AiServiceException;
+import org.nlh4j.socialscheduler.aiservice.exception.FallbackContentException;
+import org.nlh4j.socialscheduler.aiservice.integration.OpenAIClient;
+import org.nlh4j.socialscheduler.aiservice.integration.PerformanceAnalyticsClient;
+import org.nlh4j.socialscheduler.aiservice.fallback.DefaultContentFallback;
+import org.nlh4j.socialscheduler.aiservice.dto.RecommendationRequestDto;
+import org.nlh4j.socialscheduler.aiservice.dto.RecommendationResponseDto;
+import org.nlh4j.socialscheduler.aiservice.service.RecommendationService;
+import org.slf4j.Logger;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.ConfigurationProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Timer;
+
+@Slf4j
+@Service
+@Transactional(readOnly = true)
+@RequiredArgsConstructor
+public class RecommendationService implements RecommendationService {
+
+    private final OpenAIClient openAIClient;
+    private final PerformanceAnalyticsClient performanceAnalyticsClient;
+    private final DefaultContentFallback defaultContentFallback;
+    private final PromptTemplatesConfig promptTemplatesConfig;
+    private final Counter aiRecommendationGeneratedCounter;
+    private final Timer aiRecommendationDurationTimer;
+
+    @Override
+    public RecommendationResponseDto generateRecommendation(RecommendationRequestDto request) {
+        String correlationId = UUID.randomUUID().toString();
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String platform = request.getPlatform().name();
+        String tone = request.getTone().getPromptModifier();
+        String topic = request.getTopic();
+
+        MDC.put("correlationId", correlationId);
+        MDC.put("userId", userId);
+        MDC.put("platform", platform);
+        MDC.put("tone", tone);
+        MDC.put("isFallback", "false");
+
+        Timer.Sample sample = Timer.start(aiRecommendationDurationTimer);
+        try {
+            String systemPrompt = promptTemplatesConfig.getSystemPrompt()
+                    .replace("{topic}", topic)
+                    .replace("{tone}", tone)
+                    .replace("{platform}", platform.name());
+            String userPrompt = request.getTopic();
+
+            String content = openAIClient.generateContent(systemPrompt, userPrompt);
+            if (content == null || content.isBlank() || (request.getMaxLength() > 0 && content.length() > request.getMaxLength())) {
+                throw new FallbackContentException("OpenAI response is empty or exceeds maxLength");
+            }
+
+            RecommendationResponseDto response = RecommendationResponseDto.builder()
+                    .recommendationId(UUID.randomUUID())
+                    .userId(userId)
+                    .platform(platform)
+                    .content(content)
+                    .confidenceScore(BigDecimal.valueOf(0.85))
+                    .isFallback(false)
+                    .generatedAt(OffsetDateTime.now())
+                    .build();
+
+            aiRecommendationGeneratedCounter.increment();
+            return response;
+        } catch (AiServiceException ex) {
+            log.warn("OpenAI service error: {}", ex.getMessage(), ex);
+            RecommendationResponseDto fallback = defaultContentFallback.provide(request);
+            MDC.put("isFallback", "true");
+            aiRecommendationGeneratedCounter.increment();
+            aiRecommendationDurationTimer.stop();
+            return fallback;
+        } catch (FallbackContentException ex) {
+            log.error("Fallback content provider failed: {}", ex.getMessage(), ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI_SERVICE_UNAVAILABLE", ex);
+        } finally {
+            MDC.remove("correlationId");
+            MDC.remove("userId");
+            MDC.remove("platform");
+            MDC.remove("tone");
+            MDC.remove("isFallback");
+        }
+    }
+}
+
+@ConfigurationProperties(prefix = "prompt-templates")
+class PromptTemplatesConfig {
+    private String systemPrompt;
+    private String userPromptTemplate;
+
+    public String getSystemPrompt() {
+        return systemPrompt;
+    }
+
+    public void setSystemPrompt(String systemPrompt) {
+        this.systemPrompt = systemPrompt;
+    }
+
+    public String getUserPromptTemplate() {
+        return userPromptTemplate;
+    }
+
+    public void setUserPromptTemplate(String userPromptTemplate) {
+        this.userPromptTemplate = userPromptTemplate;
+    }
+}
