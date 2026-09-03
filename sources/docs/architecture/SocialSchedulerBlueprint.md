@@ -2,6 +2,17 @@
 # Social Scheduler - Architecture Blueprint (Auto-Generated)
 **Traceability Anchors:** [DOC-001] | [ARC-001]–[ARC-006] | [NFR-001]–[NFR-003] | [REQ-001]–[REQ-003] | [DAT-001]–[DAT-003]
 
+## Table of Contents
+- [1. System Context](#1-system-context)
+- [2. Container Diagram](#2-container-diagram)
+- [3. Component Diagram (Schedule Service)](#3-component-diagram-schedule-service)
+- [4. Sequence Diagrams](#4-sequence-diagrams)
+  - [4.1 Publishing Schedule Flow](#41-publishing-schedule-flow)
+  - [4.2 AI Recommendation Flow](#42-ai-recommendation-flow)
+- [5. RBAC Role Mapping](#5-rbac-role-mapping)
+- [6. Security Policy & Performance Compliance](#6-security-policy--performance-compliance)
+- [7. Traceability Matrix Reference](#7-traceability-matrix-reference)
+
 ## 1. System Context
 High-level context diagram illustrating user, admin, API gateway, microservices, Kafka broker, external APIs, and database layer.
 
@@ -154,7 +165,7 @@ Enterprise security standards and non-functional requirement adherence per OWASP
 - **Performance Targets (NFR-001):** Latency < 200ms for schedule creation/ recommendation. Throughput > 1000 req/min. HPA scales based on CPU > 70% or Kafka consumer lag > 1000 messages.
 - **Secret Management (ARC-006):** All API keys, JWT secrets, DB credentials stored in GCP Secret Manager. Runtime fetches via dynamic environment variables. Never hardcoded.
 
-### 7. Traceability Matrix
+## 7. Traceability Matrix Reference
 Mapping of architectural modules, Kafka event pipelines, and database schemas to their originating requirement tags.
 
 | Module / Entity | Tag IDs | Description |
@@ -163,10 +174,10 @@ Mapping of architectural modules, Kafka event pipelines, and database schemas to
 | `schedules` Table | [DAT-001], [REQ-001], [EXC-001], [EXC-002] | Publishing schedule with status lifecycle |
 | `performance_metrics` Table | [DAT-002], [REQ-002] | AI/ML performance data collection |
 | `rate_limits` Table | [DAT-003], [REQ-003], [EXC-005] | Redis Token Bucket rate limiting |
-| API Endpoint `POST /api/v1/schedules` | [REQ-001], [EXC-001], [EXC-002], [ARC-001]-[ARC-006] | Schedule creation with validation & auth |
+| API Endpoint `POST /api/v1/schedules` | [REQ-001], [EXC-001], [EXC-002], [ARC-001]–[ARC-006] | Schedule creation with validation & auth |
 | API Endpoint `POST /api/v1/ai/recommendations` | [REQ-002], [EXC-003], [EXC-004], [ARC-005] | AI content generation with fallback |
 | API Endpoint `POST /api/v1/rate-limits/check` | [REQ-003], [EXC-005] | Rate limit check with Token Bucket |
-| Security Controls | [ARC-001]-[ARC-006], [NFR-002], [NFR-003] | RBAC, CORS, CSP, Secret Management |
+| Security Controls | [ARC-001]–[ARC-006], [NFR-002], [NFR-003] | RBAC, CORS, CSP, Secret Management |
 | Non-Functional Requirements | [NFR-001], [NFR-002], [NFR-003] | Performance, Security, Multi-tenancy |
 
 ---
