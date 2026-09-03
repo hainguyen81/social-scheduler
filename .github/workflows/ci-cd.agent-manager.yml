@@ -136,8 +136,6 @@ jobs:
           ls -la ../
           echo "🐛 [DEBUG] Auditing active workspace files presence (./):"
           ls -la ./
-          echo "🐛 [DEBUG] Auditing active workspace files presence (membership-hub/):"
-          if [ -d "membership-hub" ]; then ls -la membership-hub/; fi
           echo "🐛 [DEBUG] Auditing active workspace files presence (.ai/):"
           if [ -d ".ai" ]; then ls -la .ai/; fi
           
