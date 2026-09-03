@@ -1,0 +1,543 @@
+```yaml
+openapi: 3.0.3
+info:
+  title: Social Scheduler - Validation and Rate Limit API Contract
+  version: 1.0.0
+  description: |
+    # Enterprise Validation and Rate Limiting Service Contract
+    Hợp đồng giao diện lập trình ứng dụng (API Contract) chuẩn OpenAPI 3.0 đặc tả chi tiết module kiểm soát lưu lượng, xác thực payload nghiệp vụ và kiến trúc bảo vệ microservices chống nghẽn đường truyền cho hệ sinh thái Social Scheduler (`org.nlh4j.socialscheduler`).
+    
+    ## Metadata Truy Vết Nghiệp Vụ (Traceability Metadata)
+    - **Tài liệu đặc tả kiến trúc (Architecture Documentation):** `[DOC-001]`
+    - **Yêu cầu kỹ thuật xác thực & giới hạn tỷ lệ (Functional Validation & Rate Limiting):** `[REQ-003]`
+    - **Xử lý ngoại lệ token hết hạn (Exception - Token Expired):** `[EXC-002]`
+    - **Xử lý lỗi hệ thống upstream bên thứ ba (Exception - Upstream Error):** `[EXC-003]`
+    - **Xử lý ngoại lệ vượt ngưỡng tỷ lệ truy cập (Exception - Rate Limit Exceeded):** `[EXC-005]`
+    - **Kiến trúc cổng kiểm soát và lọc bảo mật (API Gateway Security):** `[ARC-005]`, `[ARC-006]`
+
+    ## Cấu Hình Mẫu Tích Hợp Tầng API Gateway (Spring Cloud Gateway Filter Configuration)
+    Dưới đây là cấu hình định tuyến tích hợp bộ lọc giới hạn tỷ lệ và kiểm tra tính hợp lệ của token phân tán qua Redis Token Bucket:
+    ```yaml
+    spring:
+      cloud:
+        gateway:
+          routes:
+            - id: schedule-service-route
+              uri: lb://schedule-service
+              predicates:
+                - Path=/api/v1/schedules/**
+                - Method=POST,PUT,DELETE
+              filters:
+                - name: JwtAuthFilter
+                  args:
+                    enforceExpirationCheck: true
+                - name: RateLimitGatewayFilter
+                  args:
+                    rateLimiterServiceUri: lb://rate-limit-service
+                    capacity: 100
+                    refillRatePerMinute: 60
+                    keyResolver: "#{@userKeyResolver}"
+            - id: rate-limit-service-route
+              uri: lb://rate-limit-service
+              predicates:
+                - Path=/api/v1/rate-limits/**
+              filters:
+                - name: JwtAuthFilter
+    ```
+servers:
+  - url: https://api.socialscheduler.local
+    description: Cổng API Gateway môi trường Kubernetes Ingress (Local Development / Testing)
+  - url: https://api.socialscheduler.io
+    description: Cổng API Gateway Production triển khai trên Google Kubernetes Engine (GKE)
+
+tags:
+  - name: Rate Limiting
+    description: Quản trị và kiểm tra ngưỡng lưu lượng request thời gian thực dựa trên Redis Token Bucket. Ánh xạ thẻ `[REQ-003]`, `[EXC-005]`.
+  - name: Schedules Validation
+    description: Tạo lịch đăng bài với cơ chế xác thực trường nghiêm ngặt (Jakarta Validation 3.0). Ánh xạ thẻ `[REQ-003]`, `[EXC-002]`, `[EXC-005]`.
+
+paths:
+  /api/v1/rate-limits/check:
+    post:
+      tags:
+        - Rate Limiting
+      summary: Kiểm tra tính khả dụng của lưu lượng truy cập theo định danh người dùng và endpoint
+      description: |
+        Endpoint được gọi nội bộ bởi Spring Cloud Gateway Filter (`RateLimitGatewayFilter`) hoặc trực tiếp bởi các microservice trước khi thực thi xử lý nghiệp vụ nặng. Thuật toán kiểm tra dựa trên Redis Token Bucket đảm bảo tính nguyên tử cao qua Lua Script.
+        
+        **Ánh xạ Traceability Tag IDs:** `[REQ-003]`, `[EXC-002]`, `[EXC-005]`
+      operationId: checkRateLimit
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        description: Dữ liệu payload yêu cầu kiểm tra token bucket cho một cặp (userId, endpoint)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RateLimitCheckRequest'
+            examples:
+              StandardCheck:
+                summary: Kiểm tra request thông thường
+                value:
+                  userId: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+                  endpoint: "/api/v1/schedules"
+      responses:
+        '200':
+          description: Yêu cầu nằm trong hạn mức lưu lượng cho phép. Token được trừ thành công khỏi Redis bucket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitCheckResponse'
+              examples:
+                AllowedUnderQuota:
+                  summary: Lưu lượng hợp lệ và còn token
+                  value:
+                    allowed: true
+                    remainingTokens: 87
+                    retryAfterSeconds: 0
+        '401':
+          description: Lỗi xác thực JWT - Token không hợp lệ hoặc đã hết thời gian hiệu lực (`[EXC-002]`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                TokenExpiredError:
+                  summary: Token hết hạn
+                  value:
+                    errorCode: "TOKEN_EXPIRED"
+                    message: "Phiên đăng nhập đã hết hạn. Vui lòng làm mới token hoặc đăng nhập lại."
+                    timestamp: "2026-09-01T10:15:30Z"
+                    correlationId: "c0a80101-8a42-1bf3-818a-42b7d41f0001"
+        '429':
+          description: Vượt quá giới hạn lưu lượng truy cập cho phép (`[EXC-005]`). Yêu cầu bị chặn tại gateway.
+          headers:
+            Retry-After:
+              description: Thời gian tính bằng giây mà client phải đợi trước khi gửi request tiếp theo.
+              schema:
+                type: integer
+                example: 45
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                RateLimitExceeded:
+                  summary: Vượt ngưỡng Token Bucket
+                  value:
+                    errorCode: "RATE_LIMIT_EXCEEDED"
+                    message: "Tài khoản của bạn đã vượt quá giới hạn tần suất gửi yêu cầu (60 yêu cầu/phút). Xin vui lòng thử lại sau."
+                    timestamp: "2026-09-01T10:15:32Z"
+                    correlationId: "c0a80101-8a42-1bf3-818a-42b7d41f0002"
+
+  /api/v1/rate-limits/reset:
+    post:
+      tags:
+        - Rate Limiting
+      summary: Khôi phục hạn ngạch lưu lượng cho người dùng (Chỉ dành riêng cho Quản trị viên - ADMIN)
+      description: |
+        Endpoint đặc quyền cho phép người quản trị hệ thống đặt lại (reset) số lượng token trong Redis bucket về mức tối đa tức thì cho một người dùng nhất định khi có khiếu nại hoặc sự cố vận hành.
+        
+        **Yêu cầu vai trò:** `ROLE_ADMIN`
+        **Ánh xạ Traceability Tag IDs:** `[REQ-003]`, `[ARC-001]`, `[ARC-005]`
+      operationId: resetRateLimit
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        description: Thông tin định danh người dùng và endpoint mục tiêu cần xóa bỏ rate limit
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RateLimitResetRequest'
+            examples:
+              AdminResetPayload:
+                summary: Reset rate limit của người dùng đối với API Schedules
+                value:
+                  userId: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+                  endpoint: "/api/v1/schedules"
+      responses:
+        '200':
+          description: Đặt lại hạn mức lưu lượng thành công cho đối tượng đích.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitResetResponse'
+              examples:
+                SuccessfulReset:
+                  summary: Đặt lại thành công
+                  value:
+                    success: true
+                    message: "Hạn ngạch lưu lượng cho người dùng a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d tại endpoint /api/v1/schedules đã được tái thiết lập thành công."
+        '401':
+          description: Không xác thực được danh tính người dùng hoặc token không tồn tại.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                UnauthorizedAccess:
+                  value:
+                    errorCode: "UNAUTHORIZED"
+                    message: "Yêu cầu không được xác thực. Thiếu tiêu đề Authorization."
+                    timestamp: "2026-09-01T10:20:00Z"
+                    correlationId: "c0a80101-8a42-1bf3-818a-42b7d41f0003"
+        '403':
+          description: Người dùng không sở hữu quyền quản trị `ROLE_ADMIN` (`[ARC-001]`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                InsufficientRole:
+                  summary: Không đủ quyền hạn
+                  value:
+                    errorCode: "INSUFFICIENT_ROLE"
+                    message: "Bạn không có đặc quyền quản trị hệ thống để thực thi thao tác đặt lại hạn ngạch."
+                    timestamp: "2026-09-01T10:20:02Z"
+                    correlationId: "c0a80101-8a42-1bf3-818a-42b7d41f0004"
+
+  /api/v1/schedules:
+    post:
+      tags:
+        - Schedules Validation
+      summary: Tiếp nhận và kiểm định nghiêm ngặt yêu cầu tạo mới lịch đăng bài đa nền tảng
+      description: |
+        Endpoint tiếp nhận lịch đăng bài lên các mạng xã hội (Facebook, Instagram, TikTok). Trước khi lưu trữ thực thể vào cơ sở dữ liệu PostgreSQL hoặc chuyển tiếp qua Kafka topic `schedule.created`, request bắt buộc phải vượt qua bộ lọc giới hạn tỷ lệ Redis Token Bucket và kiểm định tính toàn vẹn ngữ nghĩa của payload qua Jakarta Validation.
+        
+        **Ánh xạ Traceability Tag IDs:** `[REQ-001]`, `[REQ-003]`, `[EXC-002]`, `[EXC-005]`, `[DAT-001]`
+      operationId: createSchedule
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        description: Dữ liệu chi tiết về lịch đăng bài cần lập lịch và kiểm định
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleRequestDto'
+            examples:
+              ValidFacebookPost:
+                summary: Lịch đăng bài Facebook hợp lệ
+                value:
+                  tenantId: "8f7e6d5c-4b3a-2109-8765-fedcba098765"
+                  platform: "Facebook"
+                  content: "Chào mừng quý khách đến với chiến dịch bùng nổ mùa thu 2026 của thương hiệu chúng tôi! #Autumn2026"
+                  scheduledTime: "2026-09-15T09:00:00Z"
+                  mediaUrls:
+                    - "https://cdn.socialscheduler.io/assets/campaigns/autumn/banner-01.png"
+                    - "https://cdn.socialscheduler.io/assets/campaigns/autumn/banner-02.png"
+      responses:
+        '201':
+          description: Lịch đăng bài đã được kiểm tra hợp lệ, lập chỉ mục và khởi tạo thành công với trạng thái `PENDING`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scheduleId:
+                    type: string
+                    format: uuid
+                    description: Định danh duy nhất của lịch đăng bài được khởi tạo
+                    example: "99887766-5544-3322-1100-aabbccddeeff"
+                  tenantId:
+                    type: string
+                    format: uuid
+                    example: "8f7e6d5c-4b3a-2109-8765-fedcba098765"
+                  platform:
+                    type: string
+                    example: "Facebook"
+                  status:
+                    type: string
+                    enum: [PENDING, SENT, FAILED, CANCELLED]
+                    example: "PENDING"
+                  createdAt:
+                    type: string
+                    format: date-time
+                    example: "2026-09-01T10:30:00Z"
+        '400':
+          description: Lỗi kiểm định dữ liệu đầu vào (Validation Failed) theo chuẩn Bean Validation 3.0 (`[REQ-003]`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                InvalidFieldsPayload:
+                  summary: Dữ liệu gửi lên vi phạm quy tắc validation
+                  value:
+                    errorCode: "VALIDATION_FAILED"
+                    message: "Yêu cầu không vượt qua kiểm tra ràng buộc dữ liệu đầu vào."
+                    fieldErrors:
+                      - field: "platform"
+                        rejectedValue: "TwitterX"
+                        errorMessage: "Nền tảng đăng bài không hợp lệ. Chỉ chấp nhận các giá trị: Facebook, Instagram, TikTok."
+                      - field: "scheduledTime"
+                        rejectedValue: "2020-01-01T00:00:00Z"
+                        errorMessage: "Thời điểm hẹn giờ đăng bài phải là thời điểm trong tương lai."
+                      - field: "content"
+                        rejectedValue: ""
+                        errorMessage: "Nội dung bài viết không được để trống hoặc chỉ chứa khoảng trắng."
+                    timestamp: "2026-09-01T10:30:05Z"
+                    correlationId: "c0a80101-8a42-1bf3-818a-42b7d41f0005"
+        '401':
+          description: Token JWT hết hạn hoặc thông tin đăng nhập không hợp lệ (`[EXC-002]`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                JwtExpired:
+                  value:
+                    errorCode: "TOKEN_EXPIRED"
+                    message: "Token xác thực đã hết hạn hiệu lực. Xin hãy đăng nhập lại."
+                    timestamp: "2026-09-01T10:30:06Z"
+                    correlationId: "c0a80101-8a42-1bf3-818a-42b7d41f0006"
+        '429':
+          description: Người dùng gửi yêu cầu vượt quá giới hạn lưu lượng cho phép tại endpoint đăng bài (`[EXC-005]`).
+          headers:
+            Retry-After:
+              description: Số giây client cần tạm ngưng trước khi có thể thử lập lịch lại.
+              schema:
+                type: integer
+                example: 60
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                ScheduleRateLimit:
+                  value:
+                    errorCode: "RATE_LIMIT_EXCEEDED"
+                    message: "Bạn đã tạo bài viết quá nhanh. Hạn mức cho phép là 60 bài/phút. Xin vui lòng chờ thử lại."
+                    timestamp: "2026-09-01T10:30:10Z"
+                    correlationId: "c0a80101-8a42-1bf3-818a-42b7d41f0007"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Chuỗi JSON Web Token (JWT) đại diện cho danh tính xác thực được cấp phát qua OAuth2 Authorization Server.
+
+  schemas:
+    RateLimitCheckRequest:
+      type: object
+      required:
+        - userId
+        - endpoint
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: Định danh người dùng duy nhất sở hữu bucket lưu lượng
+          example: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+        endpoint:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Đường dẫn tương đối của endpoint API cần kiểm tra lưu lượng
+          example: "/api/v1/schedules"
+
+    RateLimitCheckResponse:
+      type: object
+      required:
+        - allowed
+        - remainingTokens
+        - retryAfterSeconds
+      properties:
+        allowed:
+          type: boolean
+          description: Trạng thái cho phép (true) hoặc từ chối (false) yêu cầu xử lý
+          example: true
+        remainingTokens:
+          type: integer
+          format: int32
+          description: Số lượng token còn lại khả dụng trong Redis Token Bucket hiện hành
+          example: 95
+        retryAfterSeconds:
+          type: integer
+          format: int64
+          description: Thời gian khuyến nghị (tính bằng giây) cần chờ trước khi thử lại nếu bị từ chối
+          example: 0
+
+    RateLimitResetRequest:
+      type: object
+      required:
+        - userId
+        - endpoint
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: Định danh người dùng cần xóa bỏ giới hạn lưu lượng
+          example: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+        endpoint:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Endpoint tương ứng cần đặt lại bucket hạn mức
+          example: "/api/v1/schedules"
+
+    RateLimitResetResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Kết quả của thao tác đặt lại hạn mức
+          example: true
+        message:
+          type: string
+          description: Thông điệp phản hồi thông báo bằng ngôn ngữ tiếng Việt
+          example: "Hạn ngạch lưu lượng cho người dùng đã được khôi phục về trạng thái ban đầu thành công."
+
+    ScheduleRequestDto:
+      type: object
+      required:
+        - tenantId
+        - platform
+        - content
+        - scheduledTime
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+          description: Khóa phân vùng đa khách hàng (Multi-tenancy isolation key)
+          example: "8f7e6d5c-4b3a-2109-8765-fedcba098765"
+        platform:
+          type: string
+          pattern: '^(Facebook|Instagram|TikTok)$'
+          description: Nền tảng mạng xã hội phát hành mục tiêu (Bắt buộc khớp chính quy)
+          example: "Facebook"
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Nội dung thông điệp bài viết cần đăng tải (Tối thiểu 1 ký tự, tối đa 5000 ký tự)
+          example: "Khám phá bộ sưu tập ứng dụng thông minh dành cho doanh nghiệp số năm 2026."
+        scheduledTime:
+          type: string
+          format: date-time
+          description: Thời điểm ấn định đăng bài chuẩn ISO-8601 UTC (Bắt buộc phải là thời điểm tương lai)
+          example: "2026-09-20T14:30:00Z"
+        mediaUrls:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uri
+          description: Danh sách đường dẫn tài nguyên đa phương tiện (Hình ảnh, Video) kèm bài viết (Tối đa 10 phần tử)
+          example:
+            - "https://cdn.socialscheduler.io/media/photo1.jpg"
+            - "https://cdn.socialscheduler.io/media/photo2.jpg"
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - errorCode
+        - message
+        - fieldErrors
+        - timestamp
+        - correlationId
+      properties:
+        errorCode:
+          type: string
+          description: Mã định danh lỗi nghiệp vụ chuẩn hóa
+          example: "VALIDATION_FAILED"
+        message:
+          type: string
+          description: Tóm tắt thông điệp lỗi chung
+          example: "Dữ liệu payload không đáp ứng tiêu chuẩn kiểm định nghiệp vụ."
+        fieldErrors:
+          type: array
+          description: Danh sách lỗi chi tiết ứng với từng trường dữ liệu vi phạm
+          items:
+            $ref: '#/components/schemas/FieldErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+          description: Dấu thời gian xuất hiện sự kiện lỗi
+          example: "2026-09-01T10:45:00Z"
+        correlationId:
+          type: string
+          format: uuid
+          description: Mã định danh truy vết luồng phân tán toàn hệ thống (Distributed Tracing ID)
+          example: "d3e4f5a6-b7c8-9012-3456-789abcdef012"
+
+    FieldErrorDetail:
+      type: object
+      required:
+        - field
+        - rejectedValue
+        - errorMessage
+      properties:
+        field:
+          type: string
+          description: Tên trường dữ liệu gặp lỗi vi phạm
+          example: "platform"
+        rejectedValue:
+          description: Giá trị thực tế nhận vào bị từ chối
+          nullable: true
+          example: "TwitterX"
+        errorMessage:
+          type: string
+          description: Lý do từ chối và hướng dẫn sửa đổi
+          example: "Nền tảng đăng bài không hợp lệ. Chỉ chấp nhận các giá trị: Facebook, Instagram, TikTok."
+
+    ErrorResponse:
+      type: object
+      required:
+        - errorCode
+        - message
+        - timestamp
+        - correlationId
+      properties:
+        errorCode:
+          type: string
+          description: Mã lỗi kỹ thuật hoặc nghiệp vụ
+          example: "RATE_LIMIT_EXCEEDED"
+        message:
+          type: string
+          description: Chi tiết giải thích nguyên nhân gây ra lỗi
+          example: "Tài khoản của bạn đã vượt quá giới hạn tần suất gửi yêu cầu. Vui lòng thử lại sau."
+        timestamp:
+          type: string
+          format: date-time
+          description: Thời điểm phát sinh lỗi
+          example: "2026-09-01T10:45:05Z"
+        correlationId:
+          type: string
+          format: uuid
+          description: Mã định danh truy vết lỗi phục vụ đối soát log
+          example: "e5f6a7b8-c9d0-1234-5678-9abcdef01234"
+
+x-traceability-matrix:
+  endpoints:
+    - path: /api/v1/rate-limits/check
+      method: POST
+      tags:
+        - "[REQ-003]"
+        - "[EXC-002]"
+        - "[EXC-005]"
+      implementedBy: "org.nlh4j.socialscheduler.ratelimitservice.controller.RateLimitController#checkRateLimit"
+    - path: /api/v1/rate-limits/reset
+      method: POST
+      tags:
+        - "[REQ-003]"
+        - "[ARC-001]"
+        - "[ARC-005]"
+      implementedBy: "org.nlh4j.socialscheduler.ratelimitservice.controller.RateLimitController#resetRateLimit"
+    - path: /api/v1/schedules
+      method: POST
+      tags:
+        - "[REQ-001]"
+        - "[REQ-003]"
+        - "[EXC-002]"
+        - "[EXC-005]"
+        - "[DAT-001]"
+      implementedBy: "org.nlh4j.socialscheduler.scheduleservice.controller.ScheduleController#createSchedule"
+```
