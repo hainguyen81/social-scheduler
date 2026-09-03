@@ -1,0 +1,209 @@
+<!--
+   Traceability Tags: [ARC-000]
+   Description: Maven descriptor for user-service module of social-scheduler project.
+   This file defines parent relationship, dependencies, build plugins, and configuration for Spring Boot application.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!-- Model version for Maven POM. -->
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Parent pom coordinates for social-scheduler root. -->
+    <parent>
+        <groupId>org.nlh4j.socialscheduler</groupId>
+        <artifactId>social-scheduler</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <!-- This module's artifact identifier and version. -->
+    <artifactId>user-service</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <!-- Project properties: Java version, Spring Boot version, plugin versions. -->
+    <properties>
+        <java.version>21</java.version>
+        <spring-boot.version>3.3.5</spring-boot.version>
+        <flyway.version>10.20.0</flyway.version>
+        <postgresql.driver.version>42.7.3</postgresql.driver.version>
+        <lombok.version>1.18.34</lombok.version>
+        <springdoc.version>2.6.0</springdoc.version>
+        <org.slf4j.version>2.0.12</org.slf4j.version>
+    </properties>
+
+    <!-- Dependency management section to ensure consistent versions. -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot core dependencies -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Flyway Core and PostgreSQL plugin -->
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-core</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-database-postgresql</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+            <!-- PostgreSQL JDBC driver -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.driver.version}</version>
+            </dependency>
+            <!-- Lombok for compile-time annotations -->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <!-- Springdoc OpenAPI UI -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- Runtime dependencies required for the user-service application. -->
+    <dependencies>
+        <!-- Spring Boot Web layer -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- Spring Boot Data JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <!-- Spring Boot Security -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <!-- Spring Boot OAuth2 Resource Server -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+        <!-- Spring Boot Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- Spring Boot Actuator -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!-- Flyway Core for schema migrations -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <!-- PostgreSQL JDBC driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+        <!-- Lombok (compile-only) -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Springdoc OpenAPI UI for API documentation -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+        <!-- Test dependencies (optional but recommended) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!-- Build configuration: plugins for packaging and migration. -->
+    <build>
+        <plugins>
+            <!-- Spring Boot Maven plugin to create an executable jar -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <configuration>
+                    <!-- Fully qualified main class for the application -->
+                    <mainClass>org.nlh4j.socialscheduler.userservice.UserServiceApplication</mainClass>
+                    <!-- Enable layered jar for faster startup -->
+                    <layered-jar>true</layered-jar>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Flyway Maven plugin for database migration -->
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <version>${flyway.version}</version>
+                <configuration>
+                    <!-- Database connection parameters sourced from environment variables -->
+                    <url>${DB_URL}</url>
+                    <user>${DB_USER}</user>
+                    <password>${DB_PASSWORD}</password>
+                    <!-- Enable clean and validate phases -->
+                    <cleanEnabled>true</cleanEnabled>
+                    <validateOnMigrate>true</validateOnMigrate>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>migrate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>migrate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Maven Compiler plugin to enforce Java version -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
