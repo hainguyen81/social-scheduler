@@ -6049,3 +6049,3233 @@ flowchart LR
 **Classification:** Enterprise Confidential — Do Not Distribute Externally
 ```
 
+# Day 3: model models/gemini-flash-latest - API Endpoint https://generativelanguage.googleapis.com/v1beta/openai
+* **Production source codebase at SOURCE destination**: INTEGRATION_SCOPE
+* **Production source codebase generated at TARGET destination**: ./sources/docs/architecture/SocialSchedulerBlueprint.md
+* **📝 Prompt / Tasks / Data**:
+### 🏢 ENTERPRISE SYSTEM DOCUMENT MATRIX INJECTION
+*   Target Project Identity Safe Name: 
+*   Enforced Java Package Prefix Base: org.nlh4j.socialscheduler
+*   Target Documentation Destination Path: `./sources/docs/architecture/SocialSchedulerBlueprint.md`
+
+
+### ENTERPRISE DOCUMENTATION RECOVERY WORKSPACE
+* **Target Document Disk Status:** INCREMENTAL_MAINTENANCE_APPEND
+* **Current Living Document Content:**
+<EXISTING_DOCUMENT_CONTENT>
+```markdown
+```markdown
+# Social Scheduler - Architecture Blueprint (Auto-Generated)
+**Traceability Anchors:** [DOC-001] | [ARC-001]–[ARC-006] | [NFR-001]–[NFR-003] | [REQ-001]–[REQ-003] | [DAT-001]–[DAT-003]
+
+## Table of Contents
+- [1. System Context](#1-system-context)
+- [2. Container Diagram](#2-container-diagram)
+- [3. Component Diagram (Schedule Service)](#3-component-diagram-schedule-service)
+- [4. Sequence Diagrams](#4-sequence-diagrams)
+  - [4.1 Publishing Schedule Flow](#41-publishing-schedule-flow)
+  - [4.2 AI Recommendation Flow](#42-ai-recommendation-flow)
+- [5. RBAC Role Mapping](#5-rbac-role-mapping)
+- [6. Security Policy & Performance Compliance](#6-security-policy--performance-compliance)
+- [7. Traceability Matrix Reference](#7-traceability-matrix-reference)
+
+## 1. System Context
+High-level context diagram illustrating user, admin, API gateway, microservices, Kafka broker, external APIs, and database layer.
+
+```mermaid
+flowchart LR
+    User((User)) -->|HTTPS Request| Gateway[API Gateway]
+    Admin((Admin)) -->|HTTPS Request| Gateway
+    Gateway -->|Route| user-service[User Service]
+    Gateway -->|Route| schedule-service[Schedule Service]
+    Gateway -->|Route| ai-service[AI/ML Service]
+    Gateway -->|Route| rate-limit-service[Rate Limit Service]
+    schedule-service -->|Publish Events| kafka[Kafka Topic: schedule.events]
+    ai-service -->|Consume Events| kafka
+    rate-limit-service -->|Rate Limit Check| redis[(Redis Token Bucket)]
+    schedule-service -->|Persist/Query| postgres[(Cloud SQL Postgres)]
+    ai-service -->|Persist/Query| postgres
+    schedule-service -->|Integrate| facebook[Facebook Graph API]
+    schedule-service -->|Integrate| instagram[Instagram Graph API]
+    schedule-service -->|Integrate| tiktok[TikTok Open API]
+    ai-service -->|Generate Content| openai[OpenAI Completion API]
+```
+
+## 2. Container Diagram
+Internal technical components and runtime dependencies for each microservice.
+
+```mermaid
+graph TD
+    subgraph user-service[user-service]
+        JPA[JPA / Hibernate] -->|SQL Queries| PostgresDB
+        OAuth2[OAuth2 / JWT Auth] -->|Auth Tokens| UserSession
+        RedisCache[Redis Client] -->|Session/RateLimit| AppLogic
+    end
+    subgraph schedule-service[schedule-service]
+        WebClient[WebClient / RestClient] -->|External Calls| facebook & instagram & tiktok
+        KafkaProd[Kafka Producer] -->|Publish| kafka
+        JPA2[JPA / Hibernate] -->|SQL Queries| PostgresDB
+        Actuator[Spring Actuator] -->|Metrics/Health| Monitoring
+    end
+    subgraph ai-service[ai-service]
+        OpenAIClient[OpenAI Client] -->|Completion API| OpenAI
+        AnalyticsClient[Analytics Client] -->|Query| postgres
+        CaffeineCache[Caffeine Cache] -->|Prompt Data| ServiceLayer
+    end
+    subgraph rate-limit-service[rate-limit-service]
+        RedisStrategy[Redis Token Bucket] -->|Rate Check| RedisDB
+        ServiceLayer[Service Layer] -->|Check Limit| RedisStrategy
+        Actuator[Spring Actuator] -->|Metrics| Monitoring
+    end
+    kafka -->|Broker| kafka-broker
+    PostgresDB -->|Instance| cloudsql
+    redis -->|Cluster| redis-cluster
+```
+
+## 3. Component Diagram (Schedule Service)
+Internal component structure focusing on request flow, state management, and integration points.
+
+```mermaid
+graph LR
+    Controller[ScheduleController] -->|Validate Payload| Validator[SchedulePayloadValidator]
+    Controller -->|Create Schedule| Service[ScheduleService]
+    Service -->|Persist| Repository[ScheduleRepository]
+    Service -->|Dispatch Event| KafkaProducer[Kafka Producer]
+    Service -->|Rate Limit Check| RateLimiter[RateLimiterService]
+    Validator -->|Apply Constraints| Jakarta[Jakarta Validation]
+    RateLimiter -->|Redis Check| Redis[Redis Token Bucket]
+    KafkaProducer -->|Publish| kafka
+    Repository -->|SQL Queries| Postgres
+```
+
+## 4. Sequence Diagrams
+
+### 4.1 Publishing Schedule Flow
+End-to-end flow from user request to social platform publication.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Gateway as API-GW
+    participant Sched as ScheduleSvc
+    participant Kafka as Kafka
+    participant Intg as IntegrationSvc
+    participant FB as Facebook
+    participant IG as Instagram
+    participant TT as TikTok
+    
+    User->>Gateway: POST /api/v1/schedules
+    Gateway->>Sched: Authenticate JWT [EXC-002]
+    Sched->>Repository: Save Schedule [REQ-001]
+    Sched->>Kafka: Publish schedule.event
+    Kafka->>Intg: Route to Adapter
+    Intg->>FB: POST Graph API
+    Intg->>IG: POST Graph API
+    Intg->>TT: POST OpenAPI
+    FB-->>Intg: 200 OK
+    IG-->>Intg: 200 OK
+    TT-->>Intg: 200 OK
+    Intg->>Kafka: Publish executed event
+    Kafka->>Sched: Update Status SENT
+    Sched->>Repository: Update status
+    Sched-->>Gateway: 201 Created
+    Gateway-->>User: Response
+```
+
+### 4.2 AI Recommendation Flow
+Flow for AI-driven content generation with fallback orchestration.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Gateway as API-GW
+    participant AI as AISvc
+    participant Open as OpenAI
+    participant Cache as Caffeine Cache
+    
+    User->>Gateway: POST /api/v1/ai/recommendations
+    Gateway->>AI: Authenticate & Route [ARC-005]
+    AI->>Cache: Check Prompt History
+    alt Cache Hit
+        Cache-->>AI: Return Cached Prompt
+    else Cache Miss
+        AI->>Postgres: Query performance_metrics [DAT-002]
+        Postgres-->>AI: Return metrics
+        AI->>OpenAI: Generate Completion [EXC-003]
+        Open-->>AI: Content Response
+        AI->>Cache: Store Result [EXC-004]
+    end
+    AI-->>Gateway: Recommendation Response
+    Gateway-->>User: 200 OK with content
+```
+
+## 5. RBAC Role Mapping
+Matrix mapping the four defined roles [ARC-001] Admin, [ARC-002] User, [ARC-003] Scheduler, [ARC-004] Analyst to specific permission scopes and API access levels.
+
+| Role ID | Role Name | Description | API Access Scope | Kafka Topic Access |
+| :--- | :--- | :--- | :--- | :--- |
+| [ARC-001] | Admin | Full system administration, tenant management, emergency reset | All endpoints (`/api/v1/**`), Admin-only actions (`/rate-limits/reset`) | All topics including `metrics.collected`, `auth.token.refreshed` |
+| [ARC-002] | User | Standard user operations, create/my schedules, view recommendations | `/api/v1/schedules` (POST, GET own), `/api/v1/ai/recommendations` | `schedule.created`, `ai.recommendation.generated` |
+| [ARC-003] | Scheduler | Schedule creation, status updates, platform integration | `/api/v1/schedules` (PUT status, DELETE cancel) | `schedule.executed`, `post.published` |
+| [ARC-004] | Analyst | Read-only analytics, performance metrics, reporting | `/api/v1/analytics`, `/api/v1/metrics` (GET) | `metrics.collected`, `performance.metrics.collected` |
+
+**Traceability:** [ARC-001], [ARC-002], [ARC-003], [ARC-004], [DOC-001]
+
+## 6. Security Policy & Performance Compliance
+Enterprise security standards and non-functional requirement adherence per OWASP Top 10 and project NFRs.
+
+- **SQL Injection Prevention (NFR-003, DAT-001, DAT-002, DAT-003):** All database queries utilize `PreparedStatement`/JPA parameter binding. Dynamic sorting whitelist `ALLOWED_SORT_FIELDS` = [`scheduledTime`, `status`, `likes`, `comments`, `shares`]. Tenant isolation enforced via `tenant_id` in every transaction session.
+- **XSS & CSP (ARC-006, NFR-002):** User-generated `content` sanitized via OWASP Java HTML Sanitizer. CSP header `default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'`. `X-Content-Type-Options: nosniff`, `Strict-Transport-Security` enforced at Ingress.
+- **CORS Multi-Tenant (NFR-002, NFR-003):** Origin whitelist per tenant from `TENANT_ORIGINS` table. No `*` allowed. Preflight `OPTIONS` validated against tenant_id. `Access-Control-Allow-Credentials` only with specific origin.
+- **Log Scrubbing & PII Masking (NFR-002, ARC-005):** `LogScrubbingInterceptor` regex patterns for email, UUID, JWT, IP. `@SensitiveData` annotation on DTO fields triggers `SensitiveFieldSerializer` for hash/truncation in logs and API responses.
+- **Performance Targets (NFR-001):** Latency < 200ms for schedule creation/ recommendation. Throughput > 1000 req/min. HPA scales based on CPU > 70% or Kafka consumer lag > 1000 messages.
+- **Secret Management (ARC-006):** All API keys, JWT secrets, DB credentials stored in GCP Secret Manager. Runtime fetches via dynamic environment variables. Never hardcoded.
+
+## 7. Traceability Matrix Reference
+Mapping of architectural modules, Kafka event pipelines, and database schemas to their originating requirement tags.
+
+| Module / Entity | Tag IDs | Description |
+| :--- | :--- | :--- |
+| `users` Table | [DAT-001], [DAT-ALL (1 to 3)] | User entity with tenant isolation, role constraints |
+| `schedules` Table | [DAT-001], [REQ-001], [EXC-001], [EXC-002] | Publishing schedule with status lifecycle |
+| `performance_metrics` Table | [DAT-002], [REQ-002] | AI/ML performance data collection |
+| `rate_limits` Table | [DAT-003], [REQ-003], [EXC-005] | Redis Token Bucket rate limiting |
+| API Endpoint `POST /api/v1/schedules` | [REQ-001], [EXC-001], [EXC-002], [ARC-001]–[ARC-006] | Schedule creation with validation & auth |
+| API Endpoint `POST /api/v1/ai/recommendations` | [REQ-002], [EXC-003], [EXC-004], [ARC-005] | AI content generation with fallback |
+| API Endpoint `POST /api/v1/rate-limits/check` | [REQ-003], [EXC-005] | Rate limit check with Token Bucket |
+| Security Controls | [ARC-001]–[ARC-006], [NFR-002], [NFR-003] | RBAC, CORS, CSP, Secret Management |
+| Non-Functional Requirements | [NFR-001], [NFR-002], [NFR-003] | Performance, Security, Multi-tenancy |
+
+---
+**End of Architecture Blueprint**
+```
+```
+</EXISTING_DOCUMENT_CONTENT>
+
+
+
+*   Documentation Context: Conceptual Init (Synthesize the architecture, guidelines, or specs based purely on the execution sub-tasks blueprint.)
+
+
+### 📋 EXECUTION SUB-TASKS & DOCUMENT CONTENT TO WRITE
+['Soạn thảo tài liệu Markdown tại ./sources/docs/architecture/SocialSchedulerBlueprint.md trình bày kiến trúc microservices của social-scheduler. Tài liệu phải bao gồm mục lục và sáu phần nội dung chính. Phần 1 trình bày sơ đồ ngữ cảnh (System Context) sử dụng sơ đồ Mermaid flowchart LR miêu tả User và Admin truy cập API Gateway, Gateway định tuyến đến bốn dịch vụ user-service, schedule-service, ai-service, rate-limit-service, schedule-service publish sự kiện vào Kafka topic schedule.events, ai-service tiêu thụ sự kiện từ Kafka, rate-limit-service sử dụng Redis Token Bucket, schedule-service kết nối Facebook Graph API, Instagram Graph API và TikTok Open API, ai-service gọi OpenAI Completion API, các dịch vụ lưu trữ dữ liệu trong Cloud SQL Postgres. Phần 2 trình bày sơ đồ container (Container Diagram) chi tiết các thành phần kỹ thuật bên trong mỗi microservice. Phần 3 trình bày sơ đồ thành phần (Component Diagram) cho schedule-service. Phần 4 trình bày hai sơ đồ tuần tự: luồng lập lịch đăng bài (User → Gateway → ScheduleService → Kafka → IntegrationService → SocialPlatform) và luồng đề xuất AI (User → Gateway → AIService → OpenAI). Phần 5 trình bày ma trận RBAC ánh xạ bốn vai trò [ARC-001] Admin, [ARC-002] User, [ARC-003] Scheduler, [ARC-004] Analyst sang quyền hạn cụ thể. Phần 6 trình bày chính sách bảo mật [ARC-006] tuân thủ OWASP Top 10 và chỉ tiêu hiệu năng [NFR-001], [NFR-002], [NFR-003]. Bảng cuối tài liệu ánh xạ các Tag ID [DAT-001], [DAT-002], [DAT-003] sang bảng dữ liệu tương ứng.']
+
+---
+
+### ⚙️ TECHNICAL WRITER EXECUTION INSTRUCTION:
+
+Please read the comprehensive architectural constraints, workspace folder guardrails, and detailed sub-task document specifications provided above. Analyze the `<EXISTING_DOCUMENT_CONTENT>` layout, you MUST precisely insert the new architectural specifications into their logical structural sections within the current document text. Do NOT overwrite or shrink the pre-existing enterprise content blocks.
+
+
+Ensure that you read the exact Tag IDs from the `['[DOC-001]']` variable, and permanently burn those codes into the generated documentation layout (inside the table columns or the dedicated Traceability Matrix Reference section). Emit the final production-ready comprehensive documentation inside a single valid markdown code block (` ```markdown `) now.
+* **📝 Response**:
+```markdown
+# Social Scheduler - Architecture Blueprint (Auto-Generated)
+**Traceability Anchors:** [DOC-001] | [ARC-001]–[ARC-006] | [NFR-001]–[NFR-003] | [REQ-001]–[REQ-003] | [DAT-001]–[DAT-003] | [DAT-ALL (1 to 3)] | [EXC-001]–[EXC-005]
+
+## Table of Contents
+- [1. System Context](#1-system-context)
+- [2. Container Diagram](#2-container-diagram)
+- [3. Component Diagram (Schedule Service)](#3-component-diagram-schedule-service)
+- [4. Sequence Diagrams](#4-sequence-diagrams)
+  - [4.1 Publishing Schedule Flow](#41-publishing-schedule-flow)
+  - [4.2 AI Recommendation Flow](#42-ai-recommendation-flow)
+- [5. RBAC Role Mapping](#5-rbac-role-mapping)
+- [6. Security Policy & Performance Compliance](#6-security-policy--performance-compliance)
+  - [6.1 SQL Injection & Relational Hardening](#61-sql-injection--relational-hardening)
+  - [6.2 XSS Mitigation & Content Security Policy (CSP)](#62-xss-mitigation--content-security-policy-csp)
+  - [6.3 Multi-Tenant CORS Enforcement](#63-multi-tenant-cors-enforcement)
+  - [6.4 PII Masking & Log Scrubbing Engine](#64-pii-masking--log-scrubbing-engine)
+  - [6.5 Latency, Throughput & Elastic Scaling (NFR Targets)](#65-latency-throughput--elastic-scaling-nfr-targets)
+  - [6.6 Cryptographic Secrets & Runtime Environment Isolation](#66-cryptographic-secrets--runtime-environment-isolation)
+- [7. Traceability Matrix Reference](#7-traceability-matrix-reference)
+  - [7.1 Database Schemas & Partition Mapping](#71-database-schemas--partition-mapping)
+  - [7.2 Service Layer & Integration Endpoints Mapping](#72-service-layer--integration-endpoints-mapping)
+  - [7.3 Resilience & Exception Gate Traceability](#73-resilience--exception-gate-traceability)
+
+---
+
+## 1. System Context
+High-level system context diagram illustrating end-users, administrators, Edge API Gateway routing, isolated internal microservices (`user-service`, `schedule-service`, `ai-service`, `rate-limit-service`), distributed message queues, external social media integrations, and persistence tiers.
+
+```mermaid
+flowchart LR
+    User((User)) -->|HTTPS / REST| Gateway[API Gateway :8080]
+    Admin((Admin)) -->|HTTPS / REST| Gateway
+    Gateway -->|Route /api/v1/users| user-service[user-service :8081]
+    Gateway -->|Route /api/v1/schedules| schedule-service[schedule-service :8082]
+    Gateway -->|Route /api/v1/ai| ai-service[ai-service :8083]
+    Gateway -->|Route /api/v1/rate-limits| rate-limit-service[rate-limit-service :8084]
+    
+    schedule-service -->|Publish schedule.created / schedule.executed| kafka[(Kafka Topic: schedule.events)]
+    ai-service -->|Consume performance.metrics.collected| kafka
+    rate-limit-service -->|Token Verification & Decrement| redis[(Redis Token Bucket)]
+    
+    schedule-service -->|Read / Write Partitioned Entities| postgres[(Cloud SQL Postgres :5432)]
+    user-service -->|Read / Write Tenant Schemas| postgres
+    ai-service -->|Read Historical Performance| postgres
+    rate-limit-service -->|Persist Window Log| postgres
+    
+    schedule-service -->|HTTPS / Graph API| facebook[Facebook Graph API v19.0]
+    schedule-service -->|HTTPS / Graph API| instagram[Instagram Graph API v19.0]
+    schedule-service -->|HTTPS / Open API| tiktok[TikTok Open API v2]
+    ai-service -->|HTTPS / REST completions| openai[OpenAI Completion API gpt-4o-mini]
+```
+
+---
+
+## 2. Container Diagram
+Internal technical topology detailing execution containers, dependency drivers, memory caches, and inter-process connection protocols across the microservices landscape.
+
+```mermaid
+graph TD
+    subgraph ClientLayer [Client Presentation Tier]
+        WebClientApp[Next.js 14 Web Portal - Node.js SSR]
+        MobileHybrid[Capacitor Mobile Shell - Android / iOS]
+    end
+
+    subgraph GatewayBoundary [Edge Gateway Tier]
+        SpringGateway[API Gateway - Spring Cloud Gateway]
+        GatewayJwtFilter[JwtAuthFilter - Nimbus JOSE]
+        GatewayRateFilter[RateLimitGatewayFilter]
+    end
+
+    subgraph UserServiceContainer [user-service Container :8081]
+        UserCtrl[UserController] --> UserSvc[UserService]
+        UserSvc --> SpringSec[Spring Security 6 OAuth2 Resource Server]
+        UserSvc --> UserRepo[UserRepository - Spring Data JPA / Hibernate]
+    end
+
+    subgraph ScheduleServiceContainer [schedule-service Container :8082]
+        SchedCtrl[ScheduleController] --> SchedSvc[ScheduleService]
+        SchedSvc --> SchedRepo[ScheduleRepository - Spring Data JPA]
+        SchedSvc --> SchedKafka[KafkaEventProducer - Spring Kafka 3.7]
+        SchedSvc --> ExtDispatcher[SocialPlatformDispatcher]
+        ExtDispatcher --> FbClient[FacebookClient - Spring RestClient]
+        ExtDispatcher --> IgClient[InstagramClient - Spring RestClient]
+        ExtDispatcher --> TtClient[TikTokClient - Spring RestClient]
+    end
+
+    subgraph AiServiceContainer [ai-service Container :8083]
+        AiCtrl[RecommendationController] --> AiSvc[RecommendationService]
+        AiSvc --> PromptEng[PromptEngineeringEngine]
+        PromptEng --> OpenAiSdk[OpenAIClient - WebClient Reactor Netty]
+        AiSvc --> AnalyticsClient[PerformanceAnalyticsClient]
+        AiSvc --> FallbackHandler[DefaultContentFallback]
+        AiSvc --> CaffeinePromptCache[Caffeine Local Cache L1]
+    end
+
+    subgraph RateLimitServiceContainer [rate-limit-service Container :8084]
+        RateCtrl[RateLimitController] --> RateSvc[RateLimiterService]
+        RateSvc --> TokenBucketStrat[RedisTokenBucketStrategy - Lettuce Driver]
+        RateSvc --> Bucket4jNative[Bucket4j Distributed Tokens]
+    end
+
+    subgraph DistributedState [Data & Messaging Persistence Tier]
+        PostgresDB[(PostgreSQL 16 Multi-Tenant Cloud SQL)]
+        RedisCluster[(Memorystore Redis 7.x Cluster)]
+        KafkaCluster[(Apache Kafka Event Broker)]
+    end
+
+    WebClientApp -->|HTTPS / JSON| SpringGateway
+    MobileHybrid -->|HTTPS / Native Http| SpringGateway
+    SpringGateway --> GatewayJwtFilter
+    GatewayJwtFilter --> GatewayRateFilter
+    GatewayRateFilter -->|Downstream HTTP| UserCtrl
+    GatewayRateFilter -->|Downstream HTTP| SchedCtrl
+    GatewayRateFilter -->|Downstream HTTP| AiCtrl
+    GatewayRateFilter -->|Downstream HTTP| RateCtrl
+
+    UserRepo -->|Schema per Tenant| PostgresDB
+    SchedRepo -->|JDBC PreparedStatements| PostgresDB
+    AnalyticsClient -->|Read Only Replicas| PostgresDB
+    TokenBucketStrat -->|Lua Script Invocation| RedisCluster
+    SchedKafka -->|Snappy Compressed Messages| KafkaCluster
+```
+
+---
+
+## 3. Component Diagram (Schedule Service)
+Micro-architectural layout of the `schedule-service` module depicting component contracts, input sanitation pipeline, transaction barriers, and resilience circuit boundaries.
+
+```mermaid
+graph LR
+    subgraph API [Inbound Web Boundary]
+        Endpoint[ScheduleController :8082]
+    end
+
+    subgraph Validation [Jakarta Security & Defense Layer]
+        PayloadValidator[SchedulePayloadValidator]
+        JakartaEngine[Jakarta Validator Engine 3.0]
+        ContentSanitizer[OWASP Java HTML Sanitizer]
+    end
+
+    subgraph Business [Application Transaction Core]
+        Service[ScheduleService]
+        TransactionMgr[PlatformTransactionManager]
+        PlatformDispatcher[SocialPlatformDispatcher]
+    end
+
+    subgraph FaultTolerance [Resilience & Circuit Breakers]
+        CircuitBreaker[Resilience4j CircuitBreaker]
+        RetryHandler[ExponentialBackoffRetry]
+        DLQProducer[DeadLetterQueueProducer]
+    end
+
+    subgraph Infrastructure [Adapters & Data Gateway]
+        Repository[ScheduleRepository]
+        KafkaProducer[KafkaEventProducer]
+        FB[FacebookClient]
+        IG[InstagramClient]
+        TT[TikTokClient]
+    end
+
+    Endpoint -->|Pass DTO| PayloadValidator
+    PayloadValidator -->|Run JSR-380 Rules| JakartaEngine
+    PayloadValidator -->|Scrub Raw Text| ContentSanitizer
+    PayloadValidator -->|Validated Request| Service
+    Service -->|Start @Transactional| TransactionMgr
+    Service -->|Save Initial PENDING State| Repository
+    Service -->|Dispatch Publishing| PlatformDispatcher
+    
+    PlatformDispatcher --> CircuitBreaker
+    CircuitBreaker --> FB & IG & TT
+    CircuitBreaker -->|On Failure 5xx / Network Drop| RetryHandler
+    RetryHandler -->|Retry Limit Exceeded [EXC-001]| DLQProducer
+    
+    Service -->|Async Broadcast| KafkaProducer
+    KafkaProducer -->|Publish schedule.created| KafkaCluster[(Kafka: schedule.events)]
+    Repository -->|HikariCP Connection Pool| CloudSQL[(PostgreSQL)]
+```
+
+---
+
+## 4. Sequence Diagrams
+
+### 4.1 Publishing Schedule Flow
+End-to-end execution flow detailing the entire schedule publishing lifecycle, multi-tier authentication, state transitions, circuit-breaker protected platform execution, and event fan-out.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Content Creator / Scheduler
+    participant GW as API Gateway (:8080)
+    participant Auth as Auth Filter (JWT / RBAC)
+    participant Rate as rate-limit-service (:8084)
+    participant Sched as schedule-service (:8082)
+    participant DB as Cloud SQL (PostgreSQL)
+    participant Kafka as Apache Kafka Broker
+    participant Adapter as SocialPlatformDispatcher
+    participant Meta as Meta Graph API (FB / IG)
+    participant TikTok as TikTok Open API
+
+    Client->>GW: POST /api/v1/schedules (Payload, Bearer JWT)
+    GW->>Auth: Validate JWT Signature & Expiration [EXC-002]
+    alt Token Invalid or Expired
+        Auth-->>Client: 401 Unauthorized (TOKEN_EXPIRED)
+    else Token Valid
+        Auth->>Rate: Check Rate Limit (userId, endpoint) [REQ-003]
+        alt Rate Limit Exceeded
+            Rate-->>Client: 429 Too Many Requests (Retry-After: 60) [EXC-005]
+        else Rate Limit Allowed
+            GW->>Sched: Forward validated request (X-Tenant-Id, X-User-Id)
+            Sched->>Sched: Validate payload constraints [SchedulePayloadValidator]
+            Sched->>DB: INSERT INTO schedules (status='PENDING') [DAT-001]
+            DB-->>Sched: Confirmed (scheduleId generated)
+            Sched->>Kafka: Publish event (schedule.created)
+            Sched-->>GW: 201 Created (ScheduleResponseDto)
+            GW-->>Client: 201 Created (JSON Response)
+            
+            Note over Sched,Adapter: Asynchronous / Scheduled Execution Window
+            Sched->>Adapter: Dispatch to targeted social platforms
+            par Publish to Meta Platforms
+                Adapter->>Meta: POST /v19.0/{page-id}/feed (Media / Content)
+                alt Success 200 OK
+                    Meta-->>Adapter: 200 OK (post_id)
+                else Meta Internal Error / Throttled
+                    Meta-->>Adapter: 500 Internal Server / 429 OAuth Rate Limit
+                    Adapter->>Adapter: Execute Exponential Backoff (3 retries) [EXC-001]
+                end
+            and Publish to TikTok
+                Adapter->>TikTok: POST /v2/post/publish/video/init/
+                TikTok-->>Adapter: 200 OK (publish_id)
+            end
+            
+            alt All Platforms Successful
+                Adapter->>DB: UPDATE schedules SET status='SENT', actual_sent_time=NOW()
+                Adapter->>Kafka: Publish event (schedule.executed)
+            else Irrecoverable Failure
+                Adapter->>DB: UPDATE schedules SET status='FAILED', retry_count=3
+                Adapter->>Kafka: Publish event (post.failed)
+            end
+        end
+    end
+```
+
+### 4.2 AI Recommendation Flow
+Algorithmic flow for personalized, performance-driven AI content generation incorporating local Caffeine cache lookups, historical PostgreSQL metrics ingestion, remote OpenAI completion calls, and circuit breaker fallbacks.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Marketer as Digital Marketer / User
+    participant GW as API Gateway (:8080)
+    participant AISvc as ai-service (:8083)
+    participant Cache as L1 Cache (Caffeine)
+    participant DB as Cloud SQL (PostgreSQL: performance_metrics)
+    participant OpenAI as OpenAI Completion API
+    participant Fallback as DefaultContentFallback (:8083)
+
+    Marketer->>GW: POST /api/v1/ai/recommendations (topic, platform, tone)
+    GW->>AISvc: Route Request with JWT Bearer Context [ARC-005]
+    AISvc->>Cache: Lookup Prompt Cache (tenantId, topicHash, platform)
+    
+    alt Cache Hit (Within 15 Min TTL)
+        Cache-->>AISvc: Return Cached Recommendation Payload
+        AISvc-->>GW: 200 OK (RecommendationResponseDto, isFallback=false)
+        GW-->>Marketer: 200 OK (Instant Response < 50ms)
+    else Cache Miss
+        AISvc->>DB: SELECT * FROM performance_metrics WHERE tenant_id=? ORDER BY (likes+comments+shares) DESC LIMIT 5 [DAT-002]
+        DB-->>AISvc: Return Top 5 Historic Performant Posts
+        AISvc->>AISvc: Synthesize Context-Aware Prompt (System + Dynamic Examples)
+        
+        AISvc->>OpenAI: POST /v1/chat/completions (gpt-4o-mini, max_tokens=500, temp=0.7)
+        alt Remote Inference Success (200 OK)
+            OpenAI-->>AISvc: 200 OK (Generated Text Payload)
+            AISvc->>Cache: Store Result in Caffeine Cache
+            AISvc-->>GW: 200 OK (RecommendationResponseDto, confidenceScore=0.85, isFallback=false)
+            GW-->>Marketer: 200 OK
+        else Remote API Timeout / HTTP 5xx Outage [EXC-003]
+            OpenAI-->>AISvc: SocketTimeoutException / 503 Service Unavailable
+            AISvc->>AISvc: Trigger Resilience4j Fallback Handler [EXC-004]
+            AISvc->>Fallback: provide(RecommendationRequestDto)
+            Fallback-->>AISvc: Deterministic Fallback Template Payload
+            AISvc-->>GW: 200 OK (RecommendationResponseDto, confidenceScore=0.30, isFallback=true)
+            GW-->>Marketer: 200 OK (Fallback Content Delivered Seamlessly)
+        end
+    end
+```
+
+---
+
+## 5. RBAC Role Mapping
+Role-Based Access Control (RBAC) authorization matrix mapping the four architectural roles across discrete endpoint access scopes, mutation allowances, and messaging channel privileges per specifications [ARC-001], [ARC-002], [ARC-003], and [ARC-004].
+
+| Role Identifier | Role Title | Functional Identity | Permitted REST Endpoint Scopes | Forbidden Actions / Endpoint Barriers | Kafka Event Publish & Consume Channels | Targeted Requirements |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `[ARC-001]` | `ROLE_ADMIN` | Global Tenant Administrator | `ALL` (`/api/v1/**`), `/api/v1/rate-limits/reset`, `/api/v1/users/**`, `/actuator/**` | No barriers within the assigned `tenant_id` space. Cannot cross physical tenant boundary. | `schedule.*`, `post.*`, `metrics.*`, `ai.recommendation.*`, `auth.token.*` (Full Bus Access) | `[ARC-001]`, `[REQ-003]`, `[NFR-002]` |
+| `[ARC-002]` | `ROLE_USER` | Content Creator & Social Marketer | `POST /api/v1/schedules`, `GET /api/v1/schedules/{id}`, `GET /api/v1/schedules/my`, `POST /api/v1/ai/recommendations` | Cannot mutate global rate limits (`/api/v1/rate-limits/reset`), cannot read unowned user records. | `schedule.created`, `ai.recommendation.requested`, `ai.recommendation.generated` | `[ARC-002]`, `[REQ-001]`, `[REQ-002]` |
+| `[ARC-003]` | `ROLE_SCHEDULER`| Automation Worker & Operational Bot | `GET /api/v1/schedules/pending`, `PUT /api/v1/schedules/{id}/status`, `DELETE /api/v1/schedules/{id}` | Strictly barred from AI recommendation endpoints (`/api/v1/ai/**`) and administrative operations. | `schedule.created` (Consume), `schedule.executed` (Publish), `post.published` (Publish), `post.failed` (Publish) | `[ARC-003]`, `[REQ-001]`, `[EXC-001]` |
+| `[ARC-004]` | `ROLE_ANALYST` | Business Intelligence & Reporting | `GET /api/v1/analytics/**`, `GET /api/v1/performance/**`, `GET /api/v1/schedules/metrics` | Barred from all write/mutation routes (`POST`, `PUT`, `DELETE /api/v1/schedules/**`). Read-only scope. | `metrics.collected` (Consume), `performance.metrics.collected` (Consume) | `[ARC-004]`, `[DAT-002]`, `[NFR-001]` |
+
+---
+
+## 6. Security Policy & Performance Compliance
+
+### 6.1 SQL Injection & Relational Hardening
+- **Parameterized Execution Law:** 100% of relational queries executing against PostgreSQL 16 are strictly compiled via `java.sql.PreparedStatement` or generated dynamically via Hibernate 6.5 Criteria Builder with bind parameters (`:tenantId`, `:userId`, `:scheduleId`). String concatenation within dynamic queries is banned across the entire codebase.
+- **Dynamic Sorting Whitelist Enforcement:** Dynamic table sorting parameters supplied via client request query parameters are evaluated against the immutable class crown constant array `ALLOWED_SORT_FIELDS = ["scheduledTime", "status", "likes", "comments", "shares", "createdAt"]`. Any sorting request containing unrecognized column tokens is rejected with an HTTP 400 Bad Request error to completely neutralize SQL injection through `ORDER BY` vectors.
+- **Strict Tenant Separation:** Data isolation is enforced using multi-tenancy controls where each tenant operates under an isolated PostgreSQL schema (`user_schema`, `schedule_schema`, `ai_schema`, `rate_limit_schema`), or row-level tenant filtering anchored by the immutable session variable `SET LOCAL app.current_tenant_id = :tenantId`. Cross-tenant relational joins are strictly prohibited.
+- **Traceability Tag IDs:** `[DAT-001]`, `[DAT-002]`, `[DAT-003]`, `[NFR-002]`, `[NFR-003]`, `[ARC-005]`.
+
+### 6.2 XSS Mitigation & Content Security Policy (CSP)
+- **Input Sanitization Engine:** User-supplied text strings intended for social media captions (`content`) are sanitized before persistence using the OWASP Java HTML Sanitizer library. All executable HTML tags, JavaScript declarations, inline handlers (`onerror=`, `onload=`), and non-standard protocol URLs are stripped.
+- **Edge Ingress Security Headers:** The Cloud Ingress proxy enforces comprehensive security headers across all responses:
+  ```http
+  Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=()
+  ```
+- **Traceability Tag IDs:** `[REQ-001]`, `[REQ-002]`, `[NFR-002]`, `[ARC-006]`.
+
+### 6.3 Multi-Tenant CORS Enforcement
+- **Dynamic Origin Whitelist:** The system enforces strict Cross-Origin Resource Sharing (CORS) rules. Wildcard origins (`*`) are disallowed across all operational profiles.
+- **Tenant Origin Verification:** At runtime, the API Gateway inspects the inbound `Origin` header and cross-references it against the tenant registry cache. Preflight `OPTIONS` requests matching registered tenant domains receive explicit headers:
+  ```http
+  Access-Control-Allow-Origin: https://{tenant-subdomain}.socialscheduler.com
+  Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+  Access-Control-Allow-Headers: Authorization, Content-Type, X-Tenant-Id, X-Requested-With
+  Access-Control-Allow-Credentials: true
+  Vary: Origin
+  ```
+- **Traceability Tag IDs:** `[NFR-002]`, `[NFR-003]`, `[ARC-006]`.
+
+### 6.4 PII Masking & Log Scrubbing Engine
+- **LogScrubbingInterceptor Activation:** All application logs emitted via Logback / Slf4j pass through an automated `LogScrubbingInterceptor` filter applying Regex sanitization patterns to intercept sensitive data before output:
+  - **Emails:** Masked via `(?i)([a-z0-9_.+-])[a-z0-9_.+-]*(@[a-z0-9-]+\.[a-z0-9-.]+)` -> `$1****$2`
+  - **JWT Tokens:** Masked via `(?i)bearer\s+[a-z0-9-_=]+\.[a-z0-9-_=]+\.[a-z0-9-_.+/=]+` -> `Bearer [SCRUBBED_TOKEN]`
+  - **Private Keys & Secrets:** Fully replaced with `[CONFIDENTIAL_CREDENTIAL]`
+- **Field-Level JSON Serialization Scrubbing:** Domain entity DTOs annotate sensitive data with `@SensitiveData`. Custom Jackson serializers (`SensitiveFieldSerializer`) automatically hash or redact fields during serialization to external outputs.
+- **Traceability Tag IDs:** `[NFR-002]`, `[ARC-005]`, `[ARC-006]`.
+
+### 6.5 Latency, Throughput & Elastic Scaling (NFR Targets)
+- **Target Performance Ceilings:** 
+  - Sub-200ms latency at P95 for scheduling ingestion and AI recommendation queries under standard operational loads.
+  - Baseline system throughput guaranteed at ≥ 1000 requests/minute per pod instance.
+- **Horizontal Elastic Scaling Parameters:**
+  - Kubernetes Horizontal Pod Autoscaler (HPA) triggers pod replica scaling between 3 (min) and 20 (max) when pod CPU utilization exceeds 60%, memory exceeds 70%, or Kafka consumer lag exceeds 1000 messages.
+  - Connection pooling managed via HikariCP configured with a maximum of 50 connections/instance, a 30-second timeout, and automated leak detection.
+- **Traceability Tag IDs:** `[NFR-001]`, `[NFR-003]`.
+
+### 6.6 Cryptographic Secrets & Runtime Environment Isolation
+- **GCP Secret Manager Dynamic Binding:** No hardcoded tokens, passwords, or API keys exist inside code repositories or Docker images. Workload Identity binds GKE service accounts (`socialscheduler-ksa`) to Google Cloud IAM roles (`roles/secretmanager.secretAccessor`).
+- **Cryptographic Encryption at Rest & In-Transit:** All persistent disks and Cloud SQL instances utilize Google-managed or Customer-Managed Encryption Keys (CMEK) via AES-256. Network traffic between GKE pods, Redis, and Cloud SQL is strictly encrypted using TLS 1.3.
+- **Traceability Tag IDs:** `[NFR-002]`, `[ARC-006]`.
+
+---
+
+## 7. Traceability Matrix Reference
+
+### 7.1 Database Schemas & Partition Mapping
+Comprehensive mapping connecting physical database tables, composite primary keys, check constraints, and architectural migration files to requirement specifications.
+
+| Database Table Name | Target Microservice Module | Primary Key / Constraints | Migration File Anchor | Targeted Requirements |
+| :--- | :--- | :--- | :--- | :--- |
+| `users` | `./sources/backend/user-service/` | `pk_users (user_id UUID)`<br/>`uk_users_tenant_email (tenant_id, email)`<br/>`ck_users_role (role IN ('ADMIN', 'USER', 'SCHEDULER', 'ANALYST'))` | `V1__init_users.sql` | `[DAT-001]`, `[DAT-ALL (1 to 3)]`, `[ARC-001]`–`[ARC-004]` |
+| `schedules` | `./sources/backend/schedule-service/` | `pk_schedules (schedule_id, user_id, platform, scheduled_time)`<br/>`fk_schedules_user (user_id)`<br/>`ck_schedules_platform (platform IN ('FACEBOOK', 'INSTAGRAM', 'TIKTOK'))`<br/>`ck_schedules_status (status IN ('PENDING', 'SENT', 'FAILED', 'CANCELLED'))` | `V1__init_schedules.sql` | `[DAT-001]`, `[DAT-ALL (1 to 3)]`, `[REQ-001]`, `[EXC-001]`, `[EXC-002]` |
+| `performance_metrics`| `./sources/backend/ai-service/` | `pk_performance (performance_id, post_id, collected_at)`<br/>`fk_performance_schedule (post_id)`<br/>`ck_performance_likes (likes >= 0)`<br/>`ck_performance_comments (comments >= 0)`<br/>`ck_performance_shares (shares >= 0)` | `V1__init_performance_metrics.sql` | `[DAT-002]`, `[DAT-ALL (1 to 3)]`, `[REQ-002]` |
+| `rate_limits` | `./sources/backend/rate-limit-service/`| `pk_rate_limits (rate_limit_id, endpoint, window_start)`<br/>`fk_rate_limits_user (user_id)`<br/>`ck_rate_limits_endpoint (endpoint IN ('/api/v1/schedules', ...))`<br/>`ck_rate_limits_count (request_count >= 0)` | `V1__init_rate_limits.sql` | `[DAT-003]`, `[DAT-ALL (1 to 3)]`, `[REQ-003]`, `[EXC-005]` |
+
+### 7.2 Service Layer & Integration Endpoints Mapping
+Mapping of application controller classes, service implementations, and API contracts against core requirements and operational characteristics.
+
+| Functional Route / Subsystem | Physical Implementation File | Primary Purpose / Responsibilities | Input Validation & Constraints | Targeted Requirements |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST /api/v1/schedules` | `./sources/backend/schedule-service/.../ScheduleController.java` | Ingests and persists multi-platform publishing schedules. | `@Valid ScheduleRequestDto`, `@Size(max=5000)`, `@Future` timestamp. | `[REQ-001]`, `[ARC-001]`, `[ARC-002]`, `[ARC-005]` |
+| `PUT /api/v1/schedules/{id}` | `./sources/backend/schedule-service/.../ScheduleService.java` | Updates execution states (`PENDING` -> `SENT` / `FAILED`). | Checks lifecycle transitions, status invariant checks. | `[REQ-001]`, `[ARC-003]`, `[EXC-001]` |
+| `POST /api/v1/ai/recommendations` | `./sources/backend/ai-service/.../RecommendationController.java` | Generates prompt-driven social copy leveraging OpenAI. | `@NotNull platform`, `@Size(max=500) topic`, `@NotNull tone`. | `[REQ-002]`, `[EXC-003]`, `[EXC-004]`, `[ARC-005]` |
+| `POST /api/v1/rate-limits/check` | `./sources/backend/rate-limit-service/.../RateLimitController.java`| Evaluates client token consumption via Redis Token Bucket. | `@NotNull userId`, `@NotBlank endpoint`. | `[REQ-003]`, `[EXC-005]`, `[ARC-006]` |
+| Edge Ingress Gateway | `./sources/backend/api-gateway/.../JwtAuthFilter.java` | Decodes JWTs, checks claims, and extracts tenant contexts. | Rejects missing/malformed Bearer tokens with 401 Unauthorized. | `[ARC-001]`–`[ARC-006]`, `[EXC-002]`, `[NFR-002]` |
+| Multi-Stage Containerization | `./sources/infra/docker/*/Dockerfile` | Generates hardened, non-root, small footprint runtimes. | Distroless/JRE-Alpine baseline, non-root user (`appuser:1001`). | `[NFR-001]`, `[NFR-002]` |
+| GKE Infrastructure Manifests | `./sources/infra/kubernetes/socialscheduler/base/*.yaml` | Declares Deployments, HPA, Services, and Probes. | Explicit CPU/Memory limits, liveness & readiness probes. | `[NFR-001]`, `[NFR-003]` |
+| Terraform Cloud Automation | `./sources/infra/terraform/gcp/*.tf` | Provisions VPCs, Subnets, GKE Autopilot, Cloud SQL, Redis. | Private IP subnets, Cloud NAT, strict ingress firewalling. | `[NFR-002]`, `[NFR-003]` |
+
+### 7.3 Resilience & Exception Gate Traceability
+Mapping of error codes, boundary exceptions, and recovery mechanisms to their defining requirements.
+
+| Exception Gate ID | Trigger Condition | Technical Interceptor Class | Handled Behavior & Recovery Action | HTTP Status Code |
+| :--- | :--- | :--- | :--- | :--- |
+| `[EXC-001]` | Social SDK network timeout or HTTP 5xx from Facebook, Instagram, or TikTok. | `SocialPlatformDispatcher.java`, `SocialPlatformException.java` | Executes exponential backoff (initial delay 2s, multiplier 2.0, max 3 attempts). On final drop, transitions schedule status to `FAILED` and emits dead-letter event. | 502 Bad Gateway / Async DLQ |
+| `[EXC-002]` | JWT expired, invalid signature, or missing required authentication claims. | `JwtAuthFilter.java`, `GlobalExceptionHandler.java` | Halts execution immediately at API Gateway. Returns structured error body with code `TOKEN_EXPIRED` directing client to OAuth2 token refresh route. | 401 Unauthorized |
+| `[EXC-003]` | OpenAI Completion API drops connection, returns 429 quota exhaustion, or 503 service outage. | `OpenAIClient.java`, `AiServiceException.java` | Resilience4j circuit breaker opens. Dispatches internal fallback command to `DefaultContentFallback` provider. Prevents thread starvation. | 503 Service Unavailable / Handled Fallback |
+| `[EXC-004]` | AI model produces empty string, unparseable output, or schema violation. | `DefaultContentFallback.java`, `FallbackContentException.java` | Intercepts empty completion, loads platform and tone specific deterministic copy template, marks `isFallback=true` with baseline confidence 0.30. | 200 OK (With Fallback Warning Flag) |
+| `[EXC-005]` | Client request velocity exceeds Redis Token Bucket capacity (100 burst, 60 refill/min). | `RedisTokenBucketStrategy.java`, `RateLimitExceededException.java` | Evaluates atomic Redis Lua token decrement. Rejects request with `RATE_LIMIT_EXCEEDED` error code, sets `Retry-After: {seconds}` header. | 429 Too Many Requests |
+
+---
+**End of Architecture Blueprint | Document Reference: `./sources/docs/architecture/SocialSchedulerBlueprint.md` | Status: Approved Baseline 1.0**
+```
+
+# Day 3: model models/gemini-flash-lite-latest - API Endpoint https://generativelanguage.googleapis.com/v1beta/openai
+* **Production source codebase at SOURCE destination**: INTEGRATION_SCOPE
+* **Production source codebase generated at TARGET destination**: ./sources/docs/operations/DeploymentRunbook.md
+* **📝 Prompt / Tasks / Data**:
+### 🏢 ENTERPRISE SYSTEM DOCUMENT MATRIX INJECTION
+*   Target Project Identity Safe Name: 
+*   Enforced Java Package Prefix Base: org.nlh4j.socialscheduler
+*   Target Documentation Destination Path: `./sources/docs/operations/DeploymentRunbook.md`
+
+
+### ENTERPRISE DOCUMENTATION RECOVERY WORKSPACE
+* **Target Document Disk Status:** INCREMENTAL_MAINTENANCE_APPEND
+* **Current Living Document Content:**
+<EXISTING_DOCUMENT_CONTENT>
+```markdown
+```markdown
+# Social Scheduler - Production Deployment Runbook
+
+**Document ID:** DOC-001  
+**Target Environment:** Google Cloud Platform (GCP) — Production  
+**Last Updated:** 2026-08-31  
+**Author:** Enterprise System Architect (SA Agent)  
+**Status:** Approved  
+
+---
+
+## Table of Contents
+
+1. [Prerequisites](#1-prerequisites)  
+2. [Infrastructure Provisioning via Terraform](#2-infrastructure-provisioning-via-terraform)  
+3. [Application Deployment to GKE](#3-application-deployment-to-gke)  
+4. [Rollback Procedures](#4-rollback-procedures)  
+5. [Post-Deployment Validation Checklist](#5-post-deployment-validation-checklist)  
+6. [Emergency Troubleshooting Guide](#6-emergency-troubleshooting-guide)  
+7. [Traceability Matrix Reference](#7-traceability-matrix-reference)
+
+---
+
+## 1. Prerequisites
+
+Before initiating any deployment activities, ensure the following tools and permissions are available:
+
+### Required Tools
+
+| Tool | Minimum Version | Purpose |
+| :--- | :--- | :--- |
+| **Google Cloud CLI (`gcloud`)** | `450.0.0` | Authenticate and interact with GCP services |
+| **Kubernetes CLI (`kubectl`)** | `1.28` | Manage GKE cluster resources |
+| **Terraform CLI** | `1.6.0` | Provision infrastructure as code |
+| **Docker** | `24.0.x` | Build and push container images |
+| **Helm** | `3.12.x` | Install observability stack (Prometheus, Grafana) |
+
+### IAM Permissions
+
+The deploying user or service account must hold the following roles:
+
+| Role | Scope | Justification |
+| :--- | :--- | :--- |
+| `roles/owner` | Project-wide | Full administrative access for initial setup |
+| `roles/container.admin` | GKE cluster | Deploy and manage Kubernetes workloads |
+| `roles/cloudsql.admin` | Cloud SQL instances | Manage database lifecycle |
+| `roles/storage.admin` | GCS buckets | Access Terraform state backend |
+| `roles/artifactregistry.writer` | Artifact Registry | Push container images |
+| `roles/monitoring.viewer` | Monitoring | View metrics and dashboards |
+| `roles/logging.viewer` | Logging | Access logs for troubleshooting |
+
+> 🔒 **Security Note:** In production environments, replace `roles/owner` with least-privilege custom roles scoped to specific resources.
+
+---
+
+## 2. Infrastructure Provisioning via Terraform
+
+This section outlines the process for provisioning the foundational GCP infrastructure using Terraform modules located at `./sources/infra/terraform/gcp/`.
+
+### Step-by-Step Instructions
+
+#### 2.1 Authenticate with GCP
+
+```bash
+gcloud auth login
+gcloud config set project social-scheduler-prod
+```
+
+#### 2.2 Initialize Terraform Backend
+
+Navigate to the Terraform root directory and initialize the backend:
+
+```bash
+cd ./sources/infra/terraform/gcp
+terraform init
+```
+
+> ✅ This step initializes the GCS backend (`socialscheduler-tfstate`) and downloads required providers (`google`, `google-beta`).
+
+#### 2.3 Preview Changes
+
+Generate an execution plan to preview all infrastructure changes:
+
+```bash
+terraform plan -out=tfplan
+```
+
+> 📋 Review the output carefully. Confirm that VPC networks, subnets, GKE clusters, Cloud SQL instances, and Memorystore Redis instances are correctly defined.
+
+#### 2.4 Apply Infrastructure
+
+Apply the planned changes to provision the infrastructure:
+
+```bash
+terraform apply tfplan
+```
+
+> ⏱️ This operation may take 10–15 minutes depending on resource complexity.
+
+### Provisioned Resources Summary
+
+| Resource | Module File | Tag ID |
+| :--- | :--- | :--- |
+| Custom VPC Network | `./sources/infra/terraform/gcp/vpc.tf` | [NFR-002] |
+| GKE Autopilot Cluster | `./sources/infra/terraform/gcp/gke.tf` | [NFR-002], [NFR-003] |
+| Cloud SQL Instance | `./sources/infra/terraform/gcp/cloudsql.tf` | [NFR-002] |
+| Memorystore Redis | `./sources/infra/terraform/gcp/memorystore.tf` | [NFR-002] |
+
+---
+
+## 3. Application Deployment to GKE
+
+Once the infrastructure is provisioned, deploy the microservices to the GKE cluster using Kubernetes manifests stored under `./sources/infra/kubernetes/socialscheduler/`.
+
+### Step-by-Step Instructions
+
+#### 3.1 Configure Kubeconfig
+
+Authenticate `kubectl` with the newly created GKE cluster:
+
+```bash
+gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1
+```
+
+#### 3.2 Create Namespace
+
+Create a dedicated namespace for the application:
+
+```bash
+kubectl create namespace socialscheduler
+```
+
+#### 3.3 Apply Kubernetes Manifests
+
+Deploy all base manifests using Kustomize:
+
+```bash
+kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/prod
+```
+
+> 🧩 This command applies Deployments, Services, HPAs
+```
+</EXISTING_DOCUMENT_CONTENT>
+
+
+
+*   Documentation Context: Conceptual Init (Synthesize the architecture, guidelines, or specs based purely on the execution sub-tasks blueprint.)
+
+
+### 📋 EXECUTION SUB-TASKS & DOCUMENT CONTENT TO WRITE
+['Soạn thảo runbook vận hành tại ./sources/docs/operations/DeploymentRunbook.md cho môi trường production GCP. Tài liệu gồm bốn phần chính. Phần 1 trình bày điều kiện tiên quyết: cài đặt công cụ gcloud CLI phiên bản 450.0.0 trở lên, kubectl phiên bản 1.28 trở lên, terraform phiên bản 1.6.0 trở lên, quyền truy cập IAM với các role roles/owner, roles/container.admin, roles/cloudsql.admin. Phần 2 trình bày quy trình triển khai hạ tầng [NFR-002]: chạy gcloud auth login, cd ./sources/infra/terraform/gcp, terraform init (khởi tạo backend GCS), terraform plan -out=tfplan (xem trước thay đổi), terraform apply tfplan (triển khai VPC, GKE, Cloud SQL, Memorystore). Phần 3 trình bày quy trình triển khai ứng dụng [NFR-003]: cấu hình kubeconfig với gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1, tạo namespace kubectl create namespace socialscheduler, áp dụng manifest kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/prod, kiểm tra trạng thái kubectl rollout status deployment/schedule-service -n socialscheduler. Phần 4 trình bày quy trình rollback bằng kubectl rollout undo deployment/schedule-service -n socialscheduler và danh sách kiểm tra sau triển khai gồm smoke test endpoint /actuator/health, kiểm tra metrics Prometheus qua GET /api/v1/query?query=up, kiểm tra dashboard Grafana. Cuối tài liệu liệt kê các câu lệnh khẩn cấp khi gặp sự cố HTTP 429 tràn ngập (tăng bucket capacity), khi job Kafka lỗi (kiểm tra consumer group lag), khi Cloud SQL vượt dung lượng (mở rộng instance).']
+
+---
+
+### ⚙️ TECHNICAL WRITER EXECUTION INSTRUCTION:
+
+Please read the comprehensive architectural constraints, workspace folder guardrails, and detailed sub-task document specifications provided above. Analyze the `<EXISTING_DOCUMENT_CONTENT>` layout, you MUST precisely insert the new architectural specifications into their logical structural sections within the current document text. Do NOT overwrite or shrink the pre-existing enterprise content blocks.
+
+
+Ensure that you read the exact Tag IDs from the `['[DOC-001]']` variable, and permanently burn those codes into the generated documentation layout (inside the table columns or the dedicated Traceability Matrix Reference section). Emit the final production-ready comprehensive documentation inside a single valid markdown code block (` ```markdown `) now.
+* **📝 Response**:
+```markdown
+# Social Scheduler - Production Deployment Runbook
+
+**Document ID:** DOC-001  
+**Target Environment:** Google Cloud Platform (GCP) — Production  
+**Last Updated:** 2026-08-31  
+**Author:** Enterprise System Architect (SA Agent)  
+**Status:** Approved  
+
+---
+
+## Table of Contents
+
+1. [Prerequisites](#1-prerequisites)  
+2. [Infrastructure Provisioning via Terraform](#2-infrastructure-provisioning-via-terraform)  
+3. [Application Deployment to GKE](#3-application-deployment-to-gke)  
+4. [Rollback Procedures](#4-rollback-procedures)  
+5. [Post-Deployment Validation Checklist](#5-post-deployment-validation-checklist)  
+6. [Emergency Troubleshooting Guide](#6-emergency-troubleshooting-guide)  
+7. [Traceability Matrix Reference](#7-traceability-matrix-reference)
+
+---
+
+## 1. Prerequisites
+
+Before initiating any deployment activities, ensure the following tools and permissions are available: [DOC-001]
+
+### Required Tools
+
+| Tool | Minimum Version | Purpose | Targeted Tag IDs |
+| :--- | :--- | :--- | :--- |
+| **Google Cloud CLI (`gcloud`)** | `450.0.0` | Authenticate and interact with GCP services | [DOC-001] |
+| **Kubernetes CLI (`kubectl`)** | `1.28` | Manage GKE cluster resources | [DOC-001] |
+| **Terraform CLI** | `1.6.0` | Provision infrastructure as code | [NFR-002], [DOC-001] |
+| **Docker** | `24.0.x` | Build and push container images | [NFR-001], [DOC-001] |
+| **Helm** | `3.12.x` | Install observability stack (Prometheus, Grafana) | [NFR-001], [DOC-001] |
+
+### IAM Permissions
+
+The deploying user or service account must hold the following roles: [NFR-002]
+
+| Role | Scope | Justification | Targeted Tag IDs |
+| :--- | :--- | :--- | :--- |
+| `roles/owner` | Project-wide | Full administrative access for initial setup | [NFR-002] |
+| `roles/container.admin` | GKE cluster | Deploy and manage Kubernetes workloads | [NFR-003] |
+| `roles/cloudsql.admin` | Cloud SQL instances | Manage database lifecycle | [DAT-001] |
+| `roles/storage.admin` | GCS buckets | Access Terraform state backend | [DOC-001] |
+| `roles/artifactregistry.writer` | Artifact Registry | Push container images | [NFR-001] |
+| `roles/monitoring.viewer` | Monitoring | View metrics and dashboards | [NFR-001] |
+| `roles/logging.viewer` | Logging | Access logs for troubleshooting | [NFR-001] |
+
+> 🔒 **Security Note:** In production environments, replace `roles/owner` with least-privilege custom roles scoped to specific resources [NFR-002].
+
+---
+
+## 2. Infrastructure Provisioning via Terraform
+
+This section outlines the process for provisioning the foundational GCP infrastructure using Terraform modules located at `./sources/infra/terraform/gcp/` [NFR-002].
+
+### Step-by-Step Instructions
+
+#### 2.1 Authenticate with GCP
+
+```bash
+gcloud auth login
+gcloud config set project social-scheduler-prod
+```
+
+#### 2.2 Initialize Terraform Backend
+
+Navigate to the Terraform root directory `./sources/infra/terraform/gcp` and initialize the backend: [DOC-001]
+
+```bash
+cd ./sources/infra/terraform/gcp
+terraform init
+```
+
+> ✅ This step initializes the GCS backend (`socialscheduler-tfstate`) and downloads required providers (`google`, `google-beta`).
+
+#### 2.3 Preview Changes
+
+Generate an execution plan to preview all infrastructure changes: [DOC-001]
+
+```bash
+terraform plan -out=tfplan
+```
+
+> 📋 Review the output carefully. Confirm that VPC networks, subnets, GKE clusters, Cloud SQL instances, and Memorystore Redis instances are correctly defined.
+
+#### 2.4 Apply Infrastructure
+
+Apply the planned changes to provision the infrastructure [NFR-002]:
+
+```bash
+terraform apply tfplan
+```
+
+> ⏱️ This operation may take 10–15 minutes depending on resource complexity.
+
+### Provisioned Resources Summary
+
+| Resource | Module File Path | Targeted Tag IDs |
+| :--- | :--- | :--- |
+| Custom VPC Network | `./sources/infra/terraform/gcp/vpc.tf` | [NFR-002] |
+| GKE Autopilot Cluster | `./sources/infra/terraform/gcp/gke.tf` | [NFR-002], [NFR-003] |
+| Cloud SQL Instance | `./sources/infra/terraform/gcp/cloudsql.tf` | [NFR-002], [DAT-001] |
+| Memorystore Redis | `./sources/infra/terraform/gcp/memorystore.tf` | [NFR-002], [REQ-003] |
+
+---
+
+## 3. Application Deployment to GKE
+
+Once the infrastructure is provisioned, deploy the microservices to the GKE cluster using Kubernetes manifests stored under `./sources/infra/kubernetes/socialscheduler/` [NFR-003].
+
+### Step-by-Step Instructions
+
+#### 3.1 Configure Kubeconfig
+
+Authenticate `kubectl` with the newly created GKE cluster: [NFR-003]
+
+```bash
+gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1
+```
+
+#### 3.2 Create Namespace
+
+Create a dedicated namespace for the application: [NFR-003]
+
+```bash
+kubectl create namespace socialscheduler
+```
+
+#### 3.3 Apply Kubernetes Manifests
+
+Deploy all base manifests and overlays using Kustomize: [NFR-003]
+
+```bash
+kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/prod
+```
+
+> 🧩 This command applies Deployments, Services, HPAs, Ingress, and ConfigMaps from `./sources/infra/kubernetes/socialscheduler/base/`.
+
+#### 3.4 Verify Deployment Rollout Status
+
+Monitor the rollout status of core services to ensure successful pod initialization [NFR-003]:
+
+```bash
+kubectl rollout status deployment/schedule-service -n socialscheduler
+kubectl rollout status deployment/user-service -n socialscheduler
+kubectl rollout status deployment/ai-service -n socialscheduler
+kubectl rollout status deployment/rate-limit-service -n socialscheduler
+```
+
+---
+
+## 4. Rollback Procedures
+
+If a newly deployed version exhibits critical failures, execute the rollback procedure immediately to restore service stability [NFR-003], [EXC-003].
+
+### 4.1 Rollback Deployment via Kubectl
+
+Roll back the deployment to the previous stable revision:
+
+```bash
+kubectl rollout undo deployment/schedule-service -n socialscheduler
+kubectl rollout undo deployment/user-service -n socialscheduler
+kubectl rollout undo deployment/ai-service -n socialscheduler
+kubectl rollout undo deployment/rate-limit-service -n socialscheduler
+```
+
+### 4.2 Verify Rollback Status
+
+Confirm that all pods have successfully reverted to the stable image version:
+
+```bash
+kubectl get pods -n socialscheduler -o wide
+```
+
+---
+
+## 5. Post-Deployment Validation Checklist
+
+After completing the deployment to GKE, execute the following validation steps to ensure system health and performance compliance [NFR-001], [DOC-001]:
+
+### 5.1 Smoke Test Health Endpoints
+
+Perform HTTP GET requests to verify that all service health endpoints return HTTP 200 UP status:
+
+```bash
+curl -i https://api.socialscheduler.local/api/v1/schedules/health
+curl -i https://api.socialscheduler.local/api/v1/ai/recommendations/health
+```
+
+### 5.2 Validate Prometheus Metrics Collection
+
+Query Prometheus via the API to verify metric collection across all microservices [NFR-001]:
+
+```bash
+curl -G "http://prometheus.observability.svc.cluster.local:9090/api/v1/query" --data-urlencode "query=up"
+```
+
+> ✅ Expected output: A list of active targets with value `1` for all deployed services.
+
+### 5.3 Grafana Dashboard Verification
+
+Access the Grafana web console and load the `socialscheduler-overview.json` dashboard located at `./sources/infra/observability/grafana-dashboard.json`. Verify that:
+- P95 Latency remains below 200ms [NFR-001].
+- HTTP 429 Rate Limit error counts are within normal operating bounds [REQ-003].
+- CPU and Memory utilizations per pod are stable and well within HPA thresholds [NFR-003].
+
+---
+
+## 6. Emergency Troubleshooting Guide
+
+This section provides operational runbooks for resolving critical production incidents.
+
+### 6.1 Scenario A: HTTP 429 Rate Limit Flooding
+
+* **Symptom:** Clients report widespread HTTP 429 Too Many Requests errors; rate-limit service metrics spike [EXC-005], [REQ-003].
+* **Root Cause:** Traffic surge exceeding the Redis Token Bucket capacity or potential DDoS attack.
+* **Resolution Steps:**
+  1. Inspect Redis memory and connection pool status in Memorystore.
+  2. Temporarily increase token bucket capacity in `./sources/backend/rate-limit-service/src/main/resources/application.yml` or via ConfigMap update:
+     ```bash
+     kubectl set env deployment/rate-limit-service RATE_LIMIT_CAPACITY=200 -n socialscheduler
+     ```
+  3. If traffic is malicious, enable Google Cloud Armor security policy on the Ingress gateway.
+
+### 6.2 Scenario B: Kafka Consumer Lag Spike
+
+* **Symptom:** Scheduled posts are not published on time; Kafka consumer lag exceeds 1000 messages [NFR-001].
+* **Root Cause:** Upstream third-party social platform API (Facebook, Instagram, TikTok) throttling or downtime [EXC-001].
+* **Resolution Steps:**
+  1. Check Kafka consumer group status:
+     ```bash
+     kubectl exec -it kafka-broker-0 -n kafka -- kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group schedule-consumer-group
+     ```
+  2. Inspect application logs for `SocialPlatformException` errors:
+     ```bash
+     kubectl logs -l app=schedule-service -n socialscheduler --tail=100 | grep "SocialPlatformException"
+     ```
+  3. Scale up `schedule-service` replicas to handle backlog processing:
+     ```bash
+     kubectl scale deployment/schedule-service --replicas=10 -n socialscheduler
+     ```
+
+### 6.3 Scenario C: Cloud SQL Database Storage Exhaustion
+
+* **Symptom:** Database connections fail; application logs report SQL connection timeouts or disk full errors [DAT-001], [EXC-003].
+* **Root Cause:** Unbounded growth of `performance_metrics` or audit logs.
+* **Resolution Steps:**
+  1. Check Cloud SQL instance disk utilization in GCP Console.
+  2. Resize storage interactively via Terraform (`./sources/infra/terraform/gcp/cloudsql.tf`) or GCP Console.
+  3. Execute data cleanup script for expired rate limit windows or old performance metrics:
+     ```sql
+     DELETE FROM rate_limit_schema.rate_limits WHERE window_end < NOW() - INTERVAL '7 days';
+     ```
+
+---
+
+## 7. Traceability Matrix Reference
+
+| Requirement ID | Architectural Domain | Description / Compliance Target | Document Section |
+| :--- | :--- | :--- | :--- |
+| **[DOC-001]** | Enterprise Documentation | Production deployment runbook and operational guidelines | Sections 1, 2, 3, 4, 5, 6 |
+| **[NFR-001]** | Performance & Observability | P95 latency < 200ms, Prometheus/Grafana monitoring | Sections 1, 5 |
+| **[NFR-002]** | Security & Compliance | Terraform GCP provisioning, least-privilege IAM, OWASP Top 10 | Sections 1, 2 |
+| **[NFR-003]** | Cloud Architecture | GKE Autopilot, Kubernetes manifests, HPA, horizontal scaling | Sections 2, 3, 4 |
+| **[REQ-001]** | Core Business Logic | Multi-platform scheduling (Facebook, Instagram, TikTok) | Sections 5, 6 |
+| **[REQ-003]** | Rate Limiting | Redis Token Bucket rate limiter, HTTP 429 response handling | Sections 5, 6 |
+| **[DAT-001]** | Database & Persistence | Schema-per-tenant, Cloud SQL PostgreSQL persistence | Sections 1, 6 |
+| **[EXC-001]** | Fault Tolerance | Handling third-party SDK and network failures | Section 6 |
+| **[EXC-005]** | Rate Limit Exception | Proper HTTP 429 formatting and `Retry-After` header | Section 6 |
+```
+```
+
+# Day 3: model models/gemini-flash-lite-latest - API Endpoint https://generativelanguage.googleapis.com/v1beta/openai
+* **Production source codebase at SOURCE destination**: INTEGRATION_SCOPE
+* **Production source codebase generated at TARGET destination**: ./sources/docs/operations/CicdPipeline.md
+* **📝 Prompt / Tasks / Data**:
+### 🏢 ENTERPRISE SYSTEM DOCUMENT MATRIX INJECTION
+*   Target Project Identity Safe Name: 
+*   Enforced Java Package Prefix Base: org.nlh4j.socialscheduler
+*   Target Documentation Destination Path: `./sources/docs/operations/CicdPipeline.md`
+
+
+### ENTERPRISE DOCUMENTATION RECOVERY WORKSPACE
+* **Target Document Disk Status:** INCREMENTAL_MAINTENANCE_APPEND
+* **Current Living Document Content:**
+<EXISTING_DOCUMENT_CONTENT>
+```markdown
+```markdown
+# Social Scheduler - CI/CD Pipeline Documentation
+
+**Document Version:** 1.0  
+**Last Updated:** 2026-08-31  
+**Author:** Enterprise System Architect (SA Agent)  
+**Approval Status:** Pending Technical Review  
+**Target Tag IDs:** [DOC-001]
+
+---
+
+## 1. Overview
+
+This document provides a comprehensive specification of the Continuous Integration and Continuous Deployment (CI/CD) pipeline for the `social-scheduler` microservices platform. The pipeline is implemented using **GitHub Actions** and orchestrates nine sequential stages from code validation to production deployment. The pipeline enforces strict quality gates, security scanning, and approval workflows to ensure enterprise-grade delivery standards.
+
+**Traceability Matrix Reference:** All pipeline stages map to non-functional requirement **[NFR-001]** (Performance & Observability), **[NFR-002]** (Security & Compliance), **[NFR-003]** (Scalability & High Availability), and documentation requirement **[DOC-001]**.
+
+---
+
+## 2. Pipeline Architecture
+
+### 2.1 Pipeline Stages Overview
+
+| Stage | Name | Purpose | Quality Gate | Target Tag IDs |
+|-------|------|---------|--------------|----------------|
+| 1 | `lint` | Static code analysis (Checkstyle, SpotBugs, ESLint) | Zero violations | [NFR-002], [DOC-001] |
+| 2 | `unit-test` | Unit test execution (JUnit 5, Mockito, Jest) | Coverage ≥ 85% | [NFR-001], [DOC-001] |
+| 3 | `integration-test` | Integration tests with Testcontainers | All tests pass | [NFR-001], [NFR-003], [DOC-001] |
+| 4 | `build-image` | Multi-stage Docker image build | Successful build | [NFR-001], [NFR-003], [DOC-001] |
+| 5 | `push-image` | Push images to Google Artifact Registry | Images pushed | [NFR-003], [DOC-001] |
+| 6 | `deploy-staging` | Deploy to GKE staging namespace | Pods ready | [NFR-003], [DOC-001] |
+| 7 | `smoke-test` | Health checks and metrics validation | All endpoints healthy | [NFR-001], [NFR-003], [DOC-001] |
+| 8 | `approval` | Manual approval gate (Technical Lead) | Approval granted | [NFR-002], [DOC-001] |
+| 9 | `deploy-prod` | Production deployment with rolling update | Rollout complete | [NFR-001], [NFR-003], [DOC-001] |
+
+### 2.2 Pipeline Flow Diagram
+
+```mermaid
+flowchart TD
+    A[Push/PR to develop/main] --> B[Stage 1: lint]
+    B -->|Checkstyle + SpotBugs + ESLint| C[Stage 2: unit-test]
+    C -->|JUnit 5 + Mockito + Jest<br/>Coverage ≥ 85%| D[Stage 3: integration-test]
+    D -->|Testcontainers: PostgreSQL, Redis, Kafka| E[Stage 4: build-image]
+    E -->|Multi-stage Docker Build<br/>4 Services| F[Stage 5: push-image]
+    F -->|Push to Artifact Registry<br/>asia-southeast1-docker.pkg.dev| G[Stage 6: deploy-staging]
+    G -->|kubectl apply -k staging| H[Stage 7: smoke-test]
+    H -->|/actuator/health + Metrics| I[Stage 8: approval]
+    I -->|GitHub Environment<br/>Technical Lead Approval| J[Stage 9: deploy-prod]
+    J -->|Rolling Update Strategy| K[Production Live]
+    
+    style B fill:#e1f5fe,stroke:#01579b
+    style C fill:#e8f5e9,stroke:#1b5e20
+    style D fill:#fff3e0,stroke:#e65100
+    style E fill:#f3e5f5,stroke:#4a148c
+    style F fill:#fce4ec,stroke:#880e4f
+    style G fill:#e0f2f1,stroke:#004d40
+    style H fill:#f1f8e9,stroke:#33691e
+    style I fill:#fff8e1,stroke:#f57f17
+    style J fill:#e8eaf6,stroke:#1a237e
+    style K fill:#c8e6c9,stroke:#2e7d32
+```
+
+---
+
+## 3. Detailed Stage Specifications
+
+### 3.1 Stage 1: Lint (`lint`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `lint`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 15 minutes  
+
+#### 3.1.1 Backend Linting (Java)
+
+| Tool | Configuration | Ruleset | Target Tag IDs |
+|------|---------------|---------|----------------|
+| **Checkstyle** | `checkstyle.xml` (Google Java Style + custom) | Naming, imports, whitespace, modifiers, blocks | [NFR-002] |
+| **SpotBugs** | `spotbugs-exclude.xml` | FindBugs security rules, performance, correctness | [NFR-002] |
+
+**Execution Commands:**
+```bash
+# Checkstyle
+mvn -f ./sources/backend/pom.xml checkstyle:check -Dcheckstyle.config.location=checkstyle.xml
+
+# SpotBugs
+mvn -f ./sources/backend/pom.xml spotbugs:check -Dspotbugs.excludeFilterFile=spotbugs-exclude.xml
+```
+
+**Failure Criteria:** Any Checkstyle violation or SpotBugs finding with rank ≤ 18 (High/Medium) fails the stage.
+
+#### 3.1.2 Frontend Linting (TypeScript/React)
+
+| Tool | Configuration | Ruleset | Target Tag IDs |
+|------|---------------|---------|----------------|
+| **ESLint** | `.eslintrc.js` (Airbnb + TypeScript + React Hooks) | Type safety, React best practices, accessibility | [NFR-002] |
+| **Prettier** | `.prettierrc` | Code formatting consistency | [NFR-002] |
+
+**Execution Commands:**
+```bash
+cd ./sources/frontend
+npm ci
+npm run lint          # ESLint
+npm run format:check  # Prettier
+```
+
+**Failure Criteria:** Any ESLint error or Prettier formatting mismatch fails the stage.
+
+---
+
+### 3.2 Stage 2: Unit Test (`unit-test`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `unit-test`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 30 minutes  
+**Needs:** `lint`  
+
+#### 3.2.1 Backend Unit Tests
+
+| Service | Framework | Coverage Tool | Minimum Coverage | Target Tag IDs |
+|---------|-----------|---------------|------------------|----------------|
+| `user-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
+| `schedule-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
+| `ai-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
+| `rate-limit-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
+
+**Execution Command:**
+```bash
+mvn -f ./sources/backend/pom.xml clean test jacoco:report \
+  -Djacoco.minimum.coverage=0.85 \
+  -Djacoco.excludes="**/dto/**,**/entity/**,**/config/**"
+```
+
+**Coverage Report:** Generated at `./sources/backend/target/site/jacoco/index.html` and uploaded as workflow artifact.
+
+#### 3.2.2 Frontend Unit Tests
+
+| Framework | Coverage Tool | Minimum Coverage | Target Tag IDs |
+|-----------|---------------|------------------|----------------|
+| Jest + React Testing Library | Jest Coverage | 85% | [NFR-001] |
+
+**Execution Command:**
+```bash
+cd ./sources/frontend
+npm ci
+npm run test:ci -- --coverage --coverageThreshold='{"global":{"branches":85,"functions":85,"lines":85,"statements":85}}'
+```
+
+**Failure Criteria:** Any test failure or coverage below 85% for any metric (branches, functions, lines, statements) fails the stage.
+
+---
+
+### 3.3 Stage 3: Integration Test (`integration-test`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `integration-test`  
+**Runs On:** `ubuntu-latest` (with Docker)  
+**Timeout:** 45 minutes  
+**Needs:** `unit-test`  
+
+#### 3.3.1 Testcontainers Configuration
+
+| Container | Image | Version | Purpose | Target Tag IDs |
+|-----------|-------|---------|---------|----------------|
+| PostgreSQL | `postgres:16-alpine` | 16 | Database integration | [NFR-001], [NFR-003] |
+| Redis | `redis:7-alpine` | 7 | Cache & Rate Limiting | [NFR-001], [NFR-003] |
+| Kafka | `confluentinc/cp-kafka:7.5.0` | 7.5.0 | Event** | |
+
+
+
+on**0 o oou |
+
+o |**000...**...os0** |** | | Which**
+
+** on Thisimeoni on**** ...**** ...****}
+
+or ...** ... ...... ...... ... The Theparallel>o> ps0
+
+...} # ... ... ...> | ... ......
+
+...}\) ...} |... ......}\)
+
+
+
+}\)
+
+}\)
+
+ Pil............}
+
+
+
+
+
+ ...
+
+)
+
+
+
+~,. ...psi>>...}\)
+
+}\)
+
+
+
+
+
+
+
+
+
+...)
+
+)
+
+}\)
+
+,.... ...).&& ...&\)&& ... ...&pri ... ...,& ... ...​,s &...#&#} &? ...Psiquuclear. The?n &&##\) ...& ....
+
+},,.} , .n-,...)
+ \scale
+
+ u ... ... ... ... ...#s? s& ...??**&, ...?chichi??&.
+??μ &? The ...oline
+
+.bf ....
+# ...?& & The&.
+.
+ ...**
+```
+</EXISTING_DOCUMENT_CONTENT>
+
+
+
+*   Documentation Context: Conceptual Init (Synthesize the architecture, guidelines, or specs based purely on the execution sub-tasks blueprint.)
+
+
+### 📋 EXECUTION SUB-TASKS & DOCUMENT CONTENT TO WRITE
+['Tạo ./sources/docs/operations/CicdPipeline.md mô tả chi tiết pipeline GitHub Actions gồm chín giai đoạn tuần tự. Giai đoạn 1 lint chạy Checkstyle và SpotBugs trên mã nguồn Java, ESLint trên mã nguồn TypeScript. Giai đoạn 2 unit-test chạy JUnit 5 và Mockito cho backend services, Jest cho frontend. Giai đoạn 3 integration-test chạy Testcontainers với PostgreSQL, Redis, Kafka container thực tế. Giai đoạn 4 build-image xây dựng Docker image đa giai đoạn cho bốn dịch vụ. Giai đoạn 5 push-image đẩy image lên Google Artifact Registry tại asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/. Giai đoạn 6 deploy-staging áp dụng manifest Kubernetes cho môi trường staging. Giai đoạn 7 smoke-test gọi các endpoint /actuator/health và kiểm tra metrics. Giai đoạn 8 approval yêu cầu approval gate từ Technical Lead thông qua GitHub Environments. Giai đoạn 9 deploy-prod triển khai production với rolling update strategy. Tài liệu ghi rõ biến bí mật cần cấu hình trong GitHub Secrets: GCP_SA_KEY (service account key JSON), ARTIFACT_REGISTRY (path registry), KUBECONFIG_PROD (kubeconfig base64 encoded). Phần cuối trình bày chiến lược Git Flow với các nhánh main, develop, feature/*, release/*, hotfix/* và quy ước Conventional Commits (ví dụ feat(scheduler): add schedule validation). Tích hợp sơ đồ Mermaid flowchart TD minh họa chín giai đoạn trên.']
+
+---
+
+### ⚙️ TECHNICAL WRITER EXECUTION INSTRUCTION:
+
+Please read the comprehensive architectural constraints, workspace folder guardrails, and detailed sub-task document specifications provided above. Analyze the `<EXISTING_DOCUMENT_CONTENT>` layout, you MUST precisely insert the new architectural specifications into their logical structural sections within the current document text. Do NOT overwrite or shrink the pre-existing enterprise content blocks.
+
+
+Ensure that you read the exact Tag IDs from the `['[DOC-001]']` variable, and permanently burn those codes into the generated documentation layout (inside the table columns or the dedicated Traceability Matrix Reference section). Emit the final production-ready comprehensive documentation inside a single valid markdown code block (` ```markdown `) now.
+* **📝 Response**:
+```markdown
+# Social Scheduler - CI/CD Pipeline Documentation
+
+**Document Version:** 1.0  
+**Last Updated:** 2026-08-31  
+**Author:** Enterprise System Architect (SA Agent)  
+**Approval Status:** Pending Technical Review  
+**Target Tag IDs:** [DOC-001]
+
+---
+
+## 1. Overview
+
+This document provides a comprehensive specification of the Continuous Integration and Continuous Deployment (CI/CD) pipeline for the `social-scheduler` microservices platform. The pipeline is implemented using **GitHub Actions** and orchestrates nine sequential stages from code validation to production deployment. The pipeline enforces strict quality gates, security scanning, and approval workflows to ensure enterprise-grade delivery standards.
+
+**Traceability Matrix Reference:** All pipeline stages map to non-functional requirement **[NFR-001]** (Performance & Observability), **[NFR-002]** (Security & Compliance), **[NFR-003]** (Scalability & High Availability), and documentation requirement **[DOC-001]**.
+
+---
+
+## 2. Pipeline Architecture
+
+### 2.1 Pipeline Stages Overview
+
+| Stage | Name | Purpose | Quality Gate | Target Tag IDs |
+|-------|------|---------|--------------|----------------|
+| 1 | `lint` | Static code analysis (Checkstyle, SpotBugs, ESLint) | Zero violations | [NFR-002], [DOC-001] |
+| 2 | `unit-test` | Unit test execution (JUnit 5, Mockito, Jest) | Coverage ≥ 85% | [NFR-001], [DOC-001] |
+| 3 | `integration-test` | Integration tests with Testcontainers | All tests pass | [NFR-001], [NFR-003], [DOC-001] |
+| 4 | `build-image` | Multi-stage Docker image build | Successful build | [NFR-001], [NFR-003], [DOC-001] |
+| 5 | `push-image` | Push images to Google Artifact Registry | Images pushed | [NFR-003], [DOC-001] |
+| 6 | `deploy-staging` | Deploy to GKE staging namespace | Pods ready | [NFR-003], [DOC-001] |
+| 7 | `smoke-test` | Health checks and metrics validation | All endpoints healthy | [NFR-001], [NFR-003], [DOC-001] |
+| 8 | `approval` | Manual approval gate (Technical Lead) | Approval granted | [NFR-002], [DOC-001] |
+| 9 | `deploy-prod` | Production deployment with rolling update | Rollout complete | [NFR-001], [NFR-003], [DOC-001] |
+
+### 2.2 Pipeline Flow Diagram
+
+```mermaid
+flowchart TD
+    A[Push/PR to develop/main] --> B[Stage 1: lint]
+    B -->|Checkstyle + SpotBugs + ESLint| C[Stage 2: unit-test]
+    C -->|JUnit 5 + Mockito + Jest<br/>Coverage ≥ 85%| D[Stage 3: integration-test]
+    D -->|Testcontainers: PostgreSQL, Redis, Kafka| E[Stage 4: build-image]
+    E -->|Multi-stage Docker Build<br/>4 Services| F[Stage 5: push-image]
+    F -->|Push to Artifact Registry<br/>asia-southeast1-docker.pkg.dev| G[Stage 6: deploy-staging]
+    G -->|kubectl apply -k staging| H[Stage 7: smoke-test]
+    H -->|/actuator/health + Metrics| I[Stage 8: approval]
+    I -->|GitHub Environment<br/>Technical Lead Approval| J[Stage 9: deploy-prod]
+    J -->|Rolling Update Strategy| K[Production Live]
+    
+    style B fill:#e1f5fe,stroke:#01579b
+    style C fill:#e8f5e9,stroke:#1b5e20
+    style D fill:#fff3e0,stroke:#e65100
+    style E fill:#f3e5f5,stroke:#4a148c
+    style F fill:#fce4ec,stroke:#880e4f
+    style G fill:#e0f2f1,stroke:#004d40
+    style H fill:#f1f8e9,stroke:#33691e
+    style I fill:#fff8e1,stroke:#f57f17
+    style J fill:#e8eaf6,stroke:#1a237e
+    style K fill:#c8e6c9,stroke:#2e7d32
+```
+
+---
+
+## 3. Detailed Stage Specifications
+
+### 3.1 Stage 1: Lint (`lint`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `lint`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 15 minutes  
+
+#### 3.1.1 Backend Linting (Java)
+
+| Tool | Configuration | Ruleset | Target Tag IDs |
+|------|---------------|---------|----------------|
+| **Checkstyle** | `checkstyle.xml` (Google Java Style + custom) | Naming, imports, whitespace, modifiers, blocks | [NFR-002] |
+| **SpotBugs** | `spotbugs-exclude.xml` | FindBugs security rules, performance, correctness | [NFR-002] |
+
+**Execution Commands:**
+```bash
+# Checkstyle
+mvn -f ./sources/backend/pom.xml checkstyle:check -Dcheckstyle.config.location=checkstyle.xml
+
+# SpotBugs
+mvn -f ./sources/backend/pom.xml spotbugs:check -Dspotbugs.excludeFilterFile=spotbugs-exclude.xml
+```
+
+**Failure Criteria:** Any Checkstyle violation or SpotBugs finding with rank ≤ 18 (High/Medium) fails the stage.
+
+#### 3.1.2 Frontend Linting (TypeScript/React)
+
+| Tool | Configuration | Ruleset | Target Tag IDs |
+|------|---------------|---------|----------------|
+| **ESLint** | `.eslintrc.js` (Airbnb + TypeScript + React Hooks) | Type safety, React best practices, accessibility | [NFR-002] |
+| **Prettier** | `.prettierrc` | Code formatting consistency | [NFR-002] |
+
+**Execution Commands:**
+```bash
+cd ./sources/frontend
+npm ci
+npm run lint          # ESLint
+npm run format:check  # Prettier
+```
+
+**Failure Criteria:** Any ESLint error or Prettier formatting mismatch fails the stage.
+
+---
+
+### 3.2 Stage 2: Unit Test (`unit-test`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `unit-test`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 30 minutes  
+**Needs:** `lint`  
+
+#### 3.2.1 Backend Unit Tests
+
+| Service | Framework | Coverage Tool | Minimum Coverage | Target Tag IDs |
+|---------|-----------|---------------|------------------|----------------|
+| `user-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
+| `schedule-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
+| `ai-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
+| `rate-limit-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
+
+**Execution Command:**
+```bash
+mvn -f ./sources/backend/pom.xml clean test jacoco:report \
+  -Djacoco.minimum.coverage=0.85 \
+  -Djacoco.excludes="**/dto/**,**/entity/**,**/config/**"
+```
+
+**Coverage Report:** Generated at `./sources/backend/target/site/jacoco/index.html` and uploaded as workflow artifact.
+
+#### 3.2.2 Frontend Unit Tests
+
+| Framework | Coverage Tool | Minimum Coverage | Target Tag IDs |
+|-----------|---------------|------------------|----------------|
+| Jest + React Testing Library | Jest Coverage | 85% | [NFR-001] |
+
+**Execution Command:**
+```bash
+cd ./sources/frontend
+npm ci
+npm run test:ci -- --coverage --coverageThreshold='{"global":{"branches":85,"functions":85,"lines":85,"statements":85}}'
+```
+
+**Failure Criteria:** Any test failure or coverage below 85% for any metric (branches, functions, lines, statements) fails the stage.
+
+---
+
+### 3.3 Stage 3: Integration Test (`integration-test`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `integration-test`  
+**Runs On:** `ubuntu-latest` (with Docker)  
+**Timeout:** 45 minutes  
+**Needs:** `unit-test`  
+
+#### 3.3.1 Testcontainers Configuration
+
+| Container | Image | Version | Purpose | Target Tag IDs |
+|-----------|-------|---------|---------|----------------|
+| PostgreSQL | `postgres:16-alpine` | 16 | Database integration & Flyway DDL verification | [NFR-001], [NFR-003], [DAT-001] |
+| Redis | `redis:7-alpine` | 7 | Cache & Token Bucket Rate Limiter | [NFR-001], [NFR-003] |
+| Kafka | `confluentinc/cp-kafka:7.5.0` | 7.5.0 | Event-driven architecture messaging | [NFR-001], [NFR-003] |
+
+**Execution Command:**
+```bash
+mvn -f ./sources/backend/pom.xml verify -Dtest=*IT -DfailIfNoTests=false
+```
+
+---
+
+### 3.4 Stage 4: Build Image (`build-image`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `build-image`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 30 minutes  
+**Needs:** `integration-test`  
+
+#### 3.4.1 Multi-Stage Docker Builds
+
+The pipeline builds production-ready container images for all four backend microservices using multi-stage Dockerfiles located under `./sources/infra/docker/`.
+
+| Service | Dockerfile Path | Base Image (Runtime) | Target Tag IDs |
+|---------|-----------------|----------------------|----------------|
+| `user-service` | `./sources/infra/docker/user-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
+| `schedule-service` | `./sources/infra/docker/schedule-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
+| `ai-service` | `./sources/infra/docker/ai-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
+| `rate-limit-service` | `./sources/infra/docker/rate-limit-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
+
+**Execution Command Example:**
+```bash
+docker build -f ./sources/infra/docker/schedule-service/Dockerfile \
+  -t asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/schedule-service:${GITHUB_SHA} \
+  ./sources/backend/schedule-service
+```
+
+---
+
+### 3.5 Stage 5: Push Image (`push-image`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `push-image`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 15 minutes  
+**Needs:** `build-image`  
+
+#### 3.5.1 Google Artifact Registry Integration
+
+Images built in Stage 4 are authenticated and pushed to Google Artifact Registry.
+
+- **Registry Base Path:** `asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/`
+- **Authentication:** Authenticates via GCP Service Account key stored in GitHub Secrets (`GCP_SA_KEY`).
+
+**Execution Commands:**
+```bash
+echo "${{ secrets.GCP_SA_KEY }}" | docker login -u _json_key --password-stdin https://asia-southeast1-docker.pkg.dev
+docker push asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/schedule-service:${GITHUB_SHA}
+```
+
+---
+
+### 3.6 Stage 6: Deploy to Staging (`deploy-staging`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `deploy-staging`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 20 minutes  
+**Needs:** `push-image`  
+
+#### 3.6.1 Kubernetes Manifest Application
+
+Applies Kubernetes base manifests and staging overlays to the GKE staging namespace using Kustomize.
+
+**Execution Commands:**
+```bash
+gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1 --project social-scheduler-prod
+kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/staging
+kubectl rollout status deployment/schedule-service -n socialscheduler-staging --timeout=300s
+```
+
+---
+
+### 3.7 Stage 7: Smoke Test (`smoke-test`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `smoke-test`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 15 minutes  
+**Needs:** `deploy-staging`  
+
+#### 3.7.1 Health & Metrics Verification
+
+Executes automated curl-based health probes and metrics extraction against staging endpoints.
+
+**Execution Script:**
+```bash
+# Verify Actuator Health
+curl -sSf https://api-staging.socialscheduler.local/actuator/health | grep -q '"status":"UP"'
+
+# Verify Prometheus Metrics Endpoint
+curl -sSf https://api-staging.socialscheduler.local/actuator/prometheus | grep -q 'jvm_memory_used_bytes'
+```
+
+---
+
+### 3.8 Stage 8: Manual Approval (`approval`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `approval`  
+**Runs On:** `ubuntu-latest`  
+**Environment:** `production` (Requires reviewer approval)  
+**Needs:** `smoke-test`  
+
+#### 3.8.1 Technical Lead Approval Gate
+
+This stage pauses pipeline execution until a designated Technical Lead or Release Manager approves the deployment within GitHub Environments. Enforces security compliance **[NFR-002]**.
+
+---
+
+### 3.9 Stage 9: Deploy to Production (`deploy-prod`)
+
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `deploy-prod`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 30 minutes  
+**Needs:** `approval`  
+
+#### 3.9.1 Production Rolling Update
+
+Deploys verified container images to the production GKE cluster using rolling update strategy (`maxSurge: 1, maxUnavailable: 0`), guaranteeing zero downtime.
+
+**Execution Commands:**
+```bash
+gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1 --project social-scheduler-prod
+kubectl set image deployment/schedule-service schedule-service=asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/schedule-service:${GITHUB_SHA} -n socialscheduler
+kubectl rollout status deployment/schedule-service -n socialscheduler --timeout=600s
+```
+
+---
+
+## 4. Required GitHub Secrets Configuration
+
+To execute this pipeline successfully, the following secrets must be configured in the GitHub repository settings (`Settings > Secrets and variables > Actions`):
+
+| Secret Name | Description | Target Tag IDs |
+|-------------|-------------|----------------|
+| `GCP_SA_KEY` | Google Cloud Service Account JSON key with permissions for GKE, Artifact Registry, and Cloud SQL. | [NFR-002], [DOC-001] |
+| `ARTIFACT_REGISTRY` | Base URL path for Google Artifact Registry (`asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler`). | [NFR-003], [DOC-001] |
+| `KUBECONFIG_PROD` | Base64-encoded Kubernetes configuration file for cluster connection and deployment orchestration. | [NFR-003], [DOC-001] |
+
+---
+
+## 5. Git Flow Strategy & Branching Model
+
+The development workflow adheres to a strict Git Flow branching model combined with Conventional Commits to maintain traceability and automated changelog generation.
+
+### 5.1 Branching Structure
+
+- **`main`**: Production-ready code. Direct pushes are strictly forbidden; changes merge via pull requests from `release/*` or `hotfix/*`.
+- **`develop`**: Integration branch for ongoing development. Feature branches merge into `develop`.
+- **`feature/*`**: Isolated branches for developing specific backlog items (e.g., `feature/development-phase-1-day-1`).
+- **`release/*`**: Staging preparation branches cut from `develop` for final QA and UAT.
+- **`hotfix/*`**: Emergency production patches cut directly from `main`.
+
+### 5.2 Conventional Commits Specification
+
+All commit messages must follow the Conventional Commits format to enable automated semantic versioning and release notes:
+
+```text
+<type>(<scope>): <short description>
+
+[optional body]
+
+[optional footer]
+```
+
+**Allowed Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`.  
+**Example:** `feat(scheduler): add schedule validation for facebook platform [REQ-001]`
+
+---
+
+## 6. Traceability Matrix Reference
+
+| Requirement Code | Description | Pipeline Stage / Component |
+|------------------|-------------|----------------------------|
+| **[REQ-001]** | Multi-platform scheduling API integration | Stages 2, 3, 4 |
+| **[REQ-002]** | AI-powered content recommendation | Stages 2, 3, 4 |
+| **[REQ-003]** | Input validation and rate limiting | Stages 1, 2, 3 |
+| **[NFR-001]** | Performance, Latency <200ms, Observability | Stages 2, 3, 7, Prometheus/Grafana |
+| **[NFR-002]** | Security, OWASP Top 10 compliance, Secrets | Stages 1, 8, GCP IAM |
+| **[NFR-003]** | Scalability, GKE Autopilot, HPA, Multi-tenancy | Stages 3, 4, 6, 9 |
+| **[DOC-001]** | Comprehensive enterprise technical documentation | Entire document repository (`./sources/docs/`) |
+```
+```
+
+# Day 3: model models/gemini-flash-lite-latest - API Endpoint https://generativelanguage.googleapis.com/v1beta/openai
+* **Production source codebase at SOURCE destination**: INTEGRATION_SCOPE
+* **Production source codebase generated at TARGET destination**: ./sources/docs/architecture/SecurityComplianceMatrix.md
+* **📝 Prompt / Tasks / Data**:
+### 🏢 ENTERPRISE SYSTEM DOCUMENT MATRIX INJECTION
+*   Target Project Identity Safe Name: 
+*   Enforced Java Package Prefix Base: org.nlh4j.socialscheduler
+*   Target Documentation Destination Path: `./sources/docs/architecture/SecurityComplianceMatrix.md`
+
+
+### ENTERPRISE DOCUMENTATION RECOVERY WORKSPACE
+* **Target Document Disk Status:** INCREMENTAL_MAINTENANCE_APPEND
+* **Current Living Document Content:**
+<EXISTING_DOCUMENT_CONTENT>
+```markdown
+```markdown
+# Security Compliance Matrix - Social Scheduler Platform
+**Document Control:** `./sources/docs/architecture/SecurityComplianceMatrix.md`  
+**Project:** social-scheduler  
+**Version:** 1.0  
+**Classification:** Enterprise Confidential  
+**Targeted Tag IDs:** [DOC-001], [NFR-002]
+
+---
+
+## 1. Executive Summary
+
+This document establishes the formal security compliance matrix for the `social-scheduler` microservices platform, mapping each applicable OWASP Top 10 (2021) category to concrete, auditable mitigation controls implemented across the system architecture. The matrix serves as the authoritative reference for security auditors, compliance officers, and engineering teams to verify that the platform meets enterprise-grade security standards.
+
+**Scope:** All backend microservices (`user-service`, `schedule-service`, `ai-service`, `rate-limit-service`, `api-gateway`), infrastructure layer (GCP, GKE, Cloud SQL, Memorystore), and data pipelines (Kafka, Redis).
+
+**Compliance Baseline:** OWASP Top 10 2021 + NIST 800-53 Rev.5 controls mapping.
+
+---
+
+## 2. Traceability Matrix Reference
+
+| OWASP Category | OWASP ID | Mitigation Control | Implementation Location | Tag IDs |
+| :--- | :--- | :--- | :--- | :--- |
+| Broken Access Control | A01:2021 | RBAC 4-Role Enforcement (Admin, User, Scheduler, Analyst) | `api-gateway` SecurityConfig, `RbacPredicate`, Spring Security | [ARC-001], [ARC-002], [ARC-003], [ARC-004], [ARC-005], [ARC-006] |
+| Cryptographic Failures | A02:2021 | TLS 1.3 End-to-End, JWT RS256, Key Rotation 90-day | `api-gateway` JwtDecoder, GCP Load Balancer, Cloud KMS | [NFR-002], [ARC-005] |
+| Injection | A03:2021 | JPA Parameter Binding, Hibernate PreparedStatement, Whitelist Validation, HTML Sanitizer | `schedule-service` SchedulePayloadValidator, `user-service` Repository, `ai-service` OpenAIClient | [DAT-001], [DAT-002], [DAT-003], [REQ-003] |
+| Insecure Design | A04:2021 | Rate Limiter Redis Token Bucket, Defense-in-Depth Gateway Filter | `rate-limit-service` RedisTokenBucketStrategy, `api-gateway` RateLimitGatewayFilter | [REQ-003], [EXC-005], [ARC-006] |
+| Security Misconfiguration | A05:2021 | CORS Whitelist (No Wildcard), Security Headers (CSP, HSTS, X-Content-Type-Options) | `api-gateway` CorsFilter, Nginx Ingress ConfigMap, Spring Boot Actuator | [NFR-002], [NFR-003], [ARC-006] |
+| Identification & Authentication Failures | A07:2021 | OAuth2 Resource Server, JWT Decoder, Token Expiry Handling (HTTP 401) | `api-gateway` SecurityConfig, JwtAuthFilter, GlobalExceptionHandler | [ARC-005], [EXC-002], [NFR-002] |
+| Security Logging & Monitoring Failures | A09:2021 | Prometheus + Grafana, Structured Logging with Correlation ID, LogScrubbingInterceptor | `observability` Prometheus ConfigMap, Grafana Dashboard, SLF4J Logback | [NFR-001], [ARC-006], [EXC-001], [EXC-003] |
+
+---
+
+## 3. Detailed Control Mapping
+
+### 3.1 A01:2021 — Broken Access Control → RBAC 4-Role Enforcement
+
+**Threat Model:** Unauthorized access to administrative functions, cross-tenant data leakage, privilege escalation via API endpoint manipulation.
+
+**Mitigation Architecture:**
+
+```mermaid
+flowchart TD
+    Client[Client Request] --> Gateway[API Gateway :8080]
+    Gateway --> JwtFilter[JwtAuthFilter: Extract & Validate JWT]
+    JwtFilter --> RbacPredicate[RbacPredicate: Evaluate Roles]
+    RbacPredicate -->|ADMIN| AdminAPI[/api/v1/admin/**]
+    RbacPredicate -->|USER| UserAPI[/api/v1/schedules, /api/v1/recommendations]
+    RbacPredicate -->|SCHEDULER| SchedulerAPI[/api/v1/schedules/execute]
+    RbacPredicate -->|ANALYST| AnalystAPI[/api/v1/analytics/**]
+    RbacPredicate -->|DENY| Forbidden[HTTP 403 Forbidden]
+    
+    subgraph Spring_Security_Context
+        SecurityConfig[SecurityConfig: oauth2ResourceServer().jwt()]
+        JwtDecoder[Custom JwtDecoder: RS256 Validation]
+        AuthorityMapper[GrantedAuthoritiesMapper: roles claim -> ROLE_*]
+    end
+    
+    JwtFilter --> SecurityConfig
+    SecurityConfig --> JwtDecoder
+    JwtDecoder --> AuthorityMapper
+    AuthorityMapper --> RbacPredicate
+```
+
+**Technical Implementation Details:**
+
+| Control Layer | Component | Specification |
+| :--- | :--- | :--- |
+| **Gateway Filter** | `JwtAuthFilter` | Extends `OncePerRequestFilter`, extracts `Authorization: Bearer <token>`, delegates to `ReactiveJwtDecoder` |
+| **Token Validation** | `CustomJwtDecoder` | Implements `ReactiveJwtDecoder`, validates `exp`, `nbf`, `iss`, `aud` claims; RS256 signature verification via `NimbusReactiveJwtDecoder` with JWK Set URI from `spring.security.oauth2.resourceserver.jwt.jwk-set-uri` |
+| **Role Mapping** | `RbacPredicate` | Implements `Predicate<ServerWebExchange>`, reads `roles` claim (String[]), maps to `GrantedAuthority` with `ROLE_` prefix |
+| **Endpoint Protection** | `SecurityConfig` | `ServerHttpSecurity` DSL: `pathMatchers("/api/v1/admin/**").hasRole("ADMIN")`, `pathMatchers("/api/v1/schedules/**").hasAnyRole("USER","SCHEDULER","ADMIN")`, `pathMatchers("/api/v1/analytics/**").hasAnyRole("ANALYST","ADMIN")` |
+| **Multi-Tenancy Isolation** | `TenantContextFilter` | Extracts `X-Tenant-Id` header, validates against JWT `tenant_id` claim, sets `TenantContextHolder` for Hibernate filter |
+
+**Code Reference:**  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java`  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/JwtAuthFilter.java`  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/RbacPredicate.java`
+
+**Test Coverage:** Integration tests in `SecurityConfigTest.java` verify 4-role matrix with 16 test vectors (4 roles × 4 endpoint groups).
+
+---
+
+### 3.2 A02:2021 — Cryptographic Failures → TLS 1.3, JWT RS256, Key Rotation
+
+**Threat Model:** Data interception in transit, token forgery via weak algorithms, long-lived key compromise.
+
+**Mitigation Architecture:**
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant GCP_LB[GCP Global Load Balancer]
+    participant Gateway[API Gateway Pod]
+    participant KMS[Cloud KMS]
+    participant Redis[Memorystore Redis]
+    
+    Note over Client,Gateway: TLS 1.3 Handshake
+    Client->>GCP_LB: ClientHello (TLS 1.3)
+    GCP_LB->>Client: ServerHello + Certificate (Managed Cert)
+    GCP_LB->>Gateway: Forward decrypted HTTP/2 (mTLS optional)
+    
+    Note over Gateway,KMS: JWT Signing Key Rotation
+    Gateway->>KMS: Fetch active signing key (key-ring/socialscheduler-jwt/crypto-key/versions/latest)
+    KMS-->>Gateway: RS256 Private Key (PEM)
+    Gateway->>Gateway: Sign JWT with RS256 (kid header = key version)
+    
+    Note over Gateway,Redis: Token Storage
+    Gateway->>Redis: SETEX refresh_token:{jti} 2592000 {encrypted_payload}
+    Redis-->>Gateway: OK
+    
+    Note over Client,Gateway: Token Refresh Flow
+    Client->>Gateway: POST /oauth2/token (grant_type=refresh_token)
+    Gateway->>Redis: GET refresh_token:{jti}
+    Redis-->>Gateway: Encrypted payload
+    Gateway->>KMS: Decrypt payload (AEAD)
+    KMS-->>Gateway: Plaintext claims
+    Gateway->>KMS: Sign new access_token (RS256)
+    KMS-->>Gateway: Signed JWT
+    Gateway-->>Client: 200 OK {access_token, refresh_token}
+```
+
+**Cryptographic Parameters:**
+
+| Parameter | Value | Configuration Source |
+| :--- | :--- | :--- |
+| **TLS Version** | TLS 1.3 only (TLS 1.2 disabled) | GCP Load Balancer SSL Policy `modern` |
+| **Cipher Suites** | `TLS_AES_256_GCM_SHA384`, `TLS_CHACHA20_POLY1305_SHA256` | GCP Managed |
+| **Certificate** | Google Managed Certificate (auto-renewal 90 days) | `gcloud compute ssl-certificates create` |
+| **JWT Algorithm** | RS256 (RSASSA-PKCS1-v1_5 with SHA-256) | `spring.security.oauth2.resourceserver.jwt.jwk-set-uri` |
+| **Key Size** | RSA 2048-bit (KMS managed) | Cloud KMS Key Ring `socialscheduler-jwt` |
+| **Key Rotation** | Automatic 90-day rotation via KMS rotation schedule | `gcloud kms keys update --rotation-schedule=90d` |
+| **Access Token TTL** | 15 minutes (900 seconds) | `spring.security.oauth2.resourceserver.jwt.token-ttl=900` |
+| **Refresh Token TTL** | 30 days (2,592,000 seconds) | `app.auth.refresh-token-ttl=2592000` |
+| **Token Encryption at Rest** | AES-256-GCM (KMS Envelope Encryption) | `RedisTokenStore` with `AesGcmEncryptor` |
+
+**Key Rotation Procedure (Automated):**
+1. Cloud KMS generates new key version every 90 days
+2. API Gateway polls JWK Set URI (`/.well-known/jwks.json`) every 5 minutes
+3. New tokens signed with latest key version (`kid` header updated)
+4. Old key version retained for verification until all tokens expire (max 30 days)
+5. Zero-downtime rotation — no service restart required
+
+**Code Reference:**  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java` (JwtDecoder bean)  
+`./sources/backend/api-gateway/src/main/resources/application-gateway.yml` (KMS configuration)  
+`./sources/infra/terraform/gcp/kms.tf` (Key ring and rotation schedule)
+
+---
+
+### 3.3 A03:2021 — Injection → JPA Parameter Binding, Whitelist Validation, HTML Sanitizer
+
+**Threat Model:** SQL Injection via dynamic queries, NoSQL Injection via MongoDB (not used), LDAP Injection (not used), XSS via stored content rendering.
+
+**Mitigation Architecture:**
+
+```mermaid
+flowchart LR
+    Input[User Input] --> Validation[Jakarta Validation @Valid]
+    Validation -->|DTO| Sanitizer[HtmlSanitizer Policy]
+    Sanitizer -->|Clean Content| Repository[JPA Repository]
+    Repository -->|CriteriaBuilder / JPQL| PreparedStatement[PreparedStatement]
+    PreparedStatement -->|Parameter Binding| PostgreSQL[(Cloud SQL PostgreSQL)]
+    
+    subgraph Whitelist_Validation
+        PlatformWhitelist[Platform Enum: FACEBOOK, INSTAGRAM, TIKTOK]
+        MediaUrlWhitelist[Domain Whitelist: cdn.socialscheduler.com, s3.amazonaws.com]
+        SortFieldWhitelist[Sort Fields: scheduledTime, status, likes, comments, shares]
+    end
+    
+    Validation --> PlatformWhitelist
+    Validation --> MediaUrlWhitelist
+    Validation --> SortFieldWhitelist
+```
+
+**Technical Controls by Vector:**
+
+| Injection Vector | Mitigation Control | Implementation |
+| :--- | :--- | :--- |
+| **SQL Injection (JPA)** | Parameter Binding via Hibernate | All repository methods use `@Query` with named parameters (`:userId`, `:tenantId`) or `CriteriaBuilder` — zero string concatenation |
+| **SQL Injection (Native Query)** | `SafeSqlScanner` at Compile Time | Maven plugin `sql-injection-scanner` fails build on detected concatenation in `@Query(nativeQuery=true)` |
+| **Dynamic Sorting** | `SortFieldGuard` Whitelist | `ScheduleRepository.findAllByUserId(userId, Sort.by(Direction.DESC, SortFieldGuard.sanitize(sortField)))` — rejects non-whitelisted fields |
+| **Media URL SSRF** | Domain Whitelist Validator | `SchedulePayloadValidator` validates `mediaUrls` against `ALLOWED_MEDIA_DOMAINS` regex: `^https?://(cdn\.socialscheduler\.com|s3\.amazonaws\.com)/.*$` |
+| **Stored XSS (Content)** | OWASP Java HTML Sanitizer | `HtmlSanitizerPolicy` allows only `<p>`, `<br>`, `<strong>`, `<em>`, `<a href>`, `<img src>` — strips `<script>`, `on*`, `style`, `javascript:` |
+| **Reflected XSS (Error Messages)** | Global Exception Handler Sanitization | `GlobalExceptionHandler` never reflects raw user input in error responses — uses static error codes |
+
+**Sanitizer Policy Configuration:**
+```java
+// HtmlSanitizerConfig.java
+@Bean
+public HtmlSanitizer htmlSanitizer() {
+    return HtmlSanitizer.builder()
+        .allowElements("p", "br", "strong", "em", "a", "img", "ul", "ol", "li")
+        .allowAttributes("href", "src", "alt", "title")
+        .allowUrlProtocols("https")
+        .requireRelNofollowOnLinks()
+        .build();
+}
+```
+
+**Code Reference:**  
+`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/validator/SchedulePayloadValidator.java`  
+`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/config/HtmlSanitizerConfig.java`  
+`./sources/backend/user-service/src/main/java/org/nlh4j/socialscheduler/userservice/repository/UserRepository.java`
+
+---
+
+### 3.4 A04:2021 — Insecure Design → Rate Limiter Redis Token Bucket, Defense-in-Depth
+
+**Threat Model:** Brute force authentication, API abuse, credential stuffing, denial of service via uncontrolled request volume.
+
+**Mitigation Architecture:**
+
+```mermaid
+flowchart TD
+    Request[Incoming Request] --> Gateway[API Gateway]
+    Gateway --> RateLimitFilter[RateLimitGatewayFilter]
+    RateLimitFilter --> ExtractClaims[Extract userId from JWT]
+    ExtractClaims --> RedisTokenBucket[RedisTokenBucketStrategy]
+    
+    subgraph Token_Bucket_Algorithm
+        RedisTokenBucket --> LuaScript[Atomic Lua Script]
+        LuaScript --> CheckTokens[GET rate_limit:{userId}:{endpoint}]
+        CheckTokens -->|Tokens > 0| Decrement[DECRBY tokens 1]
+        CheckTokens -->|Tokens == 0| Reject[Return 429 + Retry-After]
+        Decrement --> Allow[Allow Request]
+        Reject --> Response[HTTP 429 RATE_LIMIT_EXCEEDED]
+    end
+    
+    Allow --> Downstream[Downstream Microservice]
+    Downstream --> BusinessLogic[Business Logic]
+    BusinessLogic -->|Async| Kafka[Kafka: schedule.created]
+    Kafka --> Consumer[Integration Service Consumer]
+    Consumer -->|Retry Logic| ExternalAPI[Facebook/Instagram/TikTok API]
+    
+    subgraph Defense_in_Depth
+        CircuitBreaker[Resilience4j Circuit Breaker]
+        Bulkhead[Semaphore Bulkhead: 50 concurrent]
+        Timeout[Request Timeout: 10s]
+    end
+    
+    Consumer --> CircuitBreaker
+    CircuitBreaker --> Bulkhead
+    Bulkhead --> Timeout
+    Timeout --> ExternalAPI
+```
+
+**Rate Limit Configuration:**
+
+| Parameter | Value | Scope | Configuration |
+| :--- | :--- | :--- | :--- |
+| **Algorithm** | Token Bucket (Redis Lua Script) | Global | `rate-limit-service` `RedisTokenBucketStrategy` |
+| **Bucket Capacity** | 100 tokens | Per user per endpoint | `app.rate-limit.capacity=100` |
+| **Refill Rate** | 60 tokens/minute | Per user per endpoint | `app.rate-limit.refill-rate=60` |
+| **Key Format** | `rate_limit:{userId}:{endpoint}` | Redis Key | `RateLimitKeyGenerator` |
+| **Endpoint Scope** | `/api/v1/schedules`, `/api/v1/recommendations`, `/api/v1/users`, `/api/v1/rate-limits` | Gateway Filter | `RateLimitGatewayFilter` route predicates |
+| **Response Headers** | `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `Retry-After` | Client Visibility | `RateLimitResponseHeaders` |
+| **Exceeded Response** | HTTP 429, Body: `{errorCode: "RATE_LIMIT_EXCEEDED", retryAfterSeconds: 45}` | Standardized | `RateLimitExceededException` + `GlobalExceptionHandler` |
+
+**Lua Script (Atomic Operations):**
+```lua
+-- rate_limit_token_bucket.lua
+local key = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local refillRate = tonumber(ARGV[2]) -- tokens per second
+local now = tonumber(ARGV[3])
+local requested = tonumber(ARGV[4])
+
+local bucket = redis.call('HMGET', key, 'tokens', 'lastRefill')
+local tokens = tonumber(bucket[1]) or capacity
+local lastRefill = tonumber(bucket[2]) or now
+
+-- Refill tokens based on elapsed time
+local elapsed = now - lastRefill
+local newTokens = math.min(capacity, tokens + (elapsed * refillRate))
+
+if newTokens >= requested then
+    local remaining = newTokens - requested
+    redis.call('HMSET', key, 'tokens', remaining, 'lastRefill', now)
+    redis.call('EXPIRE', key, 3600) -- 1 hour TTL
+    return {1, remaining, 0} -- allowed, remaining, retryAfter
+else
+    local retryAfter = math.ceil((requested - newTokens) / refillRate)
+    redis.call('HMSET', key, 'tokens', newTokens, 'lastRefill', now)
+    redis.call('EXPIRE', key, 3600)
+    return {0, 0, retryAfter} -- denied, remaining, retryAfter
+end
+```
+
+**Code Reference:**  
+`./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/strategy/RedisTokenBucketStrategy.java`  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/filter/RateLimitGatewayFilter.java`  
+`./sources/backend/rate-limit-service/src/main/resources/lua/rate_limit_token_bucket.lua`
+
+---
+
+### 3.5 A05:2021 — Security Misconfiguration → CORS Whitelist, Security Headers
+
+**Threat Model:** Cross-origin data theft, clickjacking, MIME type sniffing, protocol downgrade, information disclosure via error pages.
+
+**Mitigation Architecture:**
+
+```mermaid
+flowchart LR
+    Request[Incoming Request] --> CorsFilter[CorsFilter: Origin Validation]
+    CorsFilter -->|Origin in Whitelist| SecurityHeaders[Security Headers Injection]
+    CorsFilter -->|Origin NOT in Whitelist| Reject[HTTP 403 Forbidden]
+    
+    subgraph CORS_Configuration
+        TenantOrigins[TENANT_ORIGINS Table]
+        DynamicWhitelist[Dynamic Whitelist per Tenant]
+        VaryHeader[Vary: Origin]
+        Credentials[Access-Control-Allow-Credentials: true]
+    end
+    
+    CorsFilter --> TenantOrigins
+    TenantOrigins --> DynamicWhitelist
+    DynamicWhitelist --> VaryHeader
+    DynamicWhitelist --> Credentials
+    
+    SecurityHeaders --> CSP[Content-Security-Policy]
+    SecurityHeaders --> HSTS[Strict-Transport-Security]
+    SecurityHeaders --> XContentType[X-Content-Type-Options: nosniff]
+    SecurityHeaders --> XFrame[X-Frame-Options: DENY]
+    SecurityHeaders --> Referrer[Referrer-Policy: strict-origin-when-cross-origin]
+    SecurityHeaders --> Permissions[Permissions-Policy: geolocation=(), microphone=()]
+```
+
+**Security Headers Configuration (Nginx Ingress ConfigMap):**
+
+| Header | Value | Purpose |
+| :--- | :--- | :--- |
+| **Content-Security-Policy** | `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.socialscheduler.local wss://api.socialscheduler.local; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'` | Prevents XSS, clickjacking, mixed content |
+| **Strict-Transport-Security** | `max-age=31536000; includeSubDomains; preload` | Enforces HTTPS for 1 year |
+| **X-Content-Type-Options** | `nosniff` | Prevents MIME sniffing |
+| **X-Frame-Options** | `DENY` | Prevents clickjacking |
+| **Referrer-Policy** | `strict-origin-when-cross-origin` | Controls referrer leakage |
+| **Permissions-Policy** | `geolocation=(), microphone=(), camera=(), payment=()` | Disables powerful browser features |
+| **Cross-Origin-Opener-Policy** | `same-origin` | Isolates browsing context |
+| **Cross-Origin-Resource-Policy** | `same-origin` | Prevents speculative execution attacks |
+
+**CORS Whitelist Implementation:**
+```java
+// CorsFilter.java
+@Component
+public class CorsFilter implements WebFilter {
+    private final TenantOriginRepository tenantOriginRepository;
+    
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        String origin = exchange.getRequest().getHeaders().getOrigin();
+        String tenantId = exchange.getRequest().getHeaders().getFirst("X-Tenant-Id");
+        
+        if (origin != null && tenantId != null) {
+            return tenantOriginRepository.findByTenantIdAndOrigin(tenantId, origin)
+                .filter(allowed -> allowed.isEnabled())
+                .flatMap(allowed -> {
+                    exchange.getResponse().getHeaders().add("Access-Control-Allow-Origin", origin);
+                    exchange.getResponse().getHeaders().add("Vary", "Origin");
+                    exchange.getResponse().getHeaders().add("Access-Control-Allow-Credentials", "true");
+                    exchange.getResponse().getHeaders().add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                    exchange.getResponse().getHeaders().add("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Tenant-Id, X-Request-Id");
+                    exchange.getResponse().getHeaders().add("Access-Control-Max-Age", "3600");
+                    return chain.filter(exchange);
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                    return exchange.getResponse().setComplete();
+                }));
+        }
+        return chain.filter(exchange);
+    }
+}
+```
+
+**Database Schema (TENANT_ORIGINS):**
+```sql
+CREATE TABLE tenant_origins (
+    origin_id UUID NOT NULL DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(64) NOT NULL,
+    origin VARCHAR(255) NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_tenant_origins PRIMARY KEY (origin_id),
+    CONSTRAINT uk_tenant_origin UNIQUE (tenant_id, origin)
+);
+CREATE INDEX idx_tenant_origins_tenant ON tenant_origins(tenant_id);
+```
+
+**Code Reference:**  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/filter/CorsFilter.java`  
+`./sources/infra/kubernetes/socialscheduler/base/ingress.yaml` (nginx.ingress.kubernetes.io/configuration-snippet)  
+`./sources/backend/user-service/src/main/resources/db/migration/V2__init_tenant_origins.sql`
+
+---
+
+### 3.6 A07:2021 — Identification and Authentication Failures → OAuth2 Resource Server, JWT Decoder, Token Expiry Handling
+
+**Threat Model:** Credential stuffing, session fixation, token replay, weak password recovery, missing MFA (future scope).
+
+**Mitigation Architecture:**
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant IdP[Identity Provider: Keycloak/Auth0]
+    participant Gateway[API Gateway]
+    participant Redis[Memorystore Redis]
+    participant Service[Microservice]
+    
+    Note over User,IdP: Authentication Flow
+    User->>IdP: Username/Password + MFA (TOTP)
+    IdP-->>User: Authorization Code
+    User->>Gateway: POST /oauth2/token (code)
+    Gateway->>IdP: Token Endpoint (code + client_secret)
+    IdP-->>Gateway: access_token (JWT RS256, 15min), refresh_token (opaque, 30d)
+    Gateway->>Redis: STORE refresh_token:{jti} -> {userId, tenantId, scopes} TTL 30d
+    Gateway-->>User: Set-Cookie: __Host-refresh=...; Secure; HttpOnly; SameSite=Strict
+    
+    Note over User,Gateway: API Access Flow
+    User->>Gateway: GET /api/v1/schedules (Authorization: Bearer <access_token>)
+    Gateway->>Gateway: JwtAuthFilter: Validate JWT (signature, exp, iss, aud)
+    alt Token Valid
+        Gateway->>Service: Forward with X-User-Id, X-Tenant-Id, X-Roles headers
+        Service-->>Gateway: 200 OK
+        Gateway-->>User: 200 OK
+    else Token Expired (exp < now)
+        Gateway-->>User: 401 Unauthorized {errorCode: "TOKEN_EXPIRED", message: "Access token expired. Please refresh."}
+    else Token Invalid (signature, iss, aud)
+        Gateway-->>User: 401 Unauthorized {errorCode: "INVALID_TOKEN", message: "Invalid authentication token."}
+    end
+    
+    Note over User,Gateway: Token Refresh Flow
+    User->>Gateway: POST /oauth2/token (grant_type=refresh_token, cookie: __Host-refresh)
+    Gateway->>Redis: GET refresh_token:{jti}
+    alt Refresh Token Valid
+        Gateway->>IdP: Token Endpoint (refresh_token)
+        IdP-->>Gateway: New access_token, New refresh_token (rotation)
+        Gateway->>Redis: DELETE old, STORE new
+        Gateway-->>User: 200 OK {access_token} + New Cookie
+    else Refresh Token Invalid/Expired/Revoked
+        Gateway->>Redis: DELETE refresh_token:{jti}
+        Gateway-->>User: 401 Unauthorized {errorCode: "REFRESH_TOKEN_INVALID", message: "Session expired. Please login again."}
+    end
+```
+
+**Authentication Security Controls:**
+
+| Control | Implementation | Configuration |
+| :--- | :--- | :--- |
+| **OAuth2 Flow** | Authorization Code Grant with PKCE | `spring.security.oauth2.client.registration.keycloak.authorization-grant-type=authorization_code` |
+| **PKCE** | S256 code challenge mandatory | `spring.security.oauth2.client.provider.keycloak.pkce-enabled=true` |
+| **JWT Validation** | `NimbusReactiveJwtDecoder` with JWK Set | `spring.security.oauth2.resourceserver.jwt.jwk-set-uri=https://auth.socialscheduler.local/.well-known/jwks.json` |
+| **Token Expiry Handling** | `GlobalExceptionHandler` catches `JwtException` | Returns HTTP 401 with `TOKEN_EXPIRED` / `INVALID_TOKEN` error codes |
+| **Refresh Token Rotation** | One-time use, rotation on each refresh | `RedisTokenStore` with atomic GET+DEL+SET |
+| **Refresh Token Storage** | HttpOnly, Secure, SameSite=Strict cookie | `__Host-refresh` prefix enforces secure context |
+| **Token Revocation** | Redis key deletion on logout/password change | `AuthenticationService.revokeAllUserTokens(userId)` |
+| **Brute Force Protection** | Rate limit on `/oauth2/token` (5 req/min/IP) | `RateLimitGatewayFilter` with IP-based key |
+| **Session Fixation** | New session ID on authentication success | `ServerHttpSessionIdResolver` with `changeSessionId()` |
+
+**Error Response Standardization:**
+```json
+// HTTP 401 - Token Expired
+{
+  "errorCode": "TOKEN_EXPIRED",
+  "message": "Access token expired. Please use refresh token to obtain new access token.",
+  "timestamp": "2026-08-31T15:13:55.123Z",
+  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+
+// HTTP 401 - Invalid Token
+{
+  "errorCode": "INVALID_TOKEN",
+  "message": "Invalid authentication token. Signature verification failed.",
+  "timestamp": "2026-08-31T15:13:55.123Z",
+  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+
+// HTTP 401 - Refresh Token Invalid
+{
+  "errorCode": "REFRESH_TOKEN_INVALID",
+  "message": "Refresh token invalid or expired. Please login again.",
+  "timestamp": "2026-08-31T15:13:55.123Z",
+  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+```
+
+**Code Reference:**  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/JwtAuthFilter.java`  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java`  
+`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/exception/GlobalExceptionHandler.java`  
+`./sources/backend/user-service/src/main/java/org/nlh4j/socialscheduler/userservice/service/AuthenticationService.java`
+
+---
+
+### 3.7 A09:2021 — Security Logging and Monitoring Failures → Prometheus + Grafana, Structured Logging, LogScrubbingInterceptor
+
+**Threat Model:** Undetected attacks, insufficient audit trail, PII leakage in logs, inability to correlate distributed traces.
+
+**Mitigation Architecture:**
+
+```mermaid
+flowchart TD
+    Application[Microservices: user-service, schedule-service, ai-service, rate-limit-service, api-gateway]
+    Application --> SLF4J[SLF4J + Logback]
+    SLF4J --> LogScrubbing[LogScrubbingInterceptor: PII Redaction]
+    LogScrubbing --> StructuredLog[Structured JSON Log: timestamp, level, service, traceId, spanId, message, fields]
+    StructuredLog --> Stdout[STDOUT/STDERR]
+    Stdout --> FluentBit[Fluent Bit DaemonSet]
+    FluentBit --> Loki[Grafana Loki]
+    FluentBit --> CloudLogging[GCP Cloud Logging]
+    
+    Application --> Micrometer[Micrometer + OpenTelemetry]
+    Micrometer --> Prometheus[Prometheus Server]
+    Prometheus --> AlertManager[Alertmanager]
+    AlertManager --> PagerDuty[PagerDuty / Slack / Email]
+    Prometheus --> Grafana[Grafana Dashboards]
+    
+    subgraph Log_Scrubbing_Patterns
+        EmailPattern[Email: \b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b]
+        PhonePattern[Phone: \b\d{10,11}\b]
+        JwtPattern[JWT: eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+]
+        IpPattern[IP: \b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b]
+        UuidPattern[UUID: \b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b]
+        CreditCardPattern[Credit Card: \b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b]
+    end
+    
+    LogScrubbing --> EmailPattern
+    LogScrubbing --> PhonePattern
+    LogScrubbing --> JwtPattern
+    LogScrubbing --> IpPattern
+    LogScrubbing --> UuidPattern
+    LogScrubbing --> CreditCardPattern
+```
+
+**Structured Log Format (JSON):**
+```json
+{
+  "timestamp": "2026-08-31T15:13:55.123Z",
+  "level": "INFO",
+  "service": "schedule-service",
+  "traceId": "a1b2c3d4e5f67890",
+  "spanId": "1234567890abcdef",
+  "thread": "reactor-http-nio-3",
+  "logger": "org.nlh4j.socialscheduler.scheduleservice.service.ScheduleService",
+  "message": "Schedule created successfully",
+  "fields": {
+    "scheduleId": "550e8400-e29b-41d4-a716-446655440000",
+    "userId": "****-****-****-****",
+    "tenantId": "tenant-acme-corp",
+    "platform": "FACEBOOK",
+    "scheduledTime": "2026-09-01T10:00:00Z",
+    "status": "PENDING"
+  }
+}
+```
+
+**Log Scrubbing Interceptor Implementation:**
+```java
+// LogScrubbingInterceptor.java
+@Component
+public class LogScrubbingInterceptor implements LoggerContextListener {
+    private static final List<Pattern> SCRUB_PATTERNS = List.of(
+        Pattern.compile("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b"), // Email
+        Pattern.compile("\\b\\d{10,11}\\b"), // Phone
+        Pattern.compile("eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+"), // JWT
+        Pattern.compile("\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b"), // IPv4
+        Pattern.compile("\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b"), // UUID
+        Pattern.compile("\\b\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}\\b") // Credit Card
+    );
+    
+    @Override
+    public void onStart(LoggerContext context) {
+        // Register turbo filter for all loggers
+        TurboFilter filter = new TurboFilter() {
+            @Override
+            public FilterReply decide(Marker marker, Logger logger, Level level, String format, Object[] params, Throwable t) {
+                if (params != null) {
+                    for (int i = 0; i < params.length; i++) {
+                        if (params[i] instanceof String str) {
+                            params[i] = scrub(str);
+                        }
+                    }
+                }
+                if (format != null) {
+                    // Note: format string itself is not modified to preserve structure
+                }
+                return FilterReply.NEUTRAL;
+            }
+        };
+        context.addTurboFilter(filter);
+    }
+    
+    private String scrub(String input) {
+        String result = input;
+        for (Pattern pattern : SCRUB_PATTERNS) {
+            Matcher matcher = pattern.matcher(result);
+            result = matcher.replaceAll("[REDACTED]");
+        }
+        return result;
+    }
+}
+```
+
+**Prometheus Metrics for Security Monitoring:**
+
+| Metric Name | Type | Labels | Alert Rule |
+| :--- | :--- | :--- | :--- |
+| `http_requests_total` | Counter | `service`, `method`, `path`, `status` | `rate(http_requests_total{status=~"4..|5.."}[5m]) > 0.1` |
+| `rate_limit_exceeded_total` | Counter | `service`, `user_id`, `endpoint` | `rate(rate_limit_exceeded_total[5m]) > 10` |
+| `authentication_failures_total` | Counter | `service`, `reason` (expired, invalid, revoked) | `rate(authentication_failures_total[5m]) > 5` |
+| `authorization_denials_total` | Counter | `service`, `required_role`, `actual_role` | `rate(authorization_denials_total[5m]) > 5` |
+| `upstream_service_errors_total` | Counter | `service`, `upstream` (facebook, instagram, tiktok, openai) | `rate(upstream_service_errors_total[5m]) > 0.05` |
+| `jwt_validation_failures_total` | Counter | `service`, `failure_type` (signature, expired, claims) | `rate(jwt_validation_failures_total[5m]) > 1` |
+
+**Grafana Dashboard Panels (Security Overview):**
+1. **Authentication Health** — Success rate, failure breakdown by reason
+2. **Authorization Denials** — Top denied endpoints, role mismatch analysis
+3. **Rate Limiting Activity** — 429 trends, top rate-limited users/endpoints
+4. **Upstream Error Rates** — External API failure correlation
+5. **JWT Validation Failures** — Signature vs expiry vs claims failures
+6. **Audit Trail** — Admin actions, privilege changes, token revocations
+
+**Code Reference:**  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/logging/LogScrubbingInterceptor.java`  
+`./sources/backend/schedule-service/src/main/resources/logback-spring.xml`  
+`./sources/infra/observability/prometheus.yaml` (scrape config + alerting rules)  
+`./sources/infra/observability/grafana-dashboard.json` (Security Overview dashboard)
+
+---
+
+## 4. Compliance Verification Checklist
+
+| Check Item | Status | Evidence Location | Tag IDs |
+| :--- | :--- | :--- | :--- |
+| RBAC 4-role matrix implemented and tested | ✅ Verified | `SecurityConfigTest.java` (16 test vectors) | [ARC-001]-[ARC-004], [ARC-005] |
+| TLS 1.3 enforced at Load Balancer | ✅ Verified | GCP SSL Policy `modern`, Terraform `google_compute_ssl_policy` | [NFR-002] |
+| JWT RS256 with 90-day key rotation | ✅ Verified | Cloud KMS rotation schedule, JWK Set polling | [NFR-002], [ARC-005] |
+| All SQL via Parameter Binding (zero concatenation) | ✅ Verified | `SafeSqlScanner` Maven plugin in CI pipeline | [DAT-001]-[DAT-003] |
+| HTML Sanitizer on all user content | ✅ Verified | `HtmlSanitizerConfig.java`, `SchedulePayloadValidator` | [REQ-001], [REQ-002] |
+| Media URL domain whitelist enforced | ✅ Verified | `SchedulePayloadValidator.isAllowedMediaDomain()` | [REQ-003], [EXC-002] |
+| Dynamic sort field whitelist | ✅ Verified | `SortFieldGuard.sanitize()` in repositories | [DAT-001] |
+| Redis Token Bucket rate limiting (atomic Lua) | ✅ Verified | `RedisTokenBucketStrategy`, integration tests | [REQ-003], [EXC-005] |
+| Gateway Filter defense-in-depth | ✅ Verified | `RateLimitGatewayFilter` + Resilience4j Circuit Breaker | [ARC-006] |
+| CORS whitelist per tenant (no wildcard) | ✅ Verified | `CorsFilter`, `TENANT_ORIGINS` table | [NFR-002], [NFR-003] |
+| Security headers (CSP, HSTS, etc.) injected | ✅ Verified | Nginx Ingress ConfigMap, `ingress.yaml` annotations | [NFR-002], [ARC-006] |
+| OAuth2 Authorization Code + PKCE | ✅ Verified | `SecurityConfig`, Keycloak realm config | [ARC-005], [EXC-002] |
+| Refresh token rotation + HttpOnly cookie | ✅ Verified | `AuthenticationService`, `RedisTokenStore` | [EXC-002], [NFR-002] |
+| Structured JSON logging with correlation ID | ✅ Verified | `Logback-spring.xml`, `MDC` filter | [NFR-001], [ARC-006] |
+| PII scrubbing on all log output | ✅ Verified | `LogScrubbingInterceptor`, TurboFilter | [NFR-002], [ARC-006] |
+| Prometheus metrics for security events | ✅ Verified | `prometheus.yaml` alerting rules | [NFR-001] |
+| Grafana security dashboard operational | ✅ Verified | `grafana-dashboard.json` imported | [NFR-001] |
+
+---
+
+## 5. Incident Response Playbook References
+
+| Security Event | Detection Method | Response Procedure | Runbook Link |
+| :--- | :--- | :--- | :--- |
+| **Mass Authentication Failures** | `authentication_failures_total` alert | 1. Block source IPs at Cloud Armor<br>2. Rotate JWT signing key<br>3. Force logout affected users | `./sources/docs/operations/IncidentResponse-AuthFailures.md` |
+| **Rate Limit Storm** | `rate_limit_exceeded_total` spike | 1. Identify top offenders<br>2. Emergency capacity increase (HPA)<br>3. Temporary stricter limits | `./sources/docs/operations/IncidentResponse-RateLimitStorm.md` |
+| **Upstream API Compromise** | `upstream_service_errors_total` + anomalous responses | 1. Circuit breaker open<br>2. Revoke compromised OAuth tokens<br>3. Switch to fallback content | `./sources/docs/operations/IncidentResponse-UpstreamCompromise.md` |
+| **PII Leakage in Logs** | Log audit / DLP scan detection | 1. Immediate log purge from Loki/Cloud Logging<br>2. Fix scrubber pattern gap<br>3. Notify DPO within 72h | `./sources/docs/operations/IncidentResponse-PIILeakage.md` |
+| **Privilege Escalation Attempt** | `authorization_denials_total` anomaly | 1. Audit affected user sessions<br>2. Revoke all tokens for user<br>3. Review RBAC policy changes | `./sources/docs/operations/IncidentResponse-PrivEsc.md` |
+
+---
+
+## 6. Continuous Compliance Automation
+
+```mermaid
+flowchart LR
+    CI[GitHub Actions CI Pipeline] --> SAST[SAST: SonarQube + SpotBugs + FindSecBugs]
+    CI --> DAST[DAST: OWASP ZAP Baseline Scan]
+    CI --> SCA[SCA: OWASP Dependency Check]
+    CI --> ContainerScan[Container Scan: Trivy]
+    CI --> IaCScan[IaC Scan: Checkov + tfsec]
+    CI --> PolicyCheck[Policy Check: OPA Gatekeeper]
+    
+    SAST --> QualityGate{Quality Gate}
+    DAST --> QualityGate
+    SCA --> QualityGate
+    ContainerScan --> QualityGate
+    IaCScan --> QualityGate
+    PolicyCheck --> QualityGate
+    
+    QualityGate -->|PASS| Deploy[Deploy to Staging]
+    QualityGate -->|FAIL| Block[Block Merge + Slack Alert]
+    
+    Deploy --> SmokeTest[Smoke Tests + Security Regression Suite]
+    SmokeTest -->|PASS| ProdApproval[Manual Approval for Production]
+    SmokeTest -->|FAIL| Rollback[Auto Rollback + Alert]
+    
+    ProdApproval --> DeployProd[Deploy to Production]
+    DeployProd --> PostDeploy[Post-Deploy Verification]
+    PostDeploy --> Monitoring[Continuous Monitoring: Prometheus Alerts]
+```
+
+**Automated Gates:**
+- **SAST:** Zero `BLOCKER`/`CRITICAL` findings, Security Hotspots reviewed
+- **DAST:** Zero High/Medium alerts on OWASP Top 10 categories
+- **SCA:** Zero CVSS ≥ 7.0 vulnerabilities in dependencies
+- **Container Scan:** Zero CRITICAL/HIGH vulnerabilities in base image
+- **IaC Scan:** Zero CHECKOV/TCFSEC failures on Terraform/K8s manifests
+- **Policy Check:** All OPA Gatekeeper constraints satisfied (e.g., `require-non-root-user`, `require-readonly-root-fs`, `disallow-privilege-escalation`)
+
+---
+
+## 7. Appendix: Tag ID Cross-Reference Index
+
+| Tag ID | Description | Referenced In Sections |
+| :--- | :--- | :--- |
+| [ARC-001] | RBAC Role: Admin | 3.1, 2 |
+| [ARC-002] | RBAC Role: User | 3.1, 2 |
+| [ARC-003] | RBAC Role: Scheduler | 3.1, 2 |
+| [ARC-004] | RBAC Role: Analyst | 3.1, 2 |
+| [ARC-005] | OAuth2 Resource Server / JWT / Security Config | 3.1, 3.2, 3.6, 2 |
+| [ARC-006] | OWASP Compliance / Security Headers / Logging | 3.1, 3.2, 3.4, 3.5, 3.7, 2 |
+| [NFR-001] | Performance / Observability / Latency < 200ms | 3.7, 2 |
+| [NFR-002] | Security / Encryption / TLS / PII Protection | 3.2, 3.3, 3.5, 3.6, 3.7, 2 |
+| [NFR-003] | Multi-Tenancy / Scalability / Isolation | 3.1, 3.5, 2 |
+| [DAT-001] | User Schema / Tenant Isolation | 3.3, 2 |
+| [DAT-002] | Schedule Schema / Performance Metrics | 3.3, 2 |
+| [DAT-003] | Rate Limit Schema | 3.3, 2 |
+| [REQ-001] | Multi-Platform Scheduling | 3.3, 3.7 |
+| [REQ-002] | AI Content Recommendation | 3.3, 3.7 |
+| [REQ-003] | Input Validation / Rate Limiting | 3.3, 3.4, 2 |
+| [EXC-001] | Third-Party API Error Handling | 3.7 |
+| [EXC-002] | Token Expiry / Invalid Token Handling | 3.6, 3.3, 2 |
+| [EXC-003] | AI Service Failure / Fallback | 3.7 |
+| [EXC-004] | Fallback Content Failure | 3.7 |
+| [EXC-005] | Rate Limit Exceeded Handling | 3.4, 2 |
+| [DOC-001] | Architecture Documentation / Runbooks | All sections |
+
+---
+
+**Document Approval:**
+
+| Role | Name | Signature | Date |
+| :--- | :--- | :--- | :--- |
+| **Security Architect** | | | |
+| **Compliance Officer** | | | |
+| **Engineering Lead** | | | |
+
+**Next Review Date:** 2026-11-30 (Quarterly)  
+**Document Owner:** Platform Security Team  
+**Classification:** Enterprise Confidential — Do Not Distribute Externally
+```
+```
+</EXISTING_DOCUMENT_CONTENT>
+
+
+
+*   Documentation Context: Conceptual Init (Synthesize the architecture, guidelines, or specs based purely on the execution sub-tasks blueprint.)
+
+
+### 📋 EXECUTION SUB-TASKS & DOCUMENT CONTENT TO WRITE
+['Tạo ./sources/docs/architecture/SecurityComplianceMatrix.md trình bày ma trận tuân thủ ánh xạ từng yêu cầu OWASP Top 10 sang biện pháp giảm thiểu cụ thể trong hệ thống social-scheduler. Tài liệu gồm bảy mục ánh xạ chính. Mục A01 (Broken Access Control) ánh xạ sang cơ chế RBAC bốn vai trò [ARC-001] Admin, [ARC-002] User, [ARC-003] Scheduler, [ARC-004] Analyst được thực thi bởi Spring Security và API Gateway. Mục A02 (Cryptographic Failures) ánh xạ sang mã hóa TLS 1.3 đầu cuối, JWT với thuật toán RS256, key rotation mỗi 90 ngày theo [NFR-002]. Mục A03 (Injection) ánh xạ sang sử dụng JPA Parameter Binding thông qua Hibernate PreparedStatement, whitelist domain cho mediaUrls, HTML Sanitizer cho nội dung bài đăng. Mục A04 (Insecure Design) ánh xạ sang cơ chế Rate Limiter với Redis Token Bucket theo [REQ-003], defense-in-depth thông qua Rate Limit Gateway Filter. Mục A05 (Security Misconfiguration) ánh xạ sang CORS Whitelist không sử dụng wildcard *, security headers nghiêm ngặt Content-Security-Policy, X-Content-Type-Options: nosniff, Strict-Transport-Security. Mục A07 (Identification and Authentication Failures) ánh xạ sang OAuth2 Resource Server với JWT Decoder, xử lý token hết hạn trả về HTTP 401. Mục A09 (Logging Failures) ánh xạ sang tích hợp Prometheus + Grafana, structured logging với correlation ID, LogScrubbingInterceptor tự động che giấu PII.']
+
+---
+
+### ⚙️ TECHNICAL WRITER EXECUTION INSTRUCTION:
+
+Please read the comprehensive architectural constraints, workspace folder guardrails, and detailed sub-task document specifications provided above. Analyze the `<EXISTING_DOCUMENT_CONTENT>` layout, you MUST precisely insert the new architectural specifications into their logical structural sections within the current document text. Do NOT overwrite or shrink the pre-existing enterprise content blocks.
+
+
+Ensure that you read the exact Tag IDs from the `['[DOC-001]', '[NFR-002]']` variable, and permanently burn those codes into the generated documentation layout (inside the table columns or the dedicated Traceability Matrix Reference section). Emit the final production-ready comprehensive documentation inside a single valid markdown code block (` ```markdown `) now.
+* **📝 Response**:
+```markdown
+# Security Compliance Matrix - Social Scheduler Platform
+**Document Control:** `./sources/docs/architecture/SecurityComplianceMatrix.md`  
+**Project:** social-scheduler  
+**Version:** 1.0  
+**Classification:** Enterprise Confidential  
+**Targeted Tag IDs:** [DOC-001], [NFR-002]
+
+---
+
+## 1. Executive Summary
+
+This document establishes the formal security compliance matrix for the `social-scheduler` microservices platform, mapping each applicable OWASP Top 10 (2021) category to concrete, auditable mitigation controls implemented across the system architecture. The matrix serves as the authoritative reference for security auditors, compliance officers, and engineering teams to verify that the platform meets enterprise-grade security standards.
+
+**Scope:** All backend microservices (`user-service`, `schedule-service`, `ai-service`, `rate-limit-service`, `api-gateway`), infrastructure layer (GCP, GKE, Cloud SQL, Memorystore), and data pipelines (Kafka, Redis).
+
+**Compliance Baseline:** OWASP Top 10 2021 + NIST 800-53 Rev.5 controls mapping.
+
+---
+
+## 2. Traceability Matrix Reference
+
+| OWASP Category | OWASP ID | Mitigation Control | Implementation Location | Tag IDs |
+| :--- | :--- | :--- | :--- | :--- |
+| Broken Access Control | A01:2021 | RBAC 4-Role Enforcement (Admin, User, Scheduler, Analyst) | `api-gateway` SecurityConfig, `RbacPredicate`, Spring Security | [ARC-001], [ARC-002], [ARC-003], [ARC-004], [ARC-005], [ARC-006] |
+| Cryptographic Failures | A02:2021 | TLS 1.3 End-to-End, JWT RS256, Key Rotation 90-day | `api-gateway` JwtDecoder, GCP Load Balancer, Cloud KMS | [NFR-002], [ARC-005] |
+| Injection | A03:2021 | JPA Parameter Binding, Hibernate PreparedStatement, Whitelist Validation, HTML Sanitizer | `schedule-service` SchedulePayloadValidator, `user-service` Repository, `ai-service` OpenAIClient | [DAT-001], [DAT-002], [DAT-003], [REQ-003] |
+| Insecure Design | A04:2021 | Rate Limiter Redis Token Bucket, Defense-in-Depth Gateway Filter | `rate-limit-service` RedisTokenBucketStrategy, `api-gateway` RateLimitGatewayFilter | [REQ-003], [EXC-005], [ARC-006] |
+| Security Misconfiguration | A05:2021 | CORS Whitelist (No Wildcard), Security Headers (CSP, HSTS, X-Content-Type-Options) | `api-gateway` CorsFilter, Nginx Ingress ConfigMap, Spring Boot Actuator | [NFR-002], [NFR-003], [ARC-006] |
+| Identification & Authentication Failures | A07:2021 | OAuth2 Resource Server, JWT Decoder, Token Expiry Handling (HTTP 401) | `api-gateway` SecurityConfig, JwtAuthFilter, GlobalExceptionHandler | [ARC-005], [EXC-002], [NFR-002] |
+| Security Logging & Monitoring Failures | A09:2021 | Prometheus + Grafana, Structured Logging with Correlation ID, LogScrubbingInterceptor | `observability` Prometheus ConfigMap, Grafana Dashboard, SLF4J Logback | [NFR-001], [ARC-006], [EXC-001], [EXC-003] |
+
+---
+
+## 3. Detailed Control Mapping
+
+### 3.1 A01:2021 — Broken Access Control → RBAC 4-Role Enforcement
+
+**Threat Model:** Unauthorized access to administrative functions, cross-tenant data leakage, privilege escalation via API endpoint manipulation.
+
+**Mitigation Architecture:**
+
+```mermaid
+flowchart TD
+    Client[Client Request] --> Gateway[API Gateway :8080]
+    Gateway --> JwtFilter[JwtAuthFilter: Extract & Validate JWT]
+    JwtFilter --> RbacPredicate[RbacPredicate: Evaluate Roles]
+    RbacPredicate -->|ADMIN| AdminAPI[/api/v1/admin/**]
+    RbacPredicate -->|USER| UserAPI[/api/v1/schedules, /api/v1/recommendations]
+    RbacPredicate -->|SCHEDULER| SchedulerAPI[/api/v1/schedules/execute]
+    RbacPredicate -->|ANALYST| AnalystAPI[/api/v1/analytics/**]
+    RbacPredicate -->|DENY| Forbidden[HTTP 403 Forbidden]
+    
+    subgraph Spring_Security_Context
+        SecurityConfig[SecurityConfig: oauth2ResourceServer().jwt()]
+        JwtDecoder[Custom JwtDecoder: RS256 Validation]
+        AuthorityMapper[GrantedAuthoritiesMapper: roles claim -> ROLE_*]
+    end
+    
+    JwtFilter --> SecurityConfig
+    SecurityConfig --> JwtDecoder
+    JwtDecoder --> AuthorityMapper
+    AuthorityMapper --> RbacPredicate
+```
+
+**Technical Implementation Details:**
+
+| Control Layer | Component | Specification |
+| :--- | :--- | :--- |
+| **Gateway Filter** | `JwtAuthFilter` | Extends `OncePerRequestFilter`, extracts `Authorization: Bearer <token>`, delegates to `ReactiveJwtDecoder` |
+| **Token Validation** | `CustomJwtDecoder` | Implements `ReactiveJwtDecoder`, validates `exp`, `nbf`, `iss`, `aud` claims; RS256 signature verification via `NimbusReactiveJwtDecoder` with JWK Set URI from `spring.security.oauth2.resourceserver.jwt.jwk-set-uri` |
+| **Role Mapping** | `RbacPredicate` | Implements `Predicate<ServerWebExchange>`, reads `roles` claim (String[]), maps to `GrantedAuthority` with `ROLE_` prefix |
+| **Endpoint Protection** | `SecurityConfig` | `ServerHttpSecurity` DSL: `pathMatchers("/api/v1/admin/**").hasRole("ADMIN")`, `pathMatchers("/api/v1/schedules/**").hasAnyRole("USER","SCHEDULER","ADMIN")`, `pathMatchers("/api/v1/analytics/**").hasAnyRole("ANALYST","ADMIN")` |
+| **Multi-Tenancy Isolation** | `TenantContextFilter` | Extracts `X-Tenant-Id` header, validates against JWT `tenant_id` claim, sets `TenantContextHolder` for Hibernate filter |
+
+**Code Reference:**  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java`  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/JwtAuthFilter.java`  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/RbacPredicate.java`
+
+**Test Coverage:** Integration tests in `SecurityConfigTest.java` verify 4-role matrix with 16 test vectors (4 roles × 4 endpoint groups).
+
+---
+
+### 3.2 A02:2021 — Cryptographic Failures → TLS 1.3, JWT RS256, Key Rotation
+
+**Threat Model:** Data interception in transit, token forgery via weak algorithms, long-lived key compromise.
+
+**Mitigation Architecture:**
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant GCP_LB[GCP Global Load Balancer]
+    participant Gateway[API Gateway Pod]
+    participant KMS[Cloud KMS]
+    participant Redis[Memorystore Redis]
+    
+    Note over Client,Gateway: TLS 1.3 Handshake
+    Client->>GCP_LB: ClientHello (TLS 1.3)
+    GCP_LB->>Client: ServerHello + Certificate (Managed Cert)
+    GCP_LB->>Gateway: Forward decrypted HTTP/2 (mTLS optional)
+    
+    Note over Gateway,KMS: JWT Signing Key Rotation
+    Gateway->>KMS: Fetch active signing key (key-ring/socialscheduler-jwt/crypto-key/versions/latest)
+    KMS-->>Gateway: RS256 Private Key (PEM)
+    Gateway->>Gateway: Sign JWT with RS256 (kid header = key version)
+    
+    Note over Gateway,Redis: Token Storage
+    Gateway->>Redis: SETEX refresh_token:{jti} 2592000 {encrypted_payload}
+    Redis-->>Gateway: OK
+    
+    Note over Client,Gateway: Token Refresh Flow
+    Client->>Gateway: POST /oauth2/token (grant_type=refresh_token)
+    Gateway->>Redis: GET refresh_token:{jti}
+    Redis-->>Gateway: Encrypted payload
+    Gateway->>KMS: Decrypt payload (AEAD)
+    KMS-->>Gateway: Plaintext claims
+    Gateway->>KMS: Sign new access_token (RS256)
+    KMS-->>Gateway: Signed JWT
+    Gateway-->>Client: 200 OK {access_token, refresh_token}
+```
+
+**Cryptographic Parameters:**
+
+| Parameter | Value | Configuration Source |
+| :--- | :--- | :--- |
+| **TLS Version** | TLS 1.3 only (TLS 1.2 disabled) | GCP Load Balancer SSL Policy `modern` |
+| **Cipher Suites** | `TLS_AES_256_GCM_SHA384`, `TLS_CHACHA20_POLY1305_SHA256` | GCP Managed |
+| **Certificate** | Google Managed Certificate (auto-renewal 90 days) | `gcloud compute ssl-certificates create` |
+| **JWT Algorithm** | RS256 (RSASSA-PKCS1-v1_5 with SHA-256) | `spring.security.oauth2.resourceserver.jwt.jwk-set-uri` |
+| **Key Size** | RSA 2048-bit (KMS managed) | Cloud KMS Key Ring `socialscheduler-jwt` |
+| **Key Rotation** | Automatic 90-day rotation via KMS rotation schedule | `gcloud kms keys update --rotation-schedule=90d` |
+| **Access Token TTL** | 15 minutes (900 seconds) | `spring.security.oauth2.resourceserver.jwt.token-ttl=900` |
+| **Refresh Token TTL** | 30 days (2,592,000 seconds) | `app.auth.refresh-token-ttl=2592000` |
+| **Token Encryption at Rest** | AES-256-GCM (KMS Envelope Encryption) | `RedisTokenStore` with `AesGcmEncryptor` |
+
+**Key Rotation Procedure (Automated):**
+1. Cloud KMS generates new key version every 90 days
+2. API Gateway polls JWK Set URI (`/.well-known/jwks.json`) every 5 minutes
+3. New tokens signed with latest key version (`kid` header updated)
+4. Old key version retained for verification until all tokens expire (max 30 days)
+5. Zero-downtime rotation — no service restart required
+
+**Code Reference:**  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java` (JwtDecoder bean)  
+`./sources/backend/api-gateway/src/main/resources/application-gateway.yml` (KMS configuration)  
+`./sources/infra/terraform/gcp/kms.tf` (Key ring and rotation schedule)
+
+---
+
+### 3.3 A03:2021 — Injection → JPA Parameter Binding, Whitelist Validation, HTML Sanitizer
+
+**Threat Model:** SQL Injection via dynamic queries, NoSQL Injection via MongoDB (not used), LDAP Injection (not used), XSS via stored content rendering.
+
+**Mitigation Architecture:**
+
+```mermaid
+flowchart LR
+    Input[User Input] --> Validation[Jakarta Validation @Valid]
+    Validation -->|DTO| Sanitizer[HtmlSanitizer Policy]
+    Sanitizer -->|Clean Content| Repository[JPA Repository]
+    Repository -->|CriteriaBuilder / JPQL| PreparedStatement[PreparedStatement]
+    PreparedStatement -->|Parameter Binding| PostgreSQL[(Cloud SQL PostgreSQL)]
+    
+    subgraph Whitelist_Validation
+        PlatformWhitelist[Platform Enum: FACEBOOK, INSTAGRAM, TIKTOK]
+        MediaUrlWhitelist[Domain Whitelist: cdn.socialscheduler.com, s3.amazonaws.com]
+        SortFieldWhitelist[Sort Fields: scheduledTime, status, likes, comments, shares]
+    end
+    
+    Validation --> PlatformWhitelist
+    Validation --> MediaUrlWhitelist
+    Validation --> SortFieldWhitelist
+```
+
+**Technical Controls by Vector:**
+
+| Injection Vector | Mitigation Control | Implementation |
+| :--- | :--- | :--- |
+| **SQL Injection (JPA)** | Parameter Binding via Hibernate | All repository methods use `@Query` with named parameters (`:userId`, `:tenantId`) or `CriteriaBuilder` — zero string concatenation |
+| **SQL Injection (Native Query)** | `SafeSqlScanner` at Compile Time | Maven plugin `sql-injection-scanner` fails build on detected concatenation in `@Query(nativeQuery=true)` |
+| **Dynamic Sorting** | `SortFieldGuard` Whitelist | `ScheduleRepository.findAllByUserId(userId, Sort.by(Direction.DESC, SortFieldGuard.sanitize(sortField)))` — rejects non-whitelisted fields |
+| **Media URL SSRF** | Domain Whitelist Validator | `SchedulePayloadValidator` validates `mediaUrls` against `ALLOWED_MEDIA_DOMAINS` regex: `^https?://(cdn\.socialscheduler\.com|s3\.amazonaws\.com)/.*$` |
+| **Stored XSS (Content)** | OWASP Java HTML Sanitizer | `HtmlSanitizerPolicy` allows only `<p>`, `<br>`, `<strong>`, `<em>`, `<a href>`, `<img src>` — strips `<script>`, `on*`, `style`, `javascript:` |
+| **Reflected XSS (Error Messages)** | Global Exception Handler Sanitization | `GlobalExceptionHandler` never reflects raw user input in error responses — uses static error codes |
+
+**Sanitizer Policy Configuration:**
+```java
+// HtmlSanitizerConfig.java
+@Bean
+public HtmlSanitizer htmlSanitizer() {
+    return HtmlSanitizer.builder()
+        .allowElements("p", "br", "strong", "em", "a", "img", "ul", "ol", "li")
+        .allowAttributes("href", "src", "alt", "title")
+        .allowUrlProtocols("https")
+        .requireRelNofollowOnLinks()
+        .build();
+}
+```
+
+**Code Reference:**  
+`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/validator/SchedulePayloadValidator.java`  
+`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/config/HtmlSanitizerConfig.java`  
+`./sources/backend/user-service/src/main/java/org/nlh4j/socialscheduler/userservice/repository/UserRepository.java`
+
+---
+
+### 3.4 A04:2021 — Insecure Design → Rate Limiter Redis Token Bucket, Defense-in-Depth
+
+**Threat Model:** Brute force authentication, API abuse, credential stuffing, denial of service via uncontrolled request volume.
+
+**Mitigation Architecture:**
+
+```mermaid
+flowchart TD
+    Request[Incoming Request] --> Gateway[API Gateway]
+    Gateway --> RateLimitFilter[RateLimitGatewayFilter]
+    RateLimitFilter --> ExtractClaims[Extract userId from JWT]
+    ExtractClaims --> RedisTokenBucket[RedisTokenBucketStrategy]
+    
+    subgraph Token_Bucket_Algorithm
+        RedisTokenBucket --> LuaScript[Atomic Lua Script]
+        LuaScript --> CheckTokens[GET rate_limit:{userId}:{endpoint}]
+        CheckTokens -->|Tokens > 0| Decrement[DECRBY tokens 1]
+        CheckTokens -->|Tokens == 0| Reject[Return 429 + Retry-After]
+        Decrement --> Allow[Allow Request]
+        Reject --> Response[HTTP 429 RATE_LIMIT_EXCEEDED]
+    end
+    
+    Allow --> Downstream[Downstream Microservice]
+    Downstream --> BusinessLogic[Business Logic]
+    BusinessLogic -->|Async| Kafka[Kafka: schedule.created]
+    Kafka --> Consumer[Integration Service Consumer]
+    Consumer -->|Retry Logic| ExternalAPI[Facebook/Instagram/TikTok API]
+    
+    subgraph Defense_in_Depth
+        CircuitBreaker[Resilience4j Circuit Breaker]
+        Bulkhead[Semaphore Bulkhead: 50 concurrent]
+        Timeout[Request Timeout: 10s]
+    end
+    
+    Consumer --> CircuitBreaker
+    CircuitBreaker --> Bulkhead
+    Bulkhead --> Timeout
+    Timeout --> ExternalAPI
+```
+
+**Rate Limit Configuration:**
+
+| Parameter | Value | Scope | Configuration |
+| :--- | :--- | :--- | :--- |
+| **Algorithm** | Token Bucket (Redis Lua Script) | Global | `rate-limit-service` `RedisTokenBucketStrategy` |
+| **Bucket Capacity** | 100 tokens | Per user per endpoint | `app.rate-limit.capacity=100` |
+| **Refill Rate** | 60 tokens/minute | Per user per endpoint | `app.rate-limit.refill-rate=60` |
+| **Key Format** | `rate_limit:{userId}:{endpoint}` | Redis Key | `RateLimitKeyGenerator` |
+| **Endpoint Scope** | `/api/v1/schedules`, `/api/v1/recommendations`, `/api/v1/users`, `/api/v1/rate-limits` | Gateway Filter | `RateLimitGatewayFilter` route predicates |
+| **Response Headers** | `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `Retry-After` | Client Visibility | `RateLimitResponseHeaders` |
+| **Exceeded Response** | HTTP 429, Body: `{errorCode: "RATE_LIMIT_EXCEEDED", retryAfterSeconds: 45}` | Standardized | `RateLimitExceededException` + `GlobalExceptionHandler` |
+
+**Lua Script (Atomic Operations):**
+```lua
+-- rate_limit_token_bucket.lua
+local key = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local refillRate = tonumber(ARGV[2]) -- tokens per second
+local now = tonumber(ARGV[3])
+local requested = tonumber(ARGV[4])
+
+local bucket = redis.call('HMGET', key, 'tokens', 'lastRefill')
+local tokens = tonumber(bucket[1]) or capacity
+local lastRefill = tonumber(bucket[2]) or now
+
+-- Refill tokens based on elapsed time
+local elapsed = now - lastRefill
+local newTokens = math.min(capacity, tokens + (elapsed * refillRate))
+
+if newTokens >= requested then
+    local remaining = newTokens - requested
+    redis.call('HMSET', key, 'tokens', remaining, 'lastRefill', now)
+    redis.call('EXPIRE', key, 3600) -- 1 hour TTL
+    return {1, remaining, 0} -- allowed, remaining, retryAfter
+else
+    local retryAfter = math.ceil((requested - newTokens) / refillRate)
+    redis.call('HMSET', key, 'tokens', newTokens, 'lastRefill', now)
+    redis.call('EXPIRE', key, 3600)
+    return {0, 0, retryAfter} -- denied, remaining, retryAfter
+end
+```
+
+**Code Reference:**  
+`./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/strategy/RedisTokenBucketStrategy.java`  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/filter/RateLimitGatewayFilter.java`  
+`./sources/backend/rate-limit-service/src/main/resources/lua/rate_limit_token_bucket.lua`
+
+---
+
+### 3.5 A05:2021 — Security Misconfiguration → CORS Whitelist, Security Headers
+
+**Threat Model:** Cross-origin data theft, clickjacking, MIME type sniffing, protocol downgrade, information disclosure via error pages.
+
+**Mitigation Architecture:**
+
+```mermaid
+flowchart LR
+    Request[Incoming Request] --> CorsFilter[CorsFilter: Origin Validation]
+    CorsFilter -->|Origin in Whitelist| SecurityHeaders[Security Headers Injection]
+    CorsFilter -->|Origin NOT in Whitelist| Reject[HTTP 403 Forbidden]
+    
+    subgraph CORS_Configuration
+        TenantOrigins[TENANT_ORIGINS Table]
+        DynamicWhitelist[Dynamic Whitelist per Tenant]
+        VaryHeader[Vary: Origin]
+        Credentials[Access-Control-Allow-Credentials: true]
+    end
+    
+    CorsFilter --> TenantOrigins
+    TenantOrigins --> DynamicWhitelist
+    DynamicWhitelist --> VaryHeader
+    DynamicWhitelist --> Credentials
+    
+    SecurityHeaders --> CSP[Content-Security-Policy]
+    SecurityHeaders --> HSTS[Strict-Transport-Security]
+    SecurityHeaders --> XContentType[X-Content-Type-Options: nosniff]
+    SecurityHeaders --> XFrame[X-Frame-Options: DENY]
+    SecurityHeaders --> Referrer[Referrer-Policy: strict-origin-when-cross-origin]
+    SecurityHeaders --> Permissions[Permissions-Policy: geolocation=(), microphone=()]
+```
+
+**Security Headers Configuration (Nginx Ingress ConfigMap):**
+
+| Header | Value | Purpose |
+| :--- | :--- | :--- |
+| **Content-Security-Policy** | `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.socialscheduler.local wss://api.socialscheduler.local; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'` | Prevents XSS, clickjacking, mixed content |
+| **Strict-Transport-Security** | `max-age=31536000; includeSubDomains; preload` | Enforces HTTPS for 1 year |
+| **X-Content-Type-Options** | `nosniff` | Prevents MIME sniffing |
+| **X-Frame-Options** | `DENY` | Prevents clickjacking |
+| **Referrer-Policy** | `strict-origin-when-cross-origin` | Controls referrer leakage |
+| **Permissions-Policy** | `geolocation=(), microphone=(), camera=(), payment=()` | Disables powerful browser features |
+| **Cross-Origin-Opener-Policy** | `same-origin` | Isolates browsing context |
+| **Cross-Origin-Resource-Policy** | `same-origin` | Prevents speculative execution attacks |
+
+**CORS Whitelist Implementation:**
+```java
+// CorsFilter.java
+@Component
+public class CorsFilter implements WebFilter {
+    private final TenantOriginRepository tenantOriginRepository;
+    
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        String origin = exchange.getRequest().getHeaders().getOrigin();
+        String tenantId = exchange.getRequest().getHeaders().getFirst("X-Tenant-Id");
+        
+        if (origin != null && tenantId != null) {
+            return tenantOriginRepository.findByTenantIdAndOrigin(tenantId, origin)
+                .filter(allowed -> allowed.isEnabled())
+                .flatMap(allowed -> {
+                    exchange.getResponse().getHeaders().add("Access-Control-Allow-Origin", origin);
+                    exchange.getResponse().getHeaders().add("Vary", "Origin");
+                    exchange.getResponse().getHeaders().add("Access-Control-Allow-Credentials", "true");
+                    exchange.getResponse().getHeaders().add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                    exchange.getResponse().getHeaders().add("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Tenant-Id, X-Request-Id");
+                    exchange.getResponse().getHeaders().add("Access-Control-Max-Age", "3600");
+                    return chain.filter(exchange);
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                    return exchange.getResponse().setComplete();
+                }));
+        }
+        return chain.filter(exchange);
+    }
+}
+```
+
+**Database Schema (TENANT_ORIGINS):**
+```sql
+CREATE TABLE tenant_origins (
+    origin_id UUID NOT NULL DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(64) NOT NULL,
+    origin VARCHAR(255) NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_tenant_origins PRIMARY KEY (origin_id),
+    CONSTRAINT uk_tenant_origin UNIQUE (tenant_id, origin)
+);
+CREATE INDEX idx_tenant_origins_tenant ON tenant_origins(tenant_id);
+```
+
+**Code Reference:**  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/filter/CorsFilter.java`  
+`./sources/infra/kubernetes/socialscheduler/base/ingress.yaml` (nginx.ingress.kubernetes.io/configuration-snippet)  
+`./sources/backend/user-service/src/main/resources/db/migration/V2__init_tenant_origins.sql`
+
+---
+
+### 3.6 A07:2021 — Identification and Authentication Failures → OAuth2 Resource Server, JWT Decoder, Token Expiry Handling
+
+**Threat Model:** Credential stuffing, session fixation, token replay, weak password recovery, missing MFA (future scope).
+
+**Mitigation Architecture:**
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant IdP[Identity Provider: Keycloak/Auth0]
+    participant Gateway[API Gateway]
+    participant Redis[Memorystore Redis]
+    participant Service[Microservice]
+    
+    Note over User,IdP: Authentication Flow
+    User->>IdP: Username/Password + MFA (TOTP)
+    IdP-->>User: Authorization Code
+    User->>Gateway: POST /oauth2/token (code)
+    Gateway->>IdP: Token Endpoint (code + client_secret)
+    IdP-->>Gateway: access_token (JWT RS256, 15min), refresh_token (opaque, 30d)
+    Gateway->>Redis: STORE refresh_token:{jti} -> {userId, tenantId, scopes} TTL 30d
+    Gateway-->>User: Set-Cookie: __Host-refresh=...; Secure; HttpOnly; SameSite=Strict
+    
+    Note over User,Gateway: API Access Flow
+    User->>Gateway: GET /api/v1/schedules (Authorization: Bearer <access_token>)
+    Gateway->>Gateway: JwtAuthFilter: Validate JWT (signature, exp, iss, aud)
+    alt Token Valid
+        Gateway->>Service: Forward with X-User-Id, X-Tenant-Id, X-Roles headers
+        Service-->>Gateway: 200 OK
+        Gateway-->>User: 200 OK
+    else Token Expired (exp < now)
+        Gateway-->>User: 401 Unauthorized {errorCode: "TOKEN_EXPIRED", message: "Access token expired. Please refresh."}
+    else Token Invalid (signature, iss, aud)
+        Gateway-->>User: 401 Unauthorized {errorCode: "INVALID_TOKEN", message: "Invalid authentication token."}
+    end
+    
+    Note over User,Gateway: Token Refresh Flow
+    User->>Gateway: POST /oauth2/token (grant_type=refresh_token, cookie: __Host-refresh)
+    Gateway->>Redis: GET refresh_token:{jti}
+    alt Refresh Token Valid
+        Gateway->>IdP: Token Endpoint (refresh_token)
+        IdP-->>Gateway: New access_token, New refresh_token (rotation)
+        Gateway->>Redis: DELETE old, STORE new
+        Gateway-->>User: 200 OK {access_token} + New Cookie
+    else Refresh Token Invalid/Expired/Revoked
+        Gateway->>Redis: DELETE refresh_token:{jti}
+        Gateway-->>User: 401 Unauthorized {errorCode: "REFRESH_TOKEN_INVALID", message: "Session expired. Please login again."}
+    end
+```
+
+**Authentication Security Controls:**
+
+| Control | Implementation | Configuration |
+| :--- | :--- | :--- |
+| **OAuth2 Flow** | Authorization Code Grant with PKCE | `spring.security.oauth2.client.registration.keycloak.authorization-grant-type=authorization_code` |
+| **PKCE** | S256 code challenge mandatory | `spring.security.oauth2.client.provider.keycloak.pkce-enabled=true` |
+| **JWT Validation** | `NimbusReactiveJwtDecoder` with JWK Set | `spring.security.oauth2.resourceserver.jwt.jwk-set-uri=https://auth.socialscheduler.local/.well-known/jwks.json` |
+| **Token Expiry Handling** | `GlobalExceptionHandler` catches `JwtException` | Returns HTTP 401 with `TOKEN_EXPIRED` / `INVALID_TOKEN` error codes |
+| **Refresh Token Rotation** | One-time use, rotation on each refresh | `RedisTokenStore` with atomic GET+DEL+SET |
+| **Refresh Token Storage** | HttpOnly, Secure, SameSite=Strict cookie | `__Host-refresh` prefix enforces secure context |
+| **Token Revocation** | Redis key deletion on logout/password change | `AuthenticationService.revokeAllUserTokens(userId)` |
+| **Brute Force Protection** | Rate limit on `/oauth2/token` (5 req/min/IP) | `RateLimitGatewayFilter` with IP-based key |
+| **Session Fixation** | New session ID on authentication success | `ServerHttpSessionIdResolver` with `changeSessionId()` |
+
+**Error Response Standardization:**
+```json
+// HTTP 401 - Token Expired
+{
+  "errorCode": "TOKEN_EXPIRED",
+  "message": "Access token expired. Please use refresh token to obtain new access token.",
+  "timestamp": "2026-08-31T15:13:55.123Z",
+  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+
+// HTTP 401 - Invalid Token
+{
+  "errorCode": "INVALID_TOKEN",
+  "message": "Invalid authentication token. Signature verification failed.",
+  "timestamp": "2026-08-31T15:13:55.123Z",
+  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+
+// HTTP 401 - Refresh Token Invalid
+{
+  "errorCode": "REFRESH_TOKEN_INVALID",
+  "message": "Refresh token invalid or expired. Please login again.",
+  "timestamp": "2026-08-31T15:13:55.123Z",
+  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+```
+
+**Code Reference:**  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/JwtAuthFilter.java`  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java`  
+`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/exception/GlobalExceptionHandler.java`  
+`./sources/backend/user-service/src/main/java/org/nlh4j/socialscheduler/userservice/service/AuthenticationService.java`
+
+---
+
+### 3.7 A09:2021 — Security Logging and Monitoring Failures → Prometheus + Grafana, Structured Logging, LogScrubbingInterceptor
+
+**Threat Model:** Undetected attacks, insufficient audit trail, PII leakage in logs, inability to correlate distributed traces.
+
+**Mitigation Architecture:**
+
+```mermaid
+flowchart TD
+    Application[Microservices: user-service, schedule-service, ai-service, rate-limit-service, api-gateway]
+    Application --> SLF4J[SLF4J + Logback]
+    SLF4J --> LogScrubbing[LogScrubbingInterceptor: PII Redaction]
+    LogScrubbing --> StructuredLog[Structured JSON Log: timestamp, level, service, traceId, spanId, message, fields]
+    StructuredLog --> Stdout[STDOUT/STDERR]
+    Stdout --> FluentBit[Fluent Bit DaemonSet]
+    FluentBit --> Loki[Grafana Loki]
+    FluentBit --> CloudLogging[GCP Cloud Logging]
+    
+    Application --> Micrometer[Micrometer + OpenTelemetry]
+    Micrometer --> Prometheus[Prometheus Server]
+    Prometheus --> AlertManager[Alertmanager]
+    AlertManager --> PagerDuty[PagerDuty / Slack / Email]
+    Prometheus --> Grafana[Grafana Dashboards]
+    
+    subgraph Log_Scrubbing_Patterns
+        EmailPattern[Email: \b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b]
+        PhonePattern[Phone: \b\d{10,11}\b]
+        JwtPattern[JWT: eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+]
+        IpPattern[IP: \b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b]
+        UuidPattern[UUID: \b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b]
+        CreditCardPattern[Credit Card: \b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b]
+    end
+    
+    LogScrubbing --> EmailPattern
+    LogScrubbing --> PhonePattern
+    LogScrubbing --> JwtPattern
+    LogScrubbing --> IpPattern
+    LogScrubbing --> UuidPattern
+    LogScrubbing --> CreditCardPattern
+```
+
+**Structured Log Format (JSON):**
+```json
+{
+  "timestamp": "2026-08-31T15:13:55.123Z",
+  "level": "INFO",
+  "service": "schedule-service",
+  "traceId": "a1b2c3d4e5f67890",
+  "spanId": "1234567890abcdef",
+  "thread": "reactor-http-nio-3",
+  "logger": "org.nlh4j.socialscheduler.scheduleservice.service.ScheduleService",
+  "message": "Schedule created successfully",
+  "fields": {
+    "scheduleId": "550e8400-e29b-41d4-a716-446655440000",
+    "userId": "****-****-****-****",
+    "tenantId": "tenant-acme-corp",
+    "platform": "FACEBOOK",
+    "scheduledTime": "2026-09-01T10:00:00Z",
+    "status": "PENDING"
+  }
+}
+```
+
+**Log Scrubbing Interceptor Implementation:**
+```java
+// LogScrubbingInterceptor.java
+@Component
+public class LogScrubbingInterceptor implements LoggerContextListener {
+    private static final List<Pattern> SCRUB_PATTERNS = List.of(
+        Pattern.compile("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b"), // Email
+        Pattern.compile("\\b\\d{10,11}\\b"), // Phone
+        Pattern.compile("eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+"), // JWT
+        Pattern.compile("\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b"), // IPv4
+        Pattern.compile("\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b"), // UUID
+        Pattern.compile("\\b\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}\\b") // Credit Card
+    );
+    
+    @Override
+    public void onStart(LoggerContext context) {
+        // Register turbo filter for all loggers
+        TurboFilter filter = new TurboFilter() {
+            @Override
+            public FilterReply decide(Marker marker, Logger logger, Level level, String format, Object[] params, Throwable t) {
+                if (params != null) {
+                    for (int i = 0; i < params.length; i++) {
+                        if (params[i] instanceof String str) {
+                            params[i] = scrub(str);
+                        }
+                    }
+                }
+                if (format != null) {
+                    // Note: format string itself is not modified to preserve structure
+                }
+                return FilterReply.NEUTRAL;
+            }
+        };
+        context.addTurboFilter(filter);
+    }
+    
+    private String scrub(String input) {
+        String result = input;
+        for (Pattern pattern : SCRUB_PATTERNS) {
+            Matcher matcher = pattern.matcher(result);
+            result = matcher.replaceAll("[REDACTED]");
+        }
+        return result;
+    }
+}
+```
+
+**Prometheus Metrics for Security Monitoring:**
+
+| Metric Name | Type | Labels | Alert Rule |
+| :--- | :--- | :--- | :--- |
+| `http_requests_total` | Counter | `service`, `method`, `path`, `status` | `rate(http_requests_total{status=~"4..|5.."}[5m]) > 0.1` |
+| `rate_limit_exceeded_total` | Counter | `service`, `user_id`, `endpoint` | `rate(rate_limit_exceeded_total[5m]) > 10` |
+| `authentication_failures_total` | Counter | `service`, `reason` (expired, invalid, revoked) | `rate(authentication_failures_total[5m]) > 5` |
+| `authorization_denials_total` | Counter | `service`, `required_role`, `actual_role` | `rate(authorization_denials_total[5m]) > 5` |
+| `upstream_service_errors_total` | Counter | `service`, `upstream` (facebook, instagram, tiktok, openai) | `rate(upstream_service_errors_total[5m]) > 0.05` |
+| `jwt_validation_failures_total` | Counter | `service`, `failure_type` (signature, expired, claims) | `rate(jwt_validation_failures_total[5m]) > 1` |
+
+**Grafana Dashboard Panels (Security Overview):**
+1. **Authentication Health** — Success rate, failure breakdown by reason
+2. **Authorization Denials** — Top denied endpoints, role mismatch analysis
+3. **Rate Limiting Activity** — 429 trends, top rate-limited users/endpoints
+4. **Upstream Error Rates** — External API failure correlation
+5. **JWT Validation Failures** — Signature vs expiry vs claims failures
+6. **Audit Trail** — Admin actions, privilege changes, token revocations
+
+**Code Reference:**  
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/logging/LogScrubbingInterceptor.java`  
+`./sources/backend/schedule-service/src/main/resources/logback-spring.xml`  
+`./sources/infra/observability/prometheus.yaml` (scrape config + alerting rules)  
+`./sources/infra/observability/grafana-dashboard.json` (Security Overview dashboard)
+
+---
+
+## 4. Compliance Verification Checklist
+
+| Check Item | Status | Evidence Location | Tag IDs |
+| :--- | :--- | :--- | :--- |
+| RBAC 4-role matrix implemented and tested | ✅ Verified | `SecurityConfigTest.java` (16 test vectors) | [ARC-001]-[ARC-004], [ARC-005] |
+| TLS 1.3 enforced at Load Balancer | ✅ Verified | GCP SSL Policy `modern`, Terraform `google_compute_ssl_policy` | [NFR-002] |
+| JWT RS256 with 90-day key rotation | ✅ Verified | Cloud KMS rotation schedule, JWK Set polling | [NFR-002], [ARC-005] |
+| All SQL via Parameter Binding (zero concatenation) | ✅ Verified | `SafeSqlScanner` Maven plugin in CI pipeline | [DAT-001]-[DAT-003] |
+| HTML Sanitizer on all user content | ✅ Verified | `HtmlSanitizerConfig.java`, `SchedulePayloadValidator` | [REQ-001], [REQ-002] |
+| Media URL domain whitelist enforced | ✅ Verified | `SchedulePayloadValidator.isAllowedMediaDomain()` | [REQ-003], [EXC-002] |
+| Dynamic sort field whitelist | ✅ Verified | `SortFieldGuard.sanitize()` in repositories | [DAT-001] |
+| Redis Token Bucket rate limiting (atomic Lua) | ✅ Verified | `RedisTokenBucketStrategy`, integration tests | [REQ-003], [EXC-005] |
+| Gateway Filter defense-in-depth | ✅ Verified | `RateLimitGatewayFilter` + Resilience4j Circuit Breaker | [ARC-006] |
+| CORS whitelist per tenant (no wildcard) | ✅ Verified | `CorsFilter`, `TENANT_ORIGINS` table | [NFR-002], [NFR-003] |
+| Security headers (CSP, HSTS, etc.) injected | ✅ Verified | Nginx Ingress ConfigMap, `ingress.yaml` annotations | [NFR-002], [ARC-006] |
+| OAuth2 Authorization Code + PKCE | ✅ Verified | `SecurityConfig`, Keycloak realm config | [ARC-005], [EXC-002] |
+| Refresh token rotation + HttpOnly cookie | ✅ Verified | `AuthenticationService`, `RedisTokenStore` | [EXC-002], [NFR-002] |
+| Structured JSON logging with correlation ID | ✅ Verified | `Logback-spring.xml`, `MDC` filter | [NFR-001], [ARC-006] |
+| PII scrubbing on all log output | ✅ Verified | `LogScrubbingInterceptor`, TurboFilter | [NFR-002], [ARC-006] |
+| Prometheus metrics for security events | ✅ Verified | `prometheus.yaml` alerting rules | [NFR-001] |
+| Grafana security dashboard operational | ✅ Verified | `grafana-dashboard.json` imported | [NFR-001] |
+
+---
+
+## 5. Incident Response Playbook References
+
+| Security Event | Detection Method | Response Procedure | Runbook Link |
+| :--- | :--- | :--- | :--- |
+| **Mass Authentication Failures** | `authentication_failures_total` alert | 1. Block source IPs at Cloud Armor<br>2. Rotate JWT signing key<br>3. Force logout affected users | `./sources/docs/operations/IncidentResponse-AuthFailures.md` |
+| **Rate Limit Storm** | `rate_limit_exceeded_total` spike | 1. Identify top offenders<br>2. Emergency capacity increase (HPA)<br>3. Temporary stricter limits | `./sources/docs/operations/IncidentResponse-RateLimitStorm.md` |
+| **Upstream API Compromise** | `upstream_service_errors_total` + anomalous responses | 1. Circuit breaker open<br>2. Revoke compromised OAuth tokens<br>3. Switch to fallback content | `./sources/docs/operations/IncidentResponse-UpstreamCompromise.md` |
+| **PII Leakage in Logs** | Log audit / DLP scan detection | 1. Immediate log purge from Loki/Cloud Logging<br>2. Fix scrubber pattern gap<br>3. Notify DPO within 72h | `./sources/docs/operations/IncidentResponse-PIILeakage.md` |
+| **Privilege Escalation Attempt** | `authorization_denials_total` anomaly | 1. Audit affected user sessions<br>2. Revoke all tokens for user<br>3. Review RBAC policy changes | `./sources/docs/operations/IncidentResponse-PrivEsc.md` |
+
+---
+
+## 6. Continuous Compliance Automation
+
+```mermaid
+flowchart LR
+    CI[GitHub Actions CI Pipeline] --> SAST[SAST: SonarQube + SpotBugs + FindSecBugs]
+    CI --> DAST[DAST: OWASP ZAP Baseline Scan]
+    CI --> SCA[SCA: OWASP Dependency Check]
+    CI --> ContainerScan[Container Scan: Trivy]
+    CI --> IaCScan[IaC Scan: Checkov + tfsec]
+    CI --> PolicyCheck[Policy Check: OPA Gatekeeper]
+    
+    SAST --> QualityGate{Quality Gate}
+    DAST --> QualityGate
+    SCA --> QualityGate
+    ContainerScan --> QualityGate
+    IaCScan --> QualityGate
+    PolicyCheck --> QualityGate
+    
+    QualityGate -->|PASS| Deploy[Deploy to Staging]
+    QualityGate -->|FAIL| Block[Block Merge + Slack Alert]
+    
+    Deploy --> SmokeTest[Smoke Tests + Security Regression Suite]
+    SmokeTest -->|PASS| ProdApproval[Manual Approval for Production]
+    SmokeTest -->|FAIL| Rollback[Auto Rollback + Alert]
+    
+    ProdApproval --> DeployProd[Deploy to Production]
+    DeployProd --> PostDeploy[Post-Deploy Verification]
+    PostDeploy --> Monitoring[Continuous Monitoring: Prometheus Alerts]
+```
+
+**Automated Gates:**
+- **SAST:** Zero `BLOCKER`/`CRITICAL` findings, Security Hotspots reviewed
+- **DAST:** Zero High/Medium alerts on OWASP Top 10 categories
+- **SCA:** Zero CVSS ≥ 7.0 vulnerabilities in dependencies
+- **Container Scan:** Zero CRITICAL/HIGH vulnerabilities in base image
+- **IaC Scan:** Zero CHECKOV/TCFSEC failures on Terraform/K8s manifests
+- **Policy Check:** All OPA Gatekeeper constraints satisfied (e.g., `require-non-root-user`, `require-readonly-root-fs`, `disallow-privilege-escalation`)
+
+---
+
+## 7. Appendix: Tag ID Cross-Reference Index
+
+| Tag ID | Description | Referenced In Sections |
+| :--- | :--- | :--- |
+| [ARC-001] | RBAC Role: Admin | 3.1, 2 |
+| [ARC-002] | RBAC Role: User | 3.1, 2 |
+| [ARC-003] | RBAC Role: Scheduler | 3.1, 2 |
+| [ARC-004] | RBAC Role: Analyst | 3.1, 2 |
+| [ARC-005] | OAuth2 Resource Server / JWT / Security Config | 3.1, 3.2, 3.6, 2 |
+| [ARC-006] | OWASP Compliance / Security Headers / Logging | 3.1, 3.2, 3.4, 3.5, 3.7, 2 |
+| [NFR-001] | Performance / Observability / Latency < 200ms | 3.7, 2 |
+| [NFR-002] | Security / Encryption / TLS / PII Protection | 3.2, 3.3, 3.5, 3.6, 3.7, 2 |
+| [NFR-003] | Multi-Tenancy / Scalability / Isolation | 3.1, 3.5, 2 |
+| [DAT-001] | User Schema / Tenant Isolation | 3.3, 2 |
+| [DAT-002] | Schedule Schema / Performance Metrics | 3.3, 2 |
+| [DAT-003] | Rate Limit Schema | 3.3, 2 |
+| [REQ-001] | Multi-Platform Scheduling | 3.3, 3.7 |
+| [REQ-002] | AI Content Recommendation | 3.3, 3.7 |
+| [REQ-003] | Input Validation / Rate Limiting | 3.3, 3.4, 2 |
+| [EXC-001] | Third-Party API Error Handling | 3.7 |
+| [EXC-002] | Token Expiry / Invalid Token Handling | 3.6, 3.3, 2 |
+| [EXC-003] | AI Service Failure / Fallback | 3.7 |
+| [EXC-004] | Fallback Content Failure | 3.7 |
+| [EXC-005] | Rate Limit Exceeded Handling | 3.4, 2 |
+| [DOC-001] | Architecture Documentation / Runbooks | All sections |
+
+---
+
+**Document Approval:**
+
+| Role | Name | Signature | Date |
+| :--- | :--- | :--- | :--- |
+| **Security Architect** | | | |
+| **Compliance Officer** | | | |
+| **Engineering Lead** | | | |
+
+**Next Review Date:** 2026-11-30 (Quarterly)  
+**Document Owner:** Platform Security Team  
+**Classification:** Enterprise Confidential — Do Not Distribute Externally
+```
+

@@ -163,69 +163,198 @@ npm run test:ci -- --coverage --coverageThreshold='{"global":{"branches":85,"fun
 
 | Container | Image | Version | Purpose | Target Tag IDs |
 |-----------|-------|---------|---------|----------------|
-| PostgreSQL | `postgres:16-alpine` | 16 | Database integration | [NFR-001], [NFR-003] |
-| Redis | `redis:7-alpine` | 7 | Cache & Rate Limiting | [NFR-001], [NFR-003] |
-| Kafka | `confluentinc/cp-kafka:7.5.0` | 7.5.0 | Event** | |
+| PostgreSQL | `postgres:16-alpine` | 16 | Database integration & Flyway DDL verification | [NFR-001], [NFR-003], [DAT-001] |
+| Redis | `redis:7-alpine` | 7 | Cache & Token Bucket Rate Limiter | [NFR-001], [NFR-003] |
+| Kafka | `confluentinc/cp-kafka:7.5.0` | 7.5.0 | Event-driven architecture messaging | [NFR-001], [NFR-003] |
 
+**Execution Command:**
+```bash
+mvn -f ./sources/backend/pom.xml verify -Dtest=*IT -DfailIfNoTests=false
+```
 
+---
 
-on**0 o oou |
+### 3.4 Stage 4: Build Image (`build-image`)
 
-o |**000...**...os0** |** | | Which**
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `build-image`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 30 minutes  
+**Needs:** `integration-test`  
 
-** on Thisimeoni on**** ...**** ...****}
+#### 3.4.1 Multi-Stage Docker Builds
 
-or ...** ... ...... ...... ... The Theparallel>o> ps0
+The pipeline builds production-ready container images for all four backend microservices using multi-stage Dockerfiles located under `./sources/infra/docker/`.
 
-...} # ... ... ...> | ... ......
+| Service | Dockerfile Path | Base Image (Runtime) | Target Tag IDs |
+|---------|-----------------|----------------------|----------------|
+| `user-service` | `./sources/infra/docker/user-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
+| `schedule-service` | `./sources/infra/docker/schedule-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
+| `ai-service` | `./sources/infra/docker/ai-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
+| `rate-limit-service` | `./sources/infra/docker/rate-limit-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
 
-...}\) ...} |... ......}\)
+**Execution Command Example:**
+```bash
+docker build -f ./sources/infra/docker/schedule-service/Dockerfile \
+  -t asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/schedule-service:${GITHUB_SHA} \
+  ./sources/backend/schedule-service
+```
 
+---
 
+### 3.5 Stage 5: Push Image (`push-image`)
 
-}\)
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `push-image`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 15 minutes  
+**Needs:** `build-image`  
 
-}\)
+#### 3.5.1 Google Artifact Registry Integration
 
- Pil............}
+Images built in Stage 4 are authenticated and pushed to Google Artifact Registry.
 
+- **Registry Base Path:** `asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/`
+- **Authentication:** Authenticates via GCP Service Account key stored in GitHub Secrets (`GCP_SA_KEY`).
 
+**Execution Commands:**
+```bash
+echo "${{ secrets.GCP_SA_KEY }}" | docker login -u _json_key --password-stdin https://asia-southeast1-docker.pkg.dev
+docker push asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/schedule-service:${GITHUB_SHA}
+```
 
+---
 
+### 3.6 Stage 6: Deploy to Staging (`deploy-staging`)
 
- ...
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `deploy-staging`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 20 minutes  
+**Needs:** `push-image`  
 
-)
+#### 3.6.1 Kubernetes Manifest Application
 
+Applies Kubernetes base manifests and staging overlays to the GKE staging namespace using Kustomize.
 
+**Execution Commands:**
+```bash
+gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1 --project social-scheduler-prod
+kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/staging
+kubectl rollout status deployment/schedule-service -n socialscheduler-staging --timeout=300s
+```
 
-~,. ...psi>>...}\)
+---
 
-}\)
+### 3.7 Stage 7: Smoke Test (`smoke-test`)
 
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `smoke-test`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 15 minutes  
+**Needs:** `deploy-staging`  
 
+#### 3.7.1 Health & Metrics Verification
 
+Executes automated curl-based health probes and metrics extraction against staging endpoints.
 
+**Execution Script:**
+```bash
+# Verify Actuator Health
+curl -sSf https://api-staging.socialscheduler.local/actuator/health | grep -q '"status":"UP"'
 
+# Verify Prometheus Metrics Endpoint
+curl -sSf https://api-staging.socialscheduler.local/actuator/prometheus | grep -q 'jvm_memory_used_bytes'
+```
 
+---
 
+### 3.8 Stage 8: Manual Approval (`approval`)
 
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `approval`  
+**Runs On:** `ubuntu-latest`  
+**Environment:** `production` (Requires reviewer approval)  
+**Needs:** `smoke-test`  
 
-...)
+#### 3.8.1 Technical Lead Approval Gate
 
-)
+This stage pauses pipeline execution until a designated Technical Lead or Release Manager approves the deployment within GitHub Environments. Enforces security compliance **[NFR-002]**.
 
-}\)
+---
 
-,.... ...).&& ...&\)&& ... ...&pri ... ...,& ... ...​,s &...#&#} &? ...Psiquuclear. The?n &&##\) ...& ....
+### 3.9 Stage 9: Deploy to Production (`deploy-prod`)
 
-},,.} , .n-,...)
- \scale
+**Workflow File:** `.github/workflows/ci-cd.yml`  
+**Job Name:** `deploy-prod`  
+**Runs On:** `ubuntu-latest`  
+**Timeout:** 30 minutes  
+**Needs:** `approval`  
 
- u ... ... ... ... ...#s? s& ...??**&, ...?chichi??&.
-??μ &? The ...oline
+#### 3.9.1 Production Rolling Update
 
-.bf ....
-# ...?& & The&.
-.
- ...**
+Deploys verified container images to the production GKE cluster using rolling update strategy (`maxSurge: 1, maxUnavailable: 0`), guaranteeing zero downtime.
+
+**Execution Commands:**
+```bash
+gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1 --project social-scheduler-prod
+kubectl set image deployment/schedule-service schedule-service=asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/schedule-service:${GITHUB_SHA} -n socialscheduler
+kubectl rollout status deployment/schedule-service -n socialscheduler --timeout=600s
+```
+
+---
+
+## 4. Required GitHub Secrets Configuration
+
+To execute this pipeline successfully, the following secrets must be configured in the GitHub repository settings (`Settings > Secrets and variables > Actions`):
+
+| Secret Name | Description | Target Tag IDs |
+|-------------|-------------|----------------|
+| `GCP_SA_KEY` | Google Cloud Service Account JSON key with permissions for GKE, Artifact Registry, and Cloud SQL. | [NFR-002], [DOC-001] |
+| `ARTIFACT_REGISTRY` | Base URL path for Google Artifact Registry (`asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler`). | [NFR-003], [DOC-001] |
+| `KUBECONFIG_PROD` | Base64-encoded Kubernetes configuration file for cluster connection and deployment orchestration. | [NFR-003], [DOC-001] |
+
+---
+
+## 5. Git Flow Strategy & Branching Model
+
+The development workflow adheres to a strict Git Flow branching model combined with Conventional Commits to maintain traceability and automated changelog generation.
+
+### 5.1 Branching Structure
+
+- **`main`**: Production-ready code. Direct pushes are strictly forbidden; changes merge via pull requests from `release/*` or `hotfix/*`.
+- **`develop`**: Integration branch for ongoing development. Feature branches merge into `develop`.
+- **`feature/*`**: Isolated branches for developing specific backlog items (e.g., `feature/development-phase-1-day-1`).
+- **`release/*`**: Staging preparation branches cut from `develop` for final QA and UAT.
+- **`hotfix/*`**: Emergency production patches cut directly from `main`.
+
+### 5.2 Conventional Commits Specification
+
+All commit messages must follow the Conventional Commits format to enable automated semantic versioning and release notes:
+
+```text
+<type>(<scope>): <short description>
+
+[optional body]
+
+[optional footer]
+```
+
+**Allowed Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`.  
+**Example:** `feat(scheduler): add schedule validation for facebook platform [REQ-001]`
+
+---
+
+## 6. Traceability Matrix Reference
+
+| Requirement Code | Description | Pipeline Stage / Component |
+|------------------|-------------|----------------------------|
+| **[REQ-001]** | Multi-platform scheduling API integration | Stages 2, 3, 4 |
+| **[REQ-002]** | AI-powered content recommendation | Stages 2, 3, 4 |
+| **[REQ-003]** | Input validation and rate limiting | Stages 1, 2, 3 |
+| **[NFR-001]** | Performance, Latency <200ms, Observability | Stages 2, 3, 7, Prometheus/Grafana |
+| **[NFR-002]** | Security, OWASP Top 10 compliance, Secrets | Stages 1, 8, GCP IAM |
+| **[NFR-003]** | Scalability, GKE Autopilot, HPA, Multi-tenancy | Stages 3, 4, 6, 9 |
+| **[DOC-001]** | Comprehensive enterprise technical documentation | Entire document repository (`./sources/docs/`) |
+```
+```
