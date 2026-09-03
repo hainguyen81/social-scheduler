@@ -4,7 +4,7 @@
 - **Target Path:** `./sources/docs/api/ScheduleApiContract.yaml`
 - **Specification Standard:** OpenAPI 3.0.3
 - **Java Package Namespace:** `org.nlh4j.socialscheduler`
-- **Traceability Tag IDs Enforced:** `[ARC-001]`, `[ARC-002]`, `[ARC-003]`, `[ARC-004]`, `[ARC-005]`, `[ARC-006]`
+- **Traceability Tag IDs Enforced:** `[REQ-001]`, `[ARC-001]`, `[ARC-002]`, `[ARC-003]`, `[ARC-004]`, `[ARC-005]`, `[ARC-006]`
 
 ---
 
