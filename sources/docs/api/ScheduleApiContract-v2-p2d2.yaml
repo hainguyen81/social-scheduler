@@ -1,0 +1,318 @@
+```markdown
+# Social Scheduler API Contract & Enterprise Security Specification
+## Document Metadata & Traceability Matrix
+- **Target Path:** `./sources/docs/api/ScheduleApiContract.yaml`
+- **Specification Standard:** OpenAPI 3.0.3
+- **Java Package Namespace:** `org.nlh4j.socialscheduler`
+- **Traceability Tag IDs Enforced:** `[REQ-001]`, `[ARC-001]`, `[ARC-002]`, `[ARC-003]`, `[ARC-004]`, `[ARC-005]`, `[ARC-006]`
+
+---
+
+## 1. OpenAPI 3.0.3 Specification Document
+
+```yaml
+openapi: 3.0.3
+info:
+  title: Social Scheduler - Schedule API Contract & Security Specification
+  version: 1.0.0
+  description: |
+    Enterprise API contract for managing multi-platform social media publishing schedules.
+    Enforces OAuth2 Resource Server JWT validation, RBAC multi-role access control ([ARC-001], [ARC-002], [ARC-003], [ARC-004]),
+    secure token handling, and strict OWASP Top 10 compliance ([ARC-005], [ARC-006]).
+    
+    ## RBAC Enforcement Matrix ([ARC-001] - [ARC-004])
+    | Endpoint / Operation | HTTP Method | Allowed Roles | Description |
+    | :--- | :--- | :--- | :--- |
+    | `/api/v1/schedules` | POST | ADMIN, USER, SCHEDULER | Create a new publishing schedule item |
+    | `/api/v1/schedules/{id}` | GET | ADMIN, USER, ANALYST | Retrieve publishing schedule details |
+    | `/api/v1/schedules/{id}/status` | PUT | ADMIN, SCHEDULER | Update publishing status (e.g. SENT, FAILED) |
+    | `/api/v1/schedules/{id}` | DELETE | ADMIN, USER | Cancel and delete an existing schedule item |
+
+servers:
+  - url: https://api.socialscheduler.local/api/v1
+    description: Production API Gateway Server ([ARC-005], [ARC-006])
+  - url: https://staging-api.socialscheduler.local/api/v1
+    description: Staging Environment Server
+
+paths:
+  /schedules:
+    post:
+      summary: Create publishing schedule
+      description: Schedules a new social media post across supported platforms (Facebook, Instagram, TikTok) ([ARC-001]).
+      operationId: createSchedule
+      tags:
+        - Schedules
+      security:
+        - bearerAuth: []
+      x-target-tag-ids: ["[ARC-001]", "[ARC-005]"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleRequestDto'
+            examples:
+              validRequest:
+                summary: Valid Facebook Schedule Request
+                value:
+                  platform: "FACEBOOK"
+                  content: "Exciting product launch coming soon! Check out our latest updates."
+                  scheduledTime: "2026-09-01T15:00:00Z"
+      responses:
+        '201':
+          description: Schedule successfully created with PENDING status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleResponseDto'
+        '400':
+          description: Validation failed (Malformed payload or past scheduled time).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Unauthorized - Token missing, expired ([EXC-002]), or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Insufficient role permissions ([ARC-002], [ARC-003], [ARC-004]).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too Many Requests - Rate limit exceeded ([REQ-003]).
+
+  /schedules/{id}:
+    get:
+      summary: Get schedule by ID
+      description: Retrieves a specific schedule record by its UUID ([ARC-002]).
+      operationId: getScheduleById
+      tags:
+        - Schedules
+      security:
+        - bearerAuth: []
+      x-target-tag-ids: ["[ARC-002]", "[ARC-005]"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique schedule identifier
+      responses:
+        '200':
+          description: Schedule found and returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleResponseDto'
+        '401':
+          description: Token expired or invalid ([EXC-002]).
+        '403':
+          description: Insufficient role permissions ([ARC-002]).
+        '404':
+          description: Schedule not found.
+
+    delete:
+      summary: Cancel and delete schedule
+      description: Deletes an existing pending schedule item ([ARC-001], [ARC-002]).
+      operationId: deleteSchedule
+      tags:
+        - Schedules
+      security:
+        - bearerAuth: []
+      x-target-tag-ids: ["[ARC-001]", "[ARC-002]"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Schedule successfully deleted.
+        '401':
+          description: Unauthorized ([EXC-002]).
+        '403':
+          description: Forbidden ([ARC-002]).
+
+  /schedules/{id}/status:
+    put:
+      summary: Update schedule status
+      description: Updates the publishing execution status of a schedule item ([ARC-003]).
+      operationId: updateScheduleStatus
+      tags:
+        - Schedules
+      security:
+        - bearerAuth: []
+      x-target-tag-ids: ["[ARC-003]", "[ARC-005]"]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [PENDING, SENT, FAILED, CANCELLED]
+      responses:
+        '200':
+          description: Status updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleResponseDto'
+        '401':
+          description: Unauthorized ([EXC-002]).
+        '403':
+          description: Forbidden - Requires ADMIN or SCHEDULER role ([ARC-003]).
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer token issued by OAuth2 Authorization Server (`auth-service`).
+        Contains custom claims including `roles` array enforcing 4 RBAC levels:
+        - `ADMIN`: Full system access ([ARC-001]).
+        - `USER`: Standard schedule creation and management ([ARC-002]).
+        - `SCHEDULER`: Worker execution and status update access ([ARC-003]).
+        - `ANALYST`: Read-only metrics and reporting access ([ARC-004]).
+
+  schemas:
+    ScheduleRequestDto:
+      type: object
+      required:
+        - platform
+        - content
+        - scheduledTime
+      properties:
+        platform:
+          type: string
+          enum: [FACEBOOK, INSTAGRAM, TIKTOK]
+          description: Target social media publishing platform
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Text content of the post
+        scheduledTime:
+          type: string
+          format: date-time
+          description: Planned publishing timestamp in ISO-8601 format
+
+    ScheduleResponseDto:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+        platform:
+          type: string
+        content:
+          type: string
+        scheduledTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [PENDING, SENT, FAILED, CANCELLED]
+        retryCount:
+          type: integer
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          example: "VALIDATION_FAILED"
+        message:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              rejectedValue:
+                type: string
+              errorMessage:
+                type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          example: "TOKEN_EXPIRED"
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+```
+
+---
+
+## 2. Enterprise Security Architecture & OWASP Compliance
+
+### 2.1. Security Scheme & RBAC Hierarchy Mapping
+The API Gateway (`org.nlh4j.socialscheduler.gateway`) intercepts all incoming HTTP requests to `/api/v1/**` and validates the RS256-signed JSON Web Token (JWT) provided in the `Authorization: Bearer <token>` header. 
+- **[ARC-001] (Admin Role):** Grants unrestricted administrative capabilities across all tenant boundaries and resource endpoints.
+- **[ARC-002] (User Role):** Grants standard tenant user privileges to create, read, and delete their own publishing schedules.
+- **[ARC-003] (Scheduler Role):** Grants execution workers and scheduler services permission to update publishing status (`SENT`, `FAILED`).
+- **[ARC-004] (Analyst Role):** Grants read-only access to analytics and performance metrics endpoints.
+
+### 2.2. Token Lifecycle & Refresh Flow (`auth-service`)
+When an access token expires, the client receives a `401 Unauthorized` response with error code `TOKEN_EXPIRED`. 
+1. **Client Action:** The client invokes `POST /api/v1/auth/token/refresh` with a valid, non-revoked refresh token stored securely via `@capacitor/preferences` (on mobile clients) or HTTP-only cookies (on web clients).
+2. **Server Action (`auth-service`):** Validates the refresh token against Redis session store, checks revocation status, and issues a new short-lived JWT access token (TTL: 15 minutes) along with a rotated refresh token.
+3. **Exception Handling:** If the refresh token is expired or invalid, `auth-service` responds with `401 Unauthorized` (`TOKEN_INVALID`), forcing the user to re-authenticate.
+
+### 2.3. OWASP Top 10 Mitigation Summary ([ARC-006])
+- **A01:2021 - Broken Access Control:** Enforced via Spring Security 6 RBAC method security (`@PreAuthorize`) and schema-per-tenant isolation at the persistence layer.
+- **A02:2021 - Cryptographic Failures:** All data in transit is encrypted using TLS 1.3 with strict HSTS headers. JWT signatures are verified using public/private key pairs (RS256).
+- **A07:2021 - Identification and Authentication Failures:** Implements robust token expiration policies, secure token rotation, and rate-limiting on authentication endpoints to prevent brute-force attacks.
+
+---
+
+## 3. Example Request Payload & Authorization Header
+
+```http
+POST /api/v1/schedules HTTP/1.1
+Host: api.socialscheduler.local
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsI... (truncated JWT string)
+Content-Type: application/json
+X-Tenant-Id: tenant-enterprise-01
+
+{
+  "platform": "FACEBOOK",
+  "content": "Exciting product launch coming soon! Check out our latest updates.",
+  "scheduledTime": "2026-09-01T15:00:00Z"
+}
+```
+```
