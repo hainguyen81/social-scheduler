@@ -45,25 +45,46 @@ echo "phase_ended=$PHASE_ENDED" >> "$GITHUB_OUTPUT"
 echo "exec_mode=$EXEC_MODE" >> "$GITHUB_OUTPUT"
 
 # 🌐 define branch for sub-agents working
+PREV_BRANCH="features/development-phase-$PREV_PHASE-day-$PREV_DAY"
 BRANCH_NAME="features/development-phase-$RESOLVED_PHASE-day-$RESOLVED_DAY"
 echo "🌐 [GIT ROUTER] Target environment workspace branch assigned: $BRANCH_NAME"
 
 rm -f "$STATE_FILE"
 git checkout -- "$STATE_FILE" 2>/dev/null || true
 
-echo "🔄 [GIT FETCH] Fetching standard mainline development trunk baseline..."
-git fetch origin features/development || true
-git checkout -f features/development || git checkout -f master
-
-# 🌿 Initialize independent sub-branch tracking layer cleanly
-if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME" || git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
-  echo "🌿 [GIT MERGE] Existing target branch detected. Synchronizing latest trunk modifications..."
-  rm -f "$STATE_FILE"
+# 🌿 Check if the target BRANCH_NAME already exists (to prevent overwriting active progress)
+if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME" || git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+  echo "🌿 [GIT MERGE] Existing target branch detected. Synchronizing workspace..."
+  git fetch origin "$BRANCH_NAME" 2>/dev/null || true
   git checkout -f "$BRANCH_NAME"
-  git merge origin/features/development --no-edit || true
+  # Optional: Keep it up to date with the remote version if it exists
+  git pull origin "$BRANCH_NAME" --no-rebase 2>/dev/null || true
 
+# 🔄 If target doesn't exist, check if PREV_BRANCH exists to branch off from
+elif git show-ref --verify --quiet "refs/heads/$PREV_BRANCH" || git ls-remote --exit-code --heads origin "$PREV_BRANCH" >/dev/null 2>&1; then
+  echo "⏮️ [GIT FORK] Previous branch [$PREV_BRANCH] detected. Bootstrapping new workspace..."
+  git fetch origin "$PREV_BRANCH" 2>/dev/null || true
+  
+  # Checkout the previous branch safely (local tracking or remote fallback)
+  git checkout -f "$PREV_BRANCH" 2>/dev/null || git checkout -f -b "$PREV_BRANCH" "origin/$PREV_BRANCH"
+  
+  # Fork the new branch from it
+  git checkout -f -b "$BRANCH_NAME"
+
+# 🚀 Default Fallback: Initialize from mainline trunk base
 else
-  echo "🚀 [GIT FORK] Provisioning pristine branch [$BRANCH_NAME] initialized from stable trunk root"
+  echo "🔄 [GIT FETCH] Previous branch not found. Fetching standard mainline development trunk baseline..."
+  git fetch origin features/development 2>/dev/null || true
+  
+  # Determine base trunk
+  if git show-ref --verify --quiet refs/remotes/origin/features/development || git show-ref --verify --quiet refs/heads/features/development; then
+    TRUNK_BASE="features/development"
+  else
+    TRUNK_BASE="master"
+  fi
+  
+  echo "🚀 [GIT FORK] Provisioning pristine branch [$BRANCH_NAME] initialized from stable trunk root ($TRUNK_BASE)"
+  git checkout -f "$TRUNK_BASE" 2>/dev/null || git checkout -f master
   git checkout -f -b "$BRANCH_NAME"
 fi
  
