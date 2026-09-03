@@ -272,4 +272,3 @@ This section provides operational runbooks for resolving critical production inc
 | **[EXC-001]** | Fault Tolerance | Handling third-party SDK and network failures | Section 6 |
 | **[EXC-005]** | Rate Limit Exception | Proper HTTP 429 formatting and `Retry-After` header | Section 6 |
 ```
-```

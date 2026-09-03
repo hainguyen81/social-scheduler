@@ -357,4 +357,3 @@ All commit messages must follow the Conventional Commits format to enable automa
 | **[NFR-003]** | Scalability, GKE Autopilot, HPA, Multi-tenancy | Stages 3, 4, 6, 9 |
 | **[DOC-001]** | Comprehensive enterprise technical documentation | Entire document repository (`./sources/docs/`) |
 ```
-```
