@@ -1,5 +1,5 @@
 ```markdown
-# Social Scheduler - Architecture Blueprint (Auto-Generated)
+# Social Scheduler - Architecture Blueprint (Auto-Generated & Incremental Update)
 **Traceability Anchors:** [DOC-001] | [ARC-001]–[ARC-006] | [NFR-001]–[NFR-003] | [REQ-001]–[REQ-003] | [DAT-001]–[DAT-003] | [DAT-ALL (1 to 3)] | [EXC-001]–[EXC-005]
 
 ## Table of Contents
@@ -21,6 +21,12 @@
   - [7.1 Database Schemas & Partition Mapping](#71-database-schemas--partition-mapping)
   - [7.2 Service Layer & Integration Endpoints Mapping](#72-service-layer--integration-endpoints-mapping)
   - [7.3 Resilience & Exception Gate Traceability](#73-resilience--exception-gate-traceability)
+- [8. DevOps Operational Runbook & CI/CD Pipeline Integration](#8-devops-operational-runbook--cicd-pipeline-integration)
+  - [8.1 Multi-Stage Containerization Architecture](#81-multi-stage-containerization-architecture)
+  - [8.2 Terraform Infrastructure as Code (GCP & GKE)](#82-terraform-infrastructure-as-code-gcp--gke)
+  - [8.3 Kubernetes Production Manifests & Autoscaling](#83-kubernetes-production-manifests--autoscaling)
+  - [8.4 Prometheus & Grafana Observability Framework](#84-prometheus--grafana-observability-framework)
+  - [8.5 Automated GitHub Actions CI/CD Pipeline Architecture](#85-automated-github-actions-cicd-pipeline-architecture)
 
 ---
 
@@ -393,6 +399,26 @@ Mapping of error codes, boundary exceptions, and recovery mechanisms to their de
 | `[EXC-005]` | Client request velocity exceeds Redis Token Bucket capacity (100 burst, 60 refill/min). | `RedisTokenBucketStrategy.java`, `RateLimitExceededException.java` | Evaluates atomic Redis Lua token decrement. Rejects request with `RATE_LIMIT_EXCEEDED` error code, sets `Retry-After: {seconds}` header. | 429 Too Many Requests |
 
 ---
+
+## 8. DevOps Operational Runbook & CI/CD Pipeline Integration
+
+### 8.1 Multi-Stage Containerization Architecture
+- **Multi-Stage Build Pattern:** All microservices (`user-service`, `schedule-service`, `ai-service`, `rate-limit-service`) employ isolated Dockerfiles leveraging Maven build caches (`eclipse-temurin:21-jdk-jammy`) and secure runtime environments (`eclipse-temurin:21-jre-jammy`).
+- **Non-Root Execution & Health Probes:** Containers execute exclusively under dedicated non-root users (`appuser:1001`), incorporating native `HEALTHCHECK` probes targeting Spring Boot Actuator endpoints (`/actuator/health`) to satisfy `[NFR-001]` performance and availability metrics.
+
+### 8.2 Terraform Infrastructure as Code (GCP & GKE)
+- **Automated Provisioning:** Infrastructure residing at `./sources/infra/terraform/gcp/` manages custom VPC networks (`asia-southeast1`), GKE Autopilot clusters with Workload Identity enabled, Cloud SQL PostgreSQL 16 instances, and Memorystore Redis 7 clusters.
+- **Security Guardrails:** Private IP subnets, Cloud NAT egress routing, and least-privilege Google Service Accounts strictly enforce `[NFR-002]` and `[NFR-003]` compliance standards.
+
+### 8.3 Kubernetes Production Manifests & Autoscaling
+- **Declarative Deployments:** Located under `./sources/infra/kubernetes/socialscheduler/base/`, manifests define strict CPU/Memory resource requests and limits, readiness/liveness probes, and Horizontal Pod Autoscalers (HPA) scaling pods between 3 and 20 instances based on CPU/memory utilization and Kafka consumer lag.
+
+### 8.4 Prometheus & Grafana Observability Framework
+- **Telemetry Collection:** Prometheus scrapes Micrometer metrics exported by each microservice via service monitors. Custom Grafana dashboards (`grafana-dashboard.json`) track P95 HTTP latency, rate-limiting HTTP 429 surges, and pod resource utilization in real time.
+
+### 8.5 Automated GitHub Actions CI/CD Pipeline Architecture
+- **Continuous Integration & Delivery Flow:** Pipeline stages enforce code linting, unit test coverage (`>= 85%`), SonarQube quality gates, multi-stage image builds, publishing to Artifact Registry, and automated staging/production deployments with approval gates.
+
+---
 **End of Architecture Blueprint | Document Reference: `./sources/docs/architecture/SocialSchedulerBlueprint.md` | Status: Approved Baseline 1.0**
-```
 ```

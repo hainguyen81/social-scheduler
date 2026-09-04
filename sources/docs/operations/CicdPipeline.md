@@ -1,11 +1,11 @@
 ```markdown
 # Social Scheduler - CI/CD Pipeline Documentation
 
-**Document Version:** 1.1
+**Document Version:** 1.2
 **Last Updated:** 2026-08-31
-**Author:** Enterprise System Architect (SA Agent)
+**Author:** Enterprise System Architect (SA Agent) & Senior Technical Writer
 **Approval Status:** Approved for Technical Review
-**Target Tag IDs:** [DOC-001], [NFR-001], [NFR-002], [NFR-003]
+**Target Tag IDs:** [DOC-001], [NFR-001], [NFR-002], [NFR-003], [REQ-001], [REQ-002], [REQ-003]
 
 ---
 
@@ -13,7 +13,7 @@
 
 This document provides a comprehensive specification of the Continuous Integration and Continuous Deployment (CI/CD) pipeline for the `social-scheduler` microservices platform located within the workspace directory `./sources/docs/operations/CicdPipeline.md`. The pipeline is implemented using **GitHub Actions** and orchestrates nine sequential stages from code validation to production deployment. The pipeline enforces strict quality gates, security scanning, and approval workflows to ensure enterprise-grade delivery standards.
 
-**Traceability Matrix Reference:** All pipeline stages map to non-functional requirement **[NFR-001]** (Performance & Observability), **[NFR-002]** (Security & Compliance), **[NFR-003]** (Scalability & High Availability), and documentation requirement **[DOC-001]**.
+**Traceability Matrix Reference:** All pipeline stages map to non-functional requirement **[NFR-001]** (Performance & Observability), **[NFR-002]** (Security & Compliance), **[NFR-003]** (Scalability & High Availability), functional requirements **[REQ-001]**, **[REQ-002]**, **[REQ-003]**, and documentation requirement **[DOC-001]**.
 
 ---
 
