@@ -136,6 +136,8 @@ jobs:
           ls -la ../
           echo "🐛 [DEBUG] Auditing active workspace files presence (./):"
           ls -la ./
+          echo "🐛 [DEBUG] Auditing active workspace files presence (membership-hub/):"
+          if [ -d "membership-hub" ]; then ls -la membership-hub/; fi
           echo "🐛 [DEBUG] Auditing active workspace files presence (.ai/):"
           if [ -d ".ai" ]; then ls -la .ai/; fi
           
@@ -456,20 +458,27 @@ jobs:
             echo "🌿 [ ALREADY EXISTS ] An active Pull Request (#$PR_EXISTS) already exists for this branch. Skipping creation."
           
           else
-            echo "🚀 [PR CREATION] Launching automated Pull Request generation protocols..."
-            
-            # 🔀 Thực thi lệnh tạo PR tự động
-            gh pr create \
-              --head "$SOURCE_BRANCH" \
-              --base "$TARGET_BRANCH" \
-              --title "chore(pipeline): merge integration for Phase $RUN_PHASE Day $RUN_DAY [AI Loop]" \
-              --body "### 🤖 Automated Development Cycle Pull Request
-              * **Origin Phase**: $RUN_PHASE
-              * **Origin Day**: $RUN_DAY
-              * **Target Core Trunk**: $TARGET_BRANCH
-              
-              This PR was automatically provisioned by the AI pipeline workspace loop to synchronize daily code increments back into the stable mainline trunk." \
-              --reviewer "${{ github.repository_owner }}"
-              
-            echo "✅✨ [SUCCESS] Pull Request successfully staged upstream!"
+            # check whether exists any new commits
+            NEW_COMMITS=$(git log origin/$TARGET_BRANCH..origin/$SOURCE_BRANCH --oneline)
+            if [ -z "$NEW_COMMITS" ]; then
+              echo "⚠️ [PR SKIPPED] Branch $SOURCE_BRANCH has no any new commits with $TARGET_BRANCH. Skip creating PR."
+
+            else
+              echo "🚀 [PR CREATION] Launching automated Pull Request generation protocols..."
+
+              # 🔀 Create PR automatically
+              gh pr create \
+                --head "$SOURCE_BRANCH" \
+                --base "$TARGET_BRANCH" \
+                --title "chore(pipeline): merge integration for Phase $RUN_PHASE Day $RUN_DAY [AI Loop]" \
+                --body "### 🤖 Automated Development Cycle Pull Request
+                * **Origin Phase**: $RUN_PHASE
+                * **Origin Day**: $RUN_DAY
+                * **Target Core Trunk**: $TARGET_BRANCH
+                
+                This PR was automatically provisioned by the AI pipeline workspace loop to synchronize daily code increments back into the stable mainline trunk." \
+                --reviewer "${{ github.repository_owner }}"
+                
+              echo "✅✨ [SUCCESS] Pull Request successfully staged upstream!"
+            fi
           fi
