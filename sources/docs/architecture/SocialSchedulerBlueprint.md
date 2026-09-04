@@ -43,7 +43,6 @@ flowchart LR
     schedule-service -->|Read / Write Partitioned Entities| postgres[(Cloud SQL Postgres :5432)]
     user-service -->|Read / Write Tenant Schemas| postgres
     ai-service -->|Read Historical Performance| postgres
-    rate-limit-service -->|Persist Window Log| postgres
     
     schedule-service -->|HTTPS / Graph API| facebook[Facebook Graph API v19.0]
     schedule-service -->|HTTPS / Graph API| instagram[Instagram Graph API v19.0]
@@ -288,7 +287,7 @@ sequenceDiagram
 ---
 
 ## 5. RBAC Role Mapping
-Role-Based Access Control (RBAC) authorization matrix mapping the four architectural roles across discrete endpoint access scopes, mutation allowances, and messaging channel privileges per specifications [ARC-001], [ARC-002], [ARC-003], and [ARC-004].
+Role-Based Access Control (RBAC) authorization matrix mapping the four architectural roles [ARC-001] Admin, [ARC-002] User, [ARC-003] Scheduler, [ARC-004] Analyst to their specific functional identities, permitted REST endpoint scopes, forbidden actions, Kafka event publish/consume channels, and targeted requirements.
 
 | Role Identifier | Role Title | Functional Identity | Permitted REST Endpoint Scopes | Forbidden Actions / Endpoint Barriers | Kafka Event Publish & Consume Channels | Targeted Requirements |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |

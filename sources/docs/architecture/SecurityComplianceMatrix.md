@@ -513,8 +513,8 @@ flowchart TD
     
     Application --> Micrometer[Micrometer + OpenTelemetry]
     Micrometer --> Prometheus[Prometheus Server]
-    Prometheus --> AlertManager[Alertmanager]
-    AlertManager --> PagerDuty[PagerDuty / Slack / Email]
+    Prometheus --> Alertmanager[Alertmanager]
+    Alertmanager --> PagerDuty[PagerDuty / Slack / Email]
     Prometheus --> Grafana[Grafana Dashboards]
     
     subgraph Log_Scrubbing_Patterns
@@ -674,7 +674,7 @@ flowchart LR
     CI --> DAST[DAST: OWASP ZAP Baseline Scan]
     CI --> SCA[SCA: OWASP Dependency Check]
     CI --> ContainerScan[Container Scan: Trivy]
-    CI --> IaCScan[IaC Scan: Checkov + tfsec]
+    Ci --> IaCScan[IaC Scan: Checkov + tfsec]
     CI --> PolicyCheck[Policy Check: OPA Gatekeeper]
     
     SAST --> QualityGate{Quality Gate}
