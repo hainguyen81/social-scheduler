@@ -2,17 +2,46 @@
 # Deployment Runbook - Social Scheduler Production GCP
 
 ## 📋 TRACEABILITY MATRIX REFERENCE
-| Section | Targeted Tag IDs |
-| :--- | :--- |
-| Prerequisites & Tooling | [DOC-001] |
-| Infrastructure Provisioning (Terraform) | [NFR-002], [DOC-001] |
-| Application Deployment (Kubernetes) | [NFR-003], [DOC-001] |
-| Rollback & Post-Deployment Verification | [NFR-003], [DOC-001] |
-| Emergency Commands & Incident Response | [NFR-001], [NFR-002], [DOC-001] |
+| Section | Targeted Tag IDs | Description |
+| :--- | :--- | :--- |
+| Prerequisites & Tooling | [DOC-001] | Software dependencies, versions, and IAM role requirements |
+| Infrastructure Provisioning (Terraform) | [NFR-002], [DOC-001] | GCP infrastructure deployment via Terraform (VPC, GKE, Cloud SQL, Memorystore) |
+| Application Deployment (Kubernetes) | [NFR-003], [DOC-001] | Application manifests deployment, namespace, and rollout verification |
+| Rollback & Post-Deployment Verification | [NFR-003], [DOC-001] | Rollback procedures, smoke testing, Prometheus metrics, and Grafana verification |
+| Emergency Commands & Incident Response | [NFR-001], [NFR-002], [EXC-001], [EXC-002], [EXC-003], [EXC-005], [DOC-001] | Incident response for HTTP 429 rate limit spikes, Kafka failures, DB pool exhaustion, and storage expansion |
+| Deployment Workflow Sequence | [NFR-001], [NFR-002], [NFR-003], [DOC-001] | End-to-end deployment lifecycle sequence diagram |
 
 ---
 
-## 🏗️ PHẦN 1: ĐIỀU KIỆN TIẾN QUYỀN & CÔNG CỤ
+## 🔄 DEPLOYMENT LIFECYCLE SEQUENCE DIAGRAM [NFR-001], [NFR-002], [NFR-003], [DOC-001]
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Ops as DevOps Engineer
+    participant GCP as Google Cloud Platform
+    participant GKE as GKE Cluster
+    participant Prom as Prometheus
+    participant Graf as Grafana
+
+    Ops->>GCP: gcloud auth login & gcloud config set project
+    Ops->>GCP: cd ./sources/infra/terraform/gcp && terraform init/plan/apply
+    GCP-->>Ops: VPC, GKE, Cloud SQL, Memorystore Redis Provisioned
+    Ops->>GKE: gcloud container clusters get-credentials socialscheduler-gke
+    Ops->>GKE: kubectl create namespace socialscheduler
+    Ops->>GKE: kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/prod
+    GKE-->>Ops: Deployments, Services, HPA, Ingress & ConfigMaps Applied
+    Ops->>GKE: kubectl rollout status deployment/schedule-service -n socialscheduler
+    GKE-->>Ops: Deployment successfully rolled out
+    Ops->>Prom: GET /api/v1/query?query=up
+    Prom-->>Ops: 200 OK (All metrics scraping targets active)
+    Ops->>Graf: Import & verify dashboard socialscheduler-overview.json
+    Graf-->>Ops: Verification complete (Latency P95 < 200ms)
+```
+
+---
+
+## 🏗️ PHẦN 1: ĐIỀU KIỆN TIÊN QUYẾT & CÔNG CỤ [DOC-001]
 
 ### 1.1. Phiên bản công cụ bắt buộc
 - **gcloud CLI**: Phiên bản `450.0.0` trở lên. Yêu cầu cài đặt và xác thực Google Cloud Account: `gcloud auth login`.
@@ -22,13 +51,14 @@
   - `roles/owner` (hoặc `roles/container.admin` cho GKE operations)
   - `roles/cloudsql.admin` (quản lý Cloud SQL instances)
   - `roles/redis.admin` (quản lý Memorystore instances)
+  - `roles/iam.serviceAccountUser` (gán service accounts cho Workload Identity)
 
 ### 1.2. Kiểm tra môi trường
 ```bash
-# Kiểm tra phiên bản gcloud
+# Kiểm tra phiên bản gcloud CLI
 gcloud version
 
-# Kiểm tra phiên bản kubectl
+# Kiểm tra phiên bản kubectl client
 kubectl version --client
 
 # Kiểm tra phiên bản terraform
@@ -37,13 +67,13 @@ terraform version
 
 ### 1.3. Cấu hình xác thực
 ```bash
-# Đăng nhập Google Cloud
+# Đăng nhập Google Cloud Platform
 gcloud auth login
 
-# Đặt project mặc định (thay social-scheduler-prod bằng project thực tế)
+# Đặt project mặc định (thay social-scheduler-prod bằng project ID thực tế)
 gcloud config set project social-scheduler-prod
 
-# Cấu hình region mặc định
+# Cấu hình region mặc định cho khu vực Đông Nam Á
 gcloud config set region asia-southeast1
 ```
 
@@ -56,7 +86,7 @@ gcloud config set region asia-southeast1
 # Di chuyển vào thư mục terraform GCP
 cd ./sources/infra/terraform/gcp
 
-# Khởi tạo backend Terraform cho GCS bucket (socialscheduler-tfstate đã được tạo sẵn)
+# Khởi tạo backend Terraform cho GCS bucket (socialscheduler-tfstate)
 terraform init \
   -backend-config="bucket=socialscheduler-tfstate" \
   -backend-config="prefix=terraform/state/prod"
@@ -67,35 +97,35 @@ terraform init \
 # Tạo file tfplan với tên mô tả
 terraform plan -out=tfplan
 
-# Hoặc xem preview trực tiếp qua UI (nếu có enable)
-terraform plan
+# Kiểm tra danh sách tài nguyên dự kiến khởi tạo
+terraform show tfplan
 ```
 
 ### 2.3. Triển khai hạ tầng (Apply)
 ```bash
-# Áp dụng thay đổi đã được kiểm tra
+# Áp dụng thay đổi đã được kiểm tra trong file plan
 terraform apply tfplan
 ```
 
-**Kết quả sau khi apply xong:**
-- VPC với CIDR `10.10.0.0/16` và 3 subnets vùng `asia-southeast1`
-- GKE Cluster Autopilot bật Workload Identity, Shielded Nodes
-- Cloud SQL PostgreSQL instance với schema-per-tenant
-- Memorystore Redis instance cho Token Bucket Rate Limiter
-- Cloud Router + Cloud NAT cho egress an toàn
+**Kết quả sau khi apply hoàn tất:**
+- VPC Network (`socialscheduler-vpc`) với CIDR `10.10.0.0/16` và 3 subnets vùng `asia-southeast1`.
+- GKE Cluster Autopilot (`socialscheduler-gke`) bật Workload Identity, Shielded Nodes, Binary Authorization.
+- Cloud SQL PostgreSQL instance (`socialscheduler-db`) hỗ trợ schema-per-tenant đa doanh nghiệp.
+- Memorystore Redis instance (`socialscheduler-redis`) cho Token Bucket Rate Limiter và Session Cache.
+- Cloud Router + Cloud NAT (`socialscheduler-nat`) cho egress mạng an toàn.
 
 ### 2.4. Xác minh tài nguyên đã tạo
 ```bash
-# Liệt kê VPC
+# Liệt kê VPC Networks
 gcloud compute networks list
 
-# Liệt kê GKE clusters
+# Liệt kê GKE Clusters
 gcloud container clusters list
 
-# Liệt kê Cloud SQL instances
+# Liệt kê Cloud SQL Instances
 gcloud sql instances list
 
-# Liệt kê Memorystore instances
+# Liệt kê Memorystore Redis Instances
 gcloud redis instances list
 ```
 
@@ -105,250 +135,220 @@ gcloud redis instances list
 
 ### 3.1. Cấu hình kubeconfig
 ```bash
-# Lấy credentials cho GKE cluster (thay socialscheduler-gke bằng tên cluster thực tế)
+# Lấy credentials cho GKE cluster sản xuất
 gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1
 
-# Kiểm tra kết nối
+# Kiểm tra kết nối tới cluster API server
 kubectl cluster-info
 ```
 
 ### 3.2. Tạo namespace cho môi trường sản xuất
 ```bash
 # Tạo namespace socialscheduler nếu chưa tồn tại
-kubectl create namespace socialscheduler
+kubectl create namespace socialscheduler --dry-run=client -o yaml | kubectl apply -f -
 
-# Kiểm tra namespace
+# Kiểm tra danh sách namespaces
 kubectl get namespaces
 ```
 
 ### 3.3. Áp dụng manifest Kubernetes (Overlays Production)
 ```bash
-# Áp dụng toàn bộ manifest từ overlays production
+# Áp dụng toàn bộ manifest từ overlays production bằng Kustomize
 kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/prod
 ```
 
-**Danh sách tài nguyên sẽ được tạo:**
-- Deployment cho 4 microservice (user-service, schedule-service, ai-service, rate-limit-service)
-- Service (ClusterIP cho internal, NodePort cho metrics)
-- HorizontalPodAutoscaler (HPA) cho từng deployment
-- Ingress với TLS termination
-- ConfigMap chứa biến môi trường runtime
-- Secret chứa khóa bí mật (JWT, API keys)
+**Danh sách tài nguyên được khởi tạo:**
+- Deployment cho 4 microservices (`user-service`, `schedule-service`, `ai-service`, `rate-limit-service`) gói package `org.nlh4j.socialscheduler`.
+- Services (`ClusterIP` cho giao tiếp nội bộ, `NodePort` cho Prometheus scraping).
+- HorizontalPodAutoscaler (HPA) cho từng deployment (Target CPU 60%, RAM 70%).
+- NGINX Ingress Controller với SSL/TLS termination.
+- ConfigMaps chứa biến môi trường runtime (`SPRING_PROFILES_ACTIVE=prod`, `APP_TENANT_HEADER=X-Tenant-Id`).
+- Secrets mã hóa Base64 cho JWT Signing Key, DB Credentials và OpenAI API Key.
 
 ### 3.4. Theo dõi trạng thái rollout
 ```bash
 # Kiểm tra trạng thái rollout cho schedule-service
 kubectl rollout status deployment/schedule-service -n socialscheduler
 
-# Kiểm tra trạng thái rollout cho tất cả deployment
-kubectl get pods -n socialscheduler -l app in (user-service, schedule-service, ai-service, rate-limit-service)
+# Kiểm tra trạng thái rollout cho user-service, ai-service và rate-limit-service
+kubectl rollout status deployment/user-service -n socialscheduler
+kubectl rollout status deployment/ai-service -n socialscheduler
+kubectl rollout status deployment/rate-limit-service -n socialscheduler
 
-# Xem logs từ pod đầu tiên
-kubectl logs -n socialscheduler $(kubectl get pods -n socialscheduler -l app=schedule-service -o jsonpath='{.items[0].metadata.name}')
+# Liệt kê danh sách pods đang chạy trong namespace
+kubectl get pods -n socialscheduler -o wide
+
+# Xem logs trực tiếp từ pod schedule-service
+kubectl logs -n socialscheduler -l app=schedule-service --tail=100 -f
 ```
 
 ---
 
-## 🔄 PHẦN 4: QUY TRÌNH ROLLBACK & KIỂM TRA SAU TRIỂN KHAI
+## 🔄 PHẦN 4: QUY TRÌNH ROLLBACK & KIỂM TRA SAU TRIỂN KHAI [NFR-003], [DOC-001]
 
-### 4.1. Rollback deployment
+### 4.1. Quy trình Rollback Deployment
 ```bash
-# Rollback về revision trước cho schedule-service
+# Xem lịch sử các revision đã triển khai
+kubectl rollout history deployment/schedule-service -n socialscheduler
+
+# Rollback về revision liền trước đó
 kubectl rollout undo deployment/schedule-service -n socialscheduler
 
-# Rollback về revision cụ thể (ví dụ revision 3)
-kubectl rollout undo deployment/schedule-service -n socialscheduler --to-revision=3
+# Rollback về một revision cụ thể (ví dụ: revision 2)
+kubectl rollout undo deployment/schedule-service -n socialscheduler --to-revision=2
 
-# Kiểm tra lại trạng thái sau rollback
+# Kiểm tra lại trạng thái sau khi thu hồi
 kubectl rollout status deployment/schedule-service -n socialscheduler
 ```
 
 ### 4.2. Danh sách kiểm tra sau triển khai (Post-Deployment Verification)
 
-#### 4.2.1. Smoke test endpoint sức khỏe
+#### 4.2.1. Smoke Test Endpoint Sức khỏe (Health Check)
 ```bash
-# Test endpoint health cho schedule-service
-curl -s http://api.socialscheduler.local/actuator/health
+# Kiểm tra health endpoint trực tiếp qua Ingress Domain
+curl -s -i http://api.socialscheduler.local/actuator/health
 
-# Kết quả mong đợi: {"status":"UP", "components": {...}}
+# Kết quả mong đợi: HTTP/1.1 200 OK với body {"status":"UP"}
 
-# Test health chi tiết cho từng service
-kubectl port-forward -n socialscheduler svc/schedule-service 8082:8082 &
-curl -s http://localhost:8082/actuator/health
+# Kiểm tra chi tiết qua port-forward nội bộ
+kubectl port-forward -n socialscheduler svc/schedule-service 8082:80 &
+curl -s http://localhost:8082/actuator/health/readiness
+curl -s http://localhost:8082/actuator/health/liveness
+kill %1
 ```
 
-#### 4.2.2. Kiểm tra metrics Prometheus
+#### 4.2.2. Kiểm tra Metrics Prometheus [NFR-001]
 ```bash
-# Query tổng quan về trạng thái hệ thống
-curl -s "http://prometheus.observability.svc.cluster.local:9090/api/v1/query?query=up"
+# Query tổng quan trạng thái UP của các pods
+curl -s "http://prometheus.observability.svc.cluster.local:9090/api/v1/query?query=up{namespace=\"socialscheduler\"}"
 
-# Query latency P95 theo service
-curl -s "http://prometheus.observability.svc.cluster.local:9090/api/v1/query?query=histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{namespace=\"socialscheduler\"}[5m])))"
+# Query độ trễ P95 HTTP Request theo service (Ngưỡng yêu cầu < 200ms theo [NFR-001])
+curl -s "http://prometheus.observability.svc.cluster.local:9090/api/v1/query?query=histogram_quantile(0.95,sum(rate(http_server_requests_seconds_bucket{namespace=\"socialscheduler\"}[5m]))by(le,service))"
 
-# Query tỷ lệ request bị rate limit (HTTP 429)
-curl -s "http://prometheus.observability.svc.cluster.local:9090/api/v1/query?query=sum(rate(http_server_requests_seconds_count{namespace=\"socialscheduler\", status=\"429\"}[5m]))"
+# Query số lượng requests bị từ chối do Rate Limit (HTTP 429)
+curl -s "http://prometheus.observability.svc.cluster.local:9090/api/v1/query?query=sum(rate(http_server_requests_seconds_count{namespace=\"socialscheduler\",status=\"429\"}[5m]))"
 ```
 
-#### 4.2.3. Kiểm tra dashboard Grafana
+#### 4.2.3. Kiểm tra Dashboard Grafana
 ```bash
-# Import dashboard socialscheduler-overview.json qua Grafana UI
-# Hoặc query trực tiếp API
-curl -s "http://grafana.socialscheduler.local/api/dashboards/uid/socialscheduler-overview"
-
-# Kiểm tra các panel chính:
-# - HTTP Request Latency P95 (ms) - ngưỡng cảnh báo tại 200ms
-# - Rate Limited Requests (HTTP 429)
-# - CPU Usage per Pod
-# - Job Kafka fail count
-```
-
-### 4.3. Quy trình rollback khi gặp sự cố
-
-#### 4.3.1. Rollback do deployment lỗi
-```bash
-# Nếu có lỗi sau khi deploy, thực hiện rollback tức thì
-kubectl rollout undo deployment/schedule-service -n socialscheduler
-
-# Hoặc quay về revision cụ thể
-kubectl rollout undo deployment/schedule-service -n socialscheduler --to-revision=2
-```
-
-#### 4.3.2. Khẩn cấp - HTTP 429 Rate Limit Tràn Ngập
-```bash
-# Tăng capacity cho Redis Token Bucket (temporary fix)
-# Cách 1: Thêm token thông qua Redis CLI
-redis-cli -h redis-master.redis.svc.cluster.local SETNX rate_limit:{userId}:{endpoint} 200
-
-# Cách 2: Temporarily tăng burst size trong code (hotfix)
-# Cậpật parameter bucker4j.config.burstTokens trong application-docker.yml
-# Hoặc override thông qua environment variable: REDIS_BURST_TOKENS=500
-
-# Kiểm tra consumer group lag cho Kafka
-kubectl exec -n socialscheduler $(kubectl get pods -n socialscheduler -l app=kafka -o jsonpath='{.items[0].metadata.name}') -- kafka-consumer-groups --bootstrap-server kafka:9092 --describe
-```
-
-#### 4.3.3. Khẩn cấp - Job Kafka Lỗi
-```bash
-# Restart Kafka consumer group
-kubectl exec -n socialscheduler $(kubectl get pods -n socialscheduler -l app=kafka -o jsonpath='{.items[0].metadata.name}') -- \
-  kafka-consumer-groups --bootstrap-server kafka:9092 --group social-scheduler-consumer --reset-offsets --to-earliest --execute
-
-# Hoặc restart deployment kafka-consumer
-kubectl rollout restart deployment/kafka-consumer -n socialscheduler
-
-# Kiểm tra logs Kafka
-kubectl logs -n socialscheduler $(kubectl get pods -n socialscheduler -l app=kafka -o jsonpath='{.items[0].metadata.name}') | tail -100
-```
-
-#### 4.3.4. Khẩn cấp - Cloud SQL vượt dung lượng
-```bash
-# Kiểm tra dung lượng instance
-gcloud sql instances describe socialscheduler-db --format="value(currentDiskSize, diskSize, storageAutoResize)
-
-# Mở rộng instance tự động (nếu đã bật)
-gcloud sql instances patch socialscheduler-db --disk-size=500GB
-
-# Mở rộng instance thủ công với storage auto-resize
-gcloud sql instances patch socialscheduler-db --disk-auto-resize-size=100GB
-
-# Tạo snapshot backup trước khi thay đổi
-gcloud sql backups create socialscheduler-db --snapshot-name="pre-resize-$(date +%Y%m%d%H%M%S)"
+# Import dashboard file ./sources/infra/observability/grafana-dashboard.json vào Grafana
+# Kiểm tra các chỉ số hiển thị trên panels:
+# 1. HTTP Request Latency P95 (ms) - Đảm bảo đường đồ thị duy trì dưới 200ms
+# 2. Rate Limited Requests (HTTP 429) - Phát hiện bất thường từ tấn công DDoS hoặc lạm dụng API
+# 3. CPU Usage per Pod - Xác minh mức tiêu thụ dưới ngưỡng 60% HPA target
+# 4. Kafka Consumer Group Lag - Xác minh lag message < 1000 messages
 ```
 
 ---
 
-## 🚨 PHẦN 5: CÂU LỆNH KHÁN CẤP & PHÁT HIỆN SỰ CỐ
+## 🚨 PHẦN 5: CÂU LỆNH KHẨN CẤP & PHÁT HIỆN SỰ CỐ [NFR-001], [NFR-002], [EXC-001], [EXC-002], [EXC-003], [EXC-005], [DOC-001]
 
-### 5.1. HTTP 429 Rate Limit Tràn Ngập (Emergency Response)
+### 5.1. Xử lý Sự cố HTTP 429 Rate Limit Tràn Ngập (Emergency Mitigation) [EXC-005], [REQ-003]
 ```bash
-# 1. Tăng burst capacity Redis tạm thời
-export REDIS_BURST_TOKENS=1000
-# Hoặc qua Redis CLI
-redis-cli -h redis-master.redis.svc.cluster.local CONFIG SET maxclients 1000
+# 1. Tăng tạm thời burst capacity trên Redis Memorystore bằng Redis CLI
+kubectl exec -it -n socialscheduler svc/redis-master -- redis-cli SET rate_limit:global:override_burst 2000 EX 3600
 
-# 2. Kiểm tra consumer lag Kafka
-kubectl exec -n socialscheduler $(kubectl get pods -n socialscheduler -l app=kafka) -- \
-  kafka-consumer-groups --bootstrap-server kafka:9092 --describe
+# 2. Kiểm tra log từ rate-limit-service để phát hiện Tenant/User ID gây tràn ngập
+kubectl logs -n socialscheduler -l app=rate-limit-service --tail=200 | grep "RATE_LIMIT_EXCEEDED"
 
-# 3. Phát hiện tenant nào đang lạm dụng
-# Sử dụng Prometheus query
-curl -s "http://prometheus.observability.svc.cluster.local:9090/api/v1/query?query=rate(rate_limits_requests_total{namespace=\"socialscheduler\"}[5m])"
+# 3. Truy vấn Prometheus phát hiện IP/Tenant tấn công
+curl -s "http://prometheus.observability.svc.cluster.local:9090/api/v1/query?query=topk(5,sum(rate(rate_limit_requests_total[5m]))by(tenant_id))"
 
-# 4. Temporarily disable rate limiter cho tenant cụ thể (hotfix)
-# Cậpật flag trong Redis hoặc disable endpoint feature flag
+# 4. Áp dụng hotfix nâng giới hạn Token Bucket qua ConfigMap mà không cần rebuild image
+kubectl patch configmap rate-limit-service-config -n socialscheduler --type merge -p '{"data":{"BUCKET_CAPACITY":"1000","REFILL_RATE":"500"}}'
+kubectl rollout restart deployment/rate-limit-service -n socialscheduler
 ```
 
-### 5.2. Phát hiện và khắc phục Database Connection Pool Exhausted
+### 5.2. Xử lý Sự cố Kafka Consumer Lag & Job Đăng bài Lỗi [EXC-001], [REQ-001]
 ```bash
-# Kiểm tra connection pool status
-kubectl exec -n socialscheduler $(kubectl get pods -n socialscheduler -l app=user-service) -- \
-  curl -s http://localhost:8081/actuator/hikarimetrics | grep -E "activeConnections|idleConnections|pendingConnections"
+# 1. Kiểm tra Consumer Group Lag trên Kafka Cluster
+kubectl exec -n socialscheduler deployment/kafka-broker -- \
+  kafka-consumer-groups --bootstrap-server localhost:9092 --describe --group social-scheduler-group
 
-# Tăng max pool size nếu cần
-# Cậpật spring.datasource.hikari.maximum-pool-size trong ConfigMap hoặc Secret
+# 2. Reset offset về mốc sớm nhất nếu xuất hiện Poison Pill Message làm đơ Consumer
+kubectl exec -n socialscheduler deployment/kafka-broker -- \
+  kafka-consumer-groups --bootstrap-server localhost:9092 --group social-scheduler-group \
+  --topic schedule.executed --reset-offsets --to-earliest --execute
 
-# Restart service nếu pool bị block
+# 3. Mở rộng số lượng replicas của schedule-service worker để tăng tốc độ tiêu thụ queue
+kubectl scale deployment/schedule-service -n socialscheduler --replicas=10
+
+# 4. Kiểm tra Dead Letter Queue (DLQ) cho các tin nhắn bị đẩy ra do lỗi API bên thứ 3 (Facebook/Instagram/TikTok)
+kubectl logs -n socialscheduler -l app=schedule-service | grep -E "SocialPlatformException|DLQ_ROUTING"
+```
+
+### 5.3. Xử lý Sự cố Cạn Kiệt Database Connection Pool (HikariCP) [DAT-001], [NFR-001]
+```bash
+# 1. Kiểm tra trạng thái active / idle / pending connections của HikariCP
+kubectl exec -n socialscheduler deployment/schedule-service -- \
+  curl -s http://localhost:8082/actuator/metrics/hikaricp.connections.active
+
+# 2. Tăng số lượng connection tối đa trong pool (Maximum Pool Size) từ 20 lên 50
+kubectl set env deployment/schedule-service -n socialscheduler SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE=50
+
+# 3. Khởi động lại các pods bị treo connection
+kubectl rollout restart deployment/schedule-service -n socialscheduler
 kubectl rollout restart deployment/user-service -n socialscheduler
 ```
 
-### 5.3. Phát hiện và khắc phục OpenAI API Failure
+### 5.4. Xử lý Sự cố Lỗi OpenAI API & Kích hoạt Fallback Content [EXC-003], [EXC-004], [REQ-002]
 ```bash
-# Kiểm tra circuit breaker status
-kubectl exec -n socialscheduler $(kubectl get pods -n socialscheduler -l app=ai-service) -- \
-  curl -s http://localhost:8083/actuator/circuitbreaker
+# 1. Kiểm tra trạng thái Resilience4j Circuit Breaker của ai-service
+kubectl exec -n socialscheduler deployment/ai-service -- \
+  curl -s http://localhost:8083/actuator/health | grep -i "circuitBreakers"
 
-# Xem metrics Resilience4j
+# 2. Xem tỷ lệ sự cố gọi OpenAI API trong Prometheus
 curl -s "http://prometheus.observability.svc.cluster.local:9090/api/v1/query?query=resilience4j_circuitbreaker_state{service=\"ai-service\"}"
 
-# Fallback content sẽ được tự động cung cấp khi circuit breaker mở
-# Monitor logs cho fallback events
-kubectl logs -n socialscheduler $(kubectl get pods -n socialscheduler -l app=ai-service) | grep -i "fallback"
+# 3. Ép buộc Circuit Breaker chuyển sang trạng thái FORCED_OPEN để kích hoạt 100% DefaultContentFallback
+kubectl exec -n socialscheduler deployment/ai-service -- \
+  curl -X POST http://localhost:8083/actuator/circuitbreakerevents/openai/open
+
+# 4. Giám sát log sự kiện fallback an toàn
+kubectl logs -n socialscheduler -l app=ai-service | grep -i "Fallback content provided"
 ```
 
-### 5.4. Khôi phục dữ liệu sau sự cố lớn
+### 5.5. Khai Tháo Mở Rộng Dung Lượng Cơ Sở Dữ Liệu Cloud SQL Khẩn Cấp [DAT-001], [DAT-002], [DAT-003]
 ```bash
-# Restore Cloud SQL từ backup
-gcloud sql backups restore socialscheduler-db --backup-id="20260901_000001"
+# 1. Kiểm tra dung lượng đĩa hiện tại của Cloud SQL Instance
+gcloud sql instances describe socialscheduler-db --format="value(settings.dataDiskSizeGb, diskEncryptionConfiguration)"
 
-# Restore Memorystore từ snapshot
-gcloud redis backups create redis-master.redis.svc.cluster.local --snapshot-name="emergency-snapshot-$(date +%Y%m%d%H%M%S)"
+# 2. Mở rộng đĩa Cloud SQL từ 100GB lên 500GB trực tuyến (không gây downtime)
+gcloud sql instances patch socialscheduler-db --disk-size=500GB
 
-# Verify data integrity
-kubectl exec -n socialscheduler $(kubectl get pods -n socialscheduler -l app=user-service) -- \
-  psql -U postgres -d user_schema -c "SELECT count(*) FROM users;"
+# 3. Tạo snapshot backup khẩn cấp trước khi can thiệp cấu hình lớn
+gcloud sql backups create --instance=socialscheduler-db --description="Emergency-backup-before-patch-$(date +%Y%m%d%H%M%S)"
 
-# Kiểm tra consistency giữa các schema
-kubectl exec -n socialscheduler $(kubectl get pods -n socialscheduler -l app=schedule-service) -- \
-  psql -U postgres -d schedule_schema -c "SELECT count(*) FROM schedules WHERE status='PENDING';"
+# 4. Xác minh tính toàn vẹn của dữ liệu đa-tenant sau khi mở rộng
+kubectl exec -n socialscheduler deployment/user-service -- \
+  psql -h 10.10.3.5 -U postgres -d user_schema -c "SELECT tenant_id, COUNT(*) FROM users GROUP BY tenant_id;"
 ```
 
 ---
 
-## 📊 PHẦN 6: BẢNG ÁNH XÁP TRUY VẤT TAG ID [DOC-001]
+## 📊 PHẦN 6: BẢNG ÁNH XẠ TRUY VẾT TAG ID [DOC-001]
 
-| Mã đoạn tài liệu | Tag ID liên kết | Mô tả |
+| Mã đoạn tài liệu | Tag ID liên kết | Mô tả chi tiết tuân thủ |
 | :--- | :--- | :--- |
-| Phần 1: Điều kiện tiên quyết | [DOC-001] | Yêu cầu cài đặt công cụ và quyền IAM |
-| Phần 2: Terraform provisioning | [NFR-002], [DOC-001] | Triển khai VPC, GKE, Cloud SQL, Memorystore |
-| Phần 3: Kubernetes deployment | [NFR-003], [DOC-001] | Manifest apply, rollout status, namespace |
-| Phần 4: Rollback & verification | [NFR-003], [DOC-001] | kubectl rollout undo, smoke test, metrics |
-| Phần 5: Emergency commands | [NFR-001], [NFR-002], [DOC-001] | HTTP 429, Kafka errors, Cloud SQL capacity |
-| Traceability Matrix Reference | [DOC-001] | Ánh xáp toàn bộ sections về DOC-001 |
+| **Phần 1: Điều kiện tiên quyết** | `[DOC-001]` | Yêu cầu cài đặt phiên bản công cụ gcloud, kubectl, terraform và phân quyền IAM. |
+| **Phần 2: Terraform Provisioning** | `[NFR-002]`, `[DOC-001]` | Khởi tạo hạ tầng VPC, GKE Autopilot, Cloud SQL PostgreSQL, Memorystore Redis với mã hóa và bảo mật OWASP. |
+| **Phần 3: Kubernetes Deployment** | `[NFR-003]`, `[DOC-001]` | Triển khai manifest Kustomize, HPA scaling, multi-tenant isolation schema-per-tenant. |
+| **Phần 4: Rollback & Verification** | `[NFR-003]`, `[DOC-001]` | Quy trình `kubectl rollout undo`, smoke testing, kiểm tra metrics Prometheus P95 < 200ms và Grafana dashboard. |
+| **Phần 5: Emergency Commands** | `[NFR-001]`, `[NFR-002]`, `[EXC-001]`, `[EXC-002]`, `[EXC-003]`, `[EXC-005]`, `[DOC-001]` | Xử lý sự cố tràn ngập HTTP 429, nghẽn Kafka consumer, cạn kiệt HikariCP connection pool, lỗi OpenAI API và mở rộng đĩa Cloud SQL. |
+| **Sơ đồ tuần tự triển khai** | `[NFR-001]`, `[NFR-002]`, `[NFR-003]`, `[DOC-001]` | Biểu diễn luồng tương tác giữa DevOps Engineer, GCP, GKE, Prometheus và Grafana. |
 
 ---
 
-## 📝 KẾT LUẬN & TÀI LIỆU THÊM
+## 📝 KẾT LUẬN & QUY TRÌNH VẬN HÀNH
 
-Runbook này được tạo dựa trên kiến trúc microservices `social-scheduler` phiên bản 1.0, tuân thủ các tiêu chí:
-- **NFR-001**: Độ trễ dưới 200ms cho tác vụ lên lịch, footprint container tối thiểu
-- **NFR-002**: Bảo mật OWASP, mã hóa TLS, VPC isolation, least privilege access
-- **NFR-003**: Multi-tenancy schema-per-tenant, HPA scaling, High Availability
-- **ARC-001** đến **ARC-006**: RBAC 4 vai trò, JWT authentication, CORS whitelist, Log scrubbing
-- **DOC-001**: Tài liệu vận hành đầy đủ, traceability mapping, CI/CD pipeline
+Tài liệu Runbook Vận hành này được tổng hợp cho hệ thống microservices `social-scheduler` phiên bản 1.0.0, tuân thủ nghiêm ngặt các tiêu chí phi chức năng và kiến trúc enterprise:
+- **[NFR-001]**: Tối ưu hóa hiệu năng container, đảm bảo độ trễ P95 dưới 200ms cho các tác vụ lên lịch bài đăng và thông lượng > 1000 req/phút.
+- **[NFR-002]**: Tuân thủ chuẩn bảo mật OWASP Top 10, cô lập VPC mạng riêng tư, mã hóa TLS 1.3 đầu cuối và quản lý quyền hạn theo nguyên tắc Least Privilege.
+- **[NFR-003]**: Kiến trúc đa doanh nghiệp (Multi-tenancy) cô lập theo schema PostgreSQL per tenant, hỗ trợ mở rộng ngang tự động với Kubernetes HPA.
+- **[ARC-001] - [ARC-006]**: Phân quyền RBAC 4 vai trò, xác thực JWT OAuth2 Resource Server, CORS whitelist động và làm sạch log PII.
+- **[DOC-001]**: Cung cấp tài liệu vận hành đầy đủ, ma trận truy vết Tag ID toàn diện, sẵn sàng cho việc bàn giao và tự động hóa CI/CD pipeline.
 
-Tất cả các lệnh và cấu hình trong tài liệu này phải được test trong môi trường staging trước khi áp dụng vào production. Lưu ý luôn biến môi trường `SPRING_PROFILES_ACTIVE=docker` khi chạy local và `SPRING_PROFILES_ACTIVE=prod` khi deploy qua CI/CD pipeline.
-
-*Runbook phiên bản 1.0 - Cập nhật lần cuối: 2026/08/31 15:13:55*
-*Tác giả: Enterprise System Architect*
-*Tag truy vết: [DOC-001]*
+*Runbook Phiên bản 1.0 (Cơ sở Production GCP) - Cập nhật ngày: 2026/08/31*  
+*Đơn vị phê duyệt: Enterprise System Architect & Lead DevOps Engineer*  
+*Mã tài liệu truy vết hệ thống: `[DOC-001]`*
 ```

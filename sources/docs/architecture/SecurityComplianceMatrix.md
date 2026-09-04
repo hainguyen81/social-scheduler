@@ -1,9 +1,9 @@
 ```markdown
 # Security Compliance Matrix - Social Scheduler Platform
-**Document Control:** `./sources/docs/architecture/SecurityComplianceMatrix.md`  
-**Project:** social-scheduler  
-**Version:** 1.0  
-**Classification:** Enterprise Confidential  
+**Document Control:** `./sources/docs/architecture/SecurityComplianceMatrix.md`
+**Project:** social-scheduler
+**Version:** 1.0
+**Classification:** Enterprise Confidential
 **Targeted Tag IDs:** [DOC-001], [NFR-002]
 
 ---
@@ -50,13 +50,13 @@ flowchart TD
     RbacPredicate -->|SCHEDULER| SchedulerAPI[/api/v1/schedules/execute]
     RbacPredicate -->|ANALYST| AnalystAPI[/api/v1/analytics/**]
     RbacPredicate -->|DENY| Forbidden[HTTP 403 Forbidden]
-    
+
     subgraph Spring_Security_Context
         SecurityConfig[SecurityConfig: oauth2ResourceServer().jwt()]
         JwtDecoder[Custom JwtDecoder: RS256 Validation]
         AuthorityMapper[GrantedAuthoritiesMapper: roles claim -> ROLE_*]
     end
-    
+
     JwtFilter --> SecurityConfig
     SecurityConfig --> JwtDecoder
     JwtDecoder --> AuthorityMapper
@@ -73,9 +73,9 @@ flowchart TD
 | **Endpoint Protection** | `SecurityConfig` | `ServerHttpSecurity` DSL: `pathMatchers("/api/v1/admin/**").hasRole("ADMIN")`, `pathMatchers("/api/v1/schedules/**").hasAnyRole("USER","SCHEDULER","ADMIN")`, `pathMatchers("/api/v1/analytics/**").hasAnyRole("ANALYST","ADMIN")` |
 | **Multi-Tenancy Isolation** | `TenantContextFilter` | Extracts `X-Tenant-Id` header, validates against JWT `tenant_id` claim, sets `TenantContextHolder` for Hibernate filter |
 
-**Code Reference:**  
-`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java`  
-`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/JwtAuthFilter.java`  
+**Code Reference:**
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java`
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/JwtAuthFilter.java`
 `./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/RbacPredicate.java`
 
 **Test Coverage:** Integration tests in `SecurityConfigTest.java` verify 4-role matrix with 16 test vectors (4 roles × 4 endpoint groups).
@@ -95,21 +95,21 @@ sequenceDiagram
     participant Gateway[API Gateway Pod]
     participant KMS[Cloud KMS]
     participant Redis[Memorystore Redis]
-    
+
     Note over Client,Gateway: TLS 1.3 Handshake
     Client->>GCP_LB: ClientHello (TLS 1.3)
     GCP_LB->>Client: ServerHello + Certificate (Managed Cert)
     GCP_LB->>Gateway: Forward decrypted HTTP/2 (mTLS optional)
-    
+
     Note over Gateway,KMS: JWT Signing Key Rotation
     Gateway->>KMS: Fetch active signing key (key-ring/socialscheduler-jwt/crypto-key/versions/latest)
     KMS-->>Gateway: RS256 Private Key (PEM)
     Gateway->>Gateway: Sign JWT with RS256 (kid header = key version)
-    
+
     Note over Gateway,Redis: Token Storage
     Gateway->>Redis: SETEX refresh_token:{jti} 2592000 {encrypted_payload}
     Redis-->>Gateway: OK
-    
+
     Note over Client,Gateway: Token Refresh Flow
     Client->>Gateway: POST /oauth2/token (grant_type=refresh_token)
     Gateway->>Redis: GET refresh_token:{jti}
@@ -142,9 +142,9 @@ sequenceDiagram
 4. Old key version retained for verification until all tokens expire (max 30 days)
 5. Zero-downtime rotation — no service restart required
 
-**Code Reference:**  
-`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java` (JwtDecoder bean)  
-`./sources/backend/api-gateway/src/main/resources/application-gateway.yml` (KMS configuration)  
+**Code Reference:**
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java` (JwtDecoder bean)
+`./sources/backend/api-gateway/src/main/resources/application-gateway.yml` (KMS configuration)
 `./sources/infra/terraform/gcp/kms.tf` (Key ring and rotation schedule)
 
 ---
@@ -162,13 +162,13 @@ flowchart LR
     Sanitizer -->|Clean Content| Repository[JPA Repository]
     Repository -->|CriteriaBuilder / JPQL| PreparedStatement[PreparedStatement]
     PreparedStatement -->|Parameter Binding| PostgreSQL[(Cloud SQL PostgreSQL)]
-    
+
     subgraph Whitelist_Validation
         PlatformWhitelist[Platform Enum: FACEBOOK, INSTAGRAM, TIKTOK]
         MediaUrlWhitelist[Domain Whitelist: cdn.socialscheduler.com, s3.amazonaws.com]
         SortFieldWhitelist[Sort Fields: scheduledTime, status, likes, comments, shares]
     end
-    
+
     Validation --> PlatformWhitelist
     Validation --> MediaUrlWhitelist
     Validation --> SortFieldWhitelist
@@ -199,9 +199,9 @@ public HtmlSanitizer htmlSanitizer() {
 }
 ```
 
-**Code Reference:**  
-`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/validator/SchedulePayloadValidator.java`  
-`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/config/HtmlSanitizerConfig.java`  
+**Code Reference:**
+`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/validator/SchedulePayloadValidator.java`
+`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/config/HtmlSanitizerConfig.java`
 `./sources/backend/user-service/src/main/java/org/nlh4j/socialscheduler/userservice/repository/UserRepository.java`
 
 ---
@@ -218,7 +218,7 @@ flowchart TD
     Gateway --> RateLimitFilter[RateLimitGatewayFilter]
     RateLimitFilter --> ExtractClaims[Extract userId from JWT]
     ExtractClaims --> RedisTokenBucket[RedisTokenBucketStrategy]
-    
+
     subgraph Token_Bucket_Algorithm
         RedisTokenBucket --> LuaScript[Atomic Lua Script]
         LuaScript --> CheckTokens[GET rate_limit:{userId}:{endpoint}]
@@ -227,19 +227,19 @@ flowchart TD
         Decrement --> Allow[Allow Request]
         Reject --> Response[HTTP 429 RATE_LIMIT_EXCEEDED]
     end
-    
+
     Allow --> Downstream[Downstream Microservice]
     Downstream --> BusinessLogic[Business Logic]
     BusinessLogic -->|Async| Kafka[Kafka: schedule.created]
     Kafka --> Consumer[Integration Service Consumer]
     Consumer -->|Retry Logic| ExternalAPI[Facebook/Instagram/TikTok API]
-    
+
     subgraph Defense_in_Depth
         CircuitBreaker[Resilience4j Circuit Breaker]
         Bulkhead[Semaphore Bulkhead: 50 concurrent]
         Timeout[Request Timeout: 10s]
     end
-    
+
     Consumer --> CircuitBreaker
     CircuitBreaker --> Bulkhead
     Bulkhead --> Timeout
@@ -288,9 +288,9 @@ else
 end
 ```
 
-**Code Reference:**  
-`./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/strategy/RedisTokenBucketStrategy.java`  
-`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/filter/RateLimitGatewayFilter.java`  
+**Code Reference:**
+`./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/strategy/RedisTokenBucketStrategy.java`
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/filter/RateLimitGatewayFilter.java`
 `./sources/backend/rate-limit-service/src/main/resources/lua/rate_limit_token_bucket.lua`
 
 ---
@@ -306,19 +306,19 @@ flowchart LR
     Request[Incoming Request] --> CorsFilter[CorsFilter: Origin Validation]
     CorsFilter -->|Origin in Whitelist| SecurityHeaders[Security Headers Injection]
     CorsFilter -->|Origin NOT in Whitelist| Reject[HTTP 403 Forbidden]
-    
+
     subgraph CORS_Configuration
         TenantOrigins[TENANT_ORIGINS Table]
         DynamicWhitelist[Dynamic Whitelist per Tenant]
         VaryHeader[Vary: Origin]
         Credentials[Access-Control-Allow-Credentials: true]
     end
-    
+
     CorsFilter --> TenantOrigins
     TenantOrigins --> DynamicWhitelist
     DynamicWhitelist --> VaryHeader
     DynamicWhitelist --> Credentials
-    
+
     SecurityHeaders --> CSP[Content-Security-Policy]
     SecurityHeaders --> HSTS[Strict-Transport-Security]
     SecurityHeaders --> XContentType[X-Content-Type-Options: nosniff]
@@ -346,12 +346,12 @@ flowchart LR
 @Component
 public class CorsFilter implements WebFilter {
     private final TenantOriginRepository tenantOriginRepository;
-    
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String origin = exchange.getRequest().getHeaders().getOrigin();
         String tenantId = exchange.getRequest().getHeaders().getFirst("X-Tenant-Id");
-        
+
         if (origin != null && tenantId != null) {
             return tenantOriginRepository.findByTenantIdAndOrigin(tenantId, origin)
                 .filter(allowed -> allowed.isEnabled())
@@ -388,9 +388,9 @@ CREATE TABLE tenant_origins (
 CREATE INDEX idx_tenant_origins_tenant ON tenant_origins(tenant_id);
 ```
 
-**Code Reference:**  
-`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/filter/CorsFilter.java`  
-`./sources/infra/kubernetes/socialscheduler/base/ingress.yaml` (nginx.ingress.kubernetes.io/configuration-snippet)  
+**Code Reference:**
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/filter/CorsFilter.java`
+`./sources/infra/kubernetes/socialscheduler/base/ingress.yaml` (nginx.ingress.kubernetes.io/configuration-snippet)
 `./sources/backend/user-service/src/main/resources/db/migration/V2__init_tenant_origins.sql`
 
 ---
@@ -408,7 +408,7 @@ sequenceDiagram
     participant Gateway[API Gateway]
     participant Redis[Memorystore Redis]
     participant Service[Microservice]
-    
+
     Note over User,IdP: Authentication Flow
     User->>IdP: Username/Password + MFA (TOTP)
     IdP-->>User: Authorization Code
@@ -417,7 +417,7 @@ sequenceDiagram
     IdP-->>Gateway: access_token (JWT RS256, 15min), refresh_token (opaque, 30d)
     Gateway->>Redis: STORE refresh_token:{jti} -> {userId, tenantId, scopes} TTL 30d
     Gateway-->>User: Set-Cookie: __Host-refresh=...; Secure; HttpOnly; SameSite=Strict
-    
+
     Note over User,Gateway: API Access Flow
     User->>Gateway: GET /api/v1/schedules (Authorization: Bearer <access_token>)
     Gateway->>Gateway: JwtAuthFilter: Validate JWT (signature, exp, iss, aud)
@@ -430,7 +430,7 @@ sequenceDiagram
     else Token Invalid (signature, iss, aud)
         Gateway-->>User: 401 Unauthorized {errorCode: "INVALID_TOKEN", message: "Invalid authentication token."}
     end
-    
+
     Note over User,Gateway: Token Refresh Flow
     User->>Gateway: POST /oauth2/token (grant_type=refresh_token, cookie: __Host-refresh)
     Gateway->>Redis: GET refresh_token:{jti}
@@ -486,10 +486,10 @@ sequenceDiagram
 }
 ```
 
-**Code Reference:**  
-`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/JwtAuthFilter.java`  
-`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java`  
-`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/exception/GlobalExceptionHandler.java`  
+**Code Reference:**
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/JwtAuthFilter.java`
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java`
+`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/exception/GlobalExceptionHandler.java`
 `./sources/backend/user-service/src/main/java/org/nlh4j/socialscheduler/userservice/service/AuthenticationService.java`
 
 ---
@@ -510,13 +510,13 @@ flowchart TD
     Stdout --> FluentBit[Fluent Bit DaemonSet]
     FluentBit --> Loki[Grafana Loki]
     FluentBit --> CloudLogging[GCP Cloud Logging]
-    
+
     Application --> Micrometer[Micrometer + OpenTelemetry]
     Micrometer --> Prometheus[Prometheus Server]
     Prometheus --> Alertmanager[Alertmanager]
     Alertmanager --> PagerDuty[PagerDuty / Slack / Email]
     Prometheus --> Grafana[Grafana Dashboards]
-    
+
     subgraph Log_Scrubbing_Patterns
         EmailPattern[Email: \b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b]
         PhonePattern[Phone: \b\d{10,11}\b]
@@ -525,7 +525,7 @@ flowchart TD
         UuidPattern[UUID: \b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b]
         CreditCardPattern[Credit Card: \b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b]
     end
-    
+
     LogScrubbing --> EmailPattern
     LogScrubbing --> PhonePattern
     LogScrubbing --> JwtPattern
@@ -569,7 +569,7 @@ public class LogScrubbingInterceptor implements LoggerContextListener {
         Pattern.compile("\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b"), // UUID
         Pattern.compile("\\b\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}\\b") // Credit Card
     );
-    
+
     @Override
     public void onStart(LoggerContext context) {
         // Register turbo filter for all loggers
@@ -591,7 +591,7 @@ public class LogScrubbingInterceptor implements LoggerContextListener {
         };
         context.addTurboFilter(filter);
     }
-    
+
     private String scrub(String input) {
         String result = input;
         for (Pattern pattern : SCRUB_PATTERNS) {
@@ -622,10 +622,10 @@ public class LogScrubbingInterceptor implements LoggerContextListener {
 5. **JWT Validation Failures** — Signature vs expiry vs claims failures
 6. **Audit Trail** — Admin actions, privilege changes, token revocations
 
-**Code Reference:**  
-`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/logging/LogScrubbingInterceptor.java`  
-`./sources/backend/schedule-service/src/main/resources/logback-spring.xml`  
-`./sources/infra/observability/prometheus.yaml` (scrape config + alerting rules)  
+**Code Reference:**
+`./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/logging/LogScrubbingInterceptor.java`
+`./sources/backend/schedule-service/src/main/resources/logback-spring.xml`
+`./sources/infra/observability/prometheus.yaml` (scrape config + alerting rules)
 `./sources/infra/observability/grafana-dashboard.json` (Security Overview dashboard)
 
 ---
@@ -676,21 +676,21 @@ flowchart LR
     CI --> ContainerScan[Container Scan: Trivy]
     Ci --> IaCScan[IaC Scan: Checkov + tfsec]
     CI --> PolicyCheck[Policy Check: OPA Gatekeeper]
-    
+
     SAST --> QualityGate{Quality Gate}
     DAST --> QualityGate
     SCA --> QualityGate
     ContainerScan --> QualityGate
     IaCScan --> QualityGate
     PolicyCheck --> QualityGate
-    
+
     QualityGate -->|PASS| Deploy[Deploy to Staging]
     QualityGate -->|FAIL| Block[Block Merge + Slack Alert]
-    
+
     Deploy --> SmokeTest[Smoke Tests + Security Regression Suite]
     SmokeTest -->|PASS| ProdApproval[Manual Approval for Production]
     SmokeTest -->|FAIL| Rollback[Auto Rollback + Alert]
-    
+
     ProdApproval --> DeployProd[Deploy to Production]
     DeployProd --> PostDeploy[Post-Deploy Verification]
     PostDeploy --> Monitoring[Continuous Monitoring: Prometheus Alerts]
@@ -742,7 +742,7 @@ flowchart LR
 | **Compliance Officer** | | | |
 | **Engineering Lead** | | | |
 
-**Next Review Date:** 2026-11-30 (Quarterly)  
-**Document Owner:** Platform Security Team  
+**Next Review Date:** 2026-11-30 (Quarterly)
+**Document Owner:** Platform Security Team
 **Classification:** Enterprise Confidential — Do Not Distribute Externally
 ```

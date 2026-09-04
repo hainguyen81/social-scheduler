@@ -1,10 +1,10 @@
 ```markdown
 # Social Scheduler - CI/CD Pipeline Documentation
 
-**Document Version:** 1.1  
-**Last Updated:** 2026-08-31  
-**Author:** Enterprise System Architect (SA Agent)  
-**Approval Status:** Approved for Technical Review  
+**Document Version:** 1.1
+**Last Updated:** 2026-08-31
+**Author:** Enterprise System Architect (SA Agent)
+**Approval Status:** Approved for Technical Review
 **Target Tag IDs:** [DOC-001], [NFR-001], [NFR-002], [NFR-003]
 
 ---
@@ -47,7 +47,7 @@ flowchart TD
     H -->|/actuator/health + Metrics| I[Stage 8: approval]
     I -->|GitHub Environment<br/>Technical Lead Approval| J[Stage 9: deploy-prod]
     J -->|Rolling Update Strategy| K[Production Live]
-    
+
     style B fill:#e1f5fe,stroke:#01579b
     style C fill:#e8f5e9,stroke:#1b5e20
     style D fill:#fff3e0,stroke:#e65100
@@ -66,10 +66,10 @@ flowchart TD
 
 ### 3.1 Stage 1: Lint (`lint`)
 
-**Workflow File:** `.github/workflows/ci-cd.yml`  
-**Job Name:** `lint`  
-**Runs On:** `ubuntu-latest`  
-**Timeout:** 15 minutes  
+**Workflow File:** `.github/workflows/ci-cd.yml`
+**Job Name:** `lint`
+**Runs On:** `ubuntu-latest`
+**Timeout:** 15 minutes
 
 #### 3.1.1 Backend Linting (Java)
 
@@ -110,11 +110,11 @@ npm run format:check  # Prettier style check
 
 ### 3.2 Stage 2: Unit Test (`unit-test`)
 
-**Workflow File:** `.github/workflows/ci-cd.yml`  
-**Job Name:** `unit-test`  
-**Runs On:** `ubuntu-latest`  
-**Timeout:** 30 minutes  
-**Needs:** `lint`  
+**Workflow File:** `.github/workflows/ci-cd.yml`
+**Job Name:** `unit-test`
+**Runs On:** `ubuntu-latest`
+**Timeout:** 30 minutes
+**Needs:** `lint`
 
 #### 3.2.1 Backend Unit Tests
 
@@ -153,11 +153,11 @@ npm run test:ci -- --coverage --coverageThreshold='{"global":{"branches":85,"fun
 
 ### 3.3 Stage 3: Integration Test (`integration-test`)
 
-**Workflow File:** `.github/workflows/ci-cd.yml`  
-**Job Name:** `integration-test`  
-**Runs On:** `ubuntu-latest` (with Docker)  
-**Timeout:** 45 minutes  
-**Needs:** `unit-test`  
+**Workflow File:** `.github/workflows/ci-cd.yml`
+**Job Name:** `integration-test`
+**Runs On:** `ubuntu-latest` (with Docker)
+**Timeout:** 45 minutes
+**Needs:** `unit-test`
 
 #### 3.3.1 Testcontainers Configuration
 
@@ -176,11 +176,11 @@ mvn -f ./sources/backend/pom.xml verify -Dtest=*IT -DfailIfNoTests=false
 
 ### 3.4 Stage 4: Build Image (`build-image`)
 
-**Workflow File:** `.github/workflows/ci-cd.yml`  
-**Job Name:** `build-image`  
-**Runs On:** `ubuntu-latest`  
-**Timeout:** 30 minutes  
-**Needs:** `integration-test`  
+**Workflow File:** `.github/workflows/ci-cd.yml`
+**Job Name:** `build-image`
+**Runs On:** `ubuntu-latest`
+**Timeout:** 30 minutes
+**Needs:** `integration-test`
 
 #### 3.4.1 Multi-Stage Docker Builds
 
@@ -204,11 +204,11 @@ docker build -f ./sources/infra/docker/schedule-service/Dockerfile \
 
 ### 3.5 Stage 5: Push Image (`push-image`)
 
-**Workflow File:** `.github/workflows/ci-cd.yml`  
-**Job Name:** `push-image`  
-**Runs On:** `ubuntu-latest`  
-**Timeout:** 15 minutes  
-**Needs:** `build-image`  
+**Workflow File:** `.github/workflows/ci-cd.yml`
+**Job Name:** `push-image`
+**Runs On:** `ubuntu-latest`
+**Timeout:** 15 minutes
+**Needs:** `build-image`
 
 #### 3.5.1 Google Artifact Registry Integration
 
@@ -227,11 +227,11 @@ docker push asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler
 
 ### 3.6 Stage 6: Deploy to Staging (`deploy-staging`)
 
-**Workflow File:** `.github/workflows/ci-cd.yml`  
-**Job Name:** `deploy-staging`  
-**Runs On:** `ubuntu-latest`  
-**Timeout:** 20 minutes  
-**Needs:** `push-image`  
+**Workflow File:** `.github/workflows/ci-cd.yml`
+**Job Name:** `deploy-staging`
+**Runs On:** `ubuntu-latest`
+**Timeout:** 20 minutes
+**Needs:** `push-image`
 
 #### 3.6.1 Kubernetes Manifest Application
 
@@ -248,11 +248,11 @@ kubectl rollout status deployment/schedule-service -n socialscheduler-staging --
 
 ### 3.7 Stage 7: Smoke Test (`smoke-test`)
 
-**Workflow File:** `.github/workflows/ci-cd.yml`  
-**Job Name:** `smoke-test`  
-**Runs On:** `ubuntu-latest`  
-**Timeout:** 15 minutes  
-**Needs:** `deploy-staging`  
+**Workflow File:** `.github/workflows/ci-cd.yml`
+**Job Name:** `smoke-test`
+**Runs On:** `ubuntu-latest`
+**Timeout:** 15 minutes
+**Needs:** `deploy-staging`
 
 #### 3.7.1 Health & Metrics Verification
 
@@ -271,11 +271,11 @@ curl -sSf https://api-staging.socialscheduler.local/actuator/prometheus | grep -
 
 ### 3.8 Stage 8: Manual Approval (`approval`)
 
-**Workflow File:** `.github/workflows/ci-cd.yml`  
-**Job Name:** `approval`  
-**Runs On:** `ubuntu-latest`  
-**Environment:** `production` (Requires reviewer approval)  
-**Needs:** `smoke-test`  
+**Workflow File:** `.github/workflows/ci-cd.yml`
+**Job Name:** `approval`
+**Runs On:** `ubuntu-latest`
+**Environment:** `production` (Requires reviewer approval)
+**Needs:** `smoke-test`
 
 #### 3.8.1 Technical Lead Approval Gate
 
@@ -285,11 +285,11 @@ This stage pauses pipeline execution until a designated Technical Lead or Releas
 
 ### 3.9 Stage 9: Deploy to Production (`deploy-prod`)
 
-**Workflow File:** `.github/workflows/ci-cd.yml`  
-**Job Name:** `deploy-prod`  
-**Runs On:** `ubuntu-latest`  
-**Timeout:** 30 minutes  
-**Needs:** `approval`  
+**Workflow File:** `.github/workflows/ci-cd.yml`
+**Job Name:** `deploy-prod`
+**Runs On:** `ubuntu-latest`
+**Timeout:** 30 minutes
+**Needs:** `approval`
 
 #### 3.9.1 Production Rolling Update
 
@@ -340,7 +340,7 @@ All commit messages must follow the Conventional Commits format to enable automa
 [optional footer]
 ```
 
-**Allowed Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`.  
+**Allowed Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`.
 **Example:** `feat(scheduler): add schedule validation [REQ-001]`
 
 ---
