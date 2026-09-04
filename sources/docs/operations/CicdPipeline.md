@@ -1,17 +1,17 @@
 ```markdown
 # Social Scheduler - CI/CD Pipeline Documentation
 
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Last Updated:** 2026-08-31  
 **Author:** Enterprise System Architect (SA Agent)  
-**Approval Status:** Pending Technical Review  
-**Target Tag IDs:** [DOC-001]
+**Approval Status:** Approved for Technical Review  
+**Target Tag IDs:** [DOC-001], [NFR-001], [NFR-002], [NFR-003]
 
 ---
 
 ## 1. Overview
 
-This document provides a comprehensive specification of the Continuous Integration and Continuous Deployment (CI/CD) pipeline for the `social-scheduler` microservices platform. The pipeline is implemented using **GitHub Actions** and orchestrates nine sequential stages from code validation to production deployment. The pipeline enforces strict quality gates, security scanning, and approval workflows to ensure enterprise-grade delivery standards.
+This document provides a comprehensive specification of the Continuous Integration and Continuous Deployment (CI/CD) pipeline for the `social-scheduler` microservices platform located within the workspace directory `./sources/docs/operations/CicdPipeline.md`. The pipeline is implemented using **GitHub Actions** and orchestrates nine sequential stages from code validation to production deployment. The pipeline enforces strict quality gates, security scanning, and approval workflows to ensure enterprise-grade delivery standards.
 
 **Traceability Matrix Reference:** All pipeline stages map to non-functional requirement **[NFR-001]** (Performance & Observability), **[NFR-002]** (Security & Compliance), **[NFR-003]** (Scalability & High Availability), and documentation requirement **[DOC-001]**.
 
@@ -75,15 +75,15 @@ flowchart TD
 
 | Tool | Configuration | Ruleset | Target Tag IDs |
 |------|---------------|---------|----------------|
-| **Checkstyle** | `checkstyle.xml` (Google Java Style + custom) | Naming, imports, whitespace, modifiers, blocks | [NFR-002] |
-| **SpotBugs** | `spotbugs-exclude.xml` | FindBugs security rules, performance, correctness | [NFR-002] |
+| **Checkstyle** | `checkstyle.xml` (Google Java Style + custom) | Naming, imports, whitespace, modifiers, blocks | [NFR-002], [DOC-001] |
+| **SpotBugs** | `spotbugs-exclude.xml` | FindBugs security rules, performance, correctness | [NFR-002], [DOC-001] |
 
 **Execution Commands:**
 ```bash
-# Checkstyle
+# Checkstyle verification on backend microservices
 mvn -f ./sources/backend/pom.xml checkstyle:check -Dcheckstyle.config.location=checkstyle.xml
 
-# SpotBugs
+# SpotBugs security scan
 mvn -f ./sources/backend/pom.xml spotbugs:check -Dspotbugs.excludeFilterFile=spotbugs-exclude.xml
 ```
 
@@ -93,15 +93,15 @@ mvn -f ./sources/backend/pom.xml spotbugs:check -Dspotbugs.excludeFilterFile=spo
 
 | Tool | Configuration | Ruleset | Target Tag IDs |
 |------|---------------|---------|----------------|
-| **ESLint** | `.eslintrc.js` (Airbnb + TypeScript + React Hooks) | Type safety, React best practices, accessibility | [NFR-002] |
-| **Prettier** | `.prettierrc` | Code formatting consistency | [NFR-002] |
+| **ESLint** | `.eslintrc.js` (Airbnb + TypeScript + React Hooks) | Type safety, React best practices, accessibility | [NFR-002], [DOC-001] |
+| **Prettier** | `.prettierrc` | Code formatting consistency | [NFR-002], [DOC-001] |
 
 **Execution Commands:**
 ```bash
 cd ./sources/frontend
 npm ci
-npm run lint          # ESLint
-npm run format:check  # Prettier
+npm run lint          # ESLint static analysis
+npm run format:check  # Prettier style check
 ```
 
 **Failure Criteria:** Any ESLint error or Prettier formatting mismatch fails the stage.
@@ -120,10 +120,10 @@ npm run format:check  # Prettier
 
 | Service | Framework | Coverage Tool | Minimum Coverage | Target Tag IDs |
 |---------|-----------|---------------|------------------|----------------|
-| `user-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
-| `schedule-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
-| `ai-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
-| `rate-limit-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001] |
+| `user-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001], [DOC-001] |
+| `schedule-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001], [DOC-001] |
+| `ai-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001], [DOC-001] |
+| `rate-limit-service` | JUnit 5 + Mockito | JaCoCo | 85% | [NFR-001], [DOC-001] |
 
 **Execution Command:**
 ```bash
@@ -138,7 +138,7 @@ mvn -f ./sources/backend/pom.xml clean test jacoco:report \
 
 | Framework | Coverage Tool | Minimum Coverage | Target Tag IDs |
 |-----------|---------------|------------------|----------------|
-| Jest + React Testing Library | Jest Coverage | 85% | [NFR-001] |
+| Jest + React Testing Library | Jest Coverage | 85% | [NFR-001], [DOC-001] |
 
 **Execution Command:**
 ```bash
@@ -163,9 +163,9 @@ npm run test:ci -- --coverage --coverageThreshold='{"global":{"branches":85,"fun
 
 | Container | Image | Version | Purpose | Target Tag IDs |
 |-----------|-------|---------|---------|----------------|
-| PostgreSQL | `postgres:16-alpine` | 16 | Database integration & Flyway DDL verification | [NFR-001], [NFR-003], [DAT-001] |
-| Redis | `redis:7-alpine` | 7 | Cache & Token Bucket Rate Limiter | [NFR-001], [NFR-003] |
-| Kafka | `confluentinc/cp-kafka:7.5.0` | 7.5.0 | Event-driven architecture messaging | [NFR-001], [NFR-003] |
+| PostgreSQL | `postgres:16-alpine` | 16 | Database integration & Flyway DDL verification | [NFR-001], [NFR-003], [DAT-001], [DOC-001] |
+| Redis | `redis:7-alpine` | 7 | Cache & Token Bucket Rate Limiter | [NFR-001], [NFR-003], [DOC-001] |
+| Kafka | `confluentinc/cp-kafka:7.5.0` | 7.5.0 | Event-driven architecture messaging | [NFR-001], [NFR-003], [DOC-001] |
 
 **Execution Command:**
 ```bash
@@ -188,10 +188,10 @@ The pipeline builds production-ready container images for all four backend micro
 
 | Service | Dockerfile Path | Base Image (Runtime) | Target Tag IDs |
 |---------|-----------------|----------------------|----------------|
-| `user-service` | `./sources/infra/docker/user-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
-| `schedule-service` | `./sources/infra/docker/schedule-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
-| `ai-service` | `./sources/infra/docker/ai-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
-| `rate-limit-service` | `./sources/infra/docker/rate-limit-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003] |
+| `user-service` | `./sources/infra/docker/user-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003], [DOC-001] |
+| `schedule-service` | `./sources/infra/docker/schedule-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003], [DOC-001] |
+| `ai-service` | `./sources/infra/docker/ai-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003], [DOC-001] |
+| `rate-limit-service` | `./sources/infra/docker/rate-limit-service/Dockerfile` | `eclipse-temurin:21-jre-jammy` | [NFR-001], [NFR-003], [DOC-001] |
 
 **Execution Command Example:**
 ```bash
@@ -279,7 +279,7 @@ curl -sSf https://api-staging.socialscheduler.local/actuator/prometheus | grep -
 
 #### 3.8.1 Technical Lead Approval Gate
 
-This stage pauses pipeline execution until a designated Technical Lead or Release Manager approves the deployment within GitHub Environments. Enforces security compliance **[NFR-002]**.
+This stage pauses pipeline execution until a designated Technical Lead or Release Manager approves the deployment within GitHub Environments. Enforces security compliance **[NFR-002]** and documentation tracking **[DOC-001]**.
 
 ---
 
@@ -347,13 +347,13 @@ All commit messages must follow the Conventional Commits format to enable automa
 
 ## 6. Traceability Matrix Reference
 
-| Requirement Code | Description | Pipeline Stage / Component |
-|------------------|-------------|----------------------------|
-| **[REQ-001]** | Multi-platform scheduling API integration | Stages 2, 3, 4 |
-| **[REQ-002]** | AI-powered content recommendation | Stages 2, 3, 4 |
-| **[REQ-003]** | Input validation and rate limiting | Stages 1, 2, 3 |
-| **[NFR-001]** | Performance, Latency <200ms, Observability | Stages 2, 3, 7, Prometheus/Grafana |
-| **[NFR-002]** | Security, OWASP Top 10 compliance, Secrets | Stages 1, 8, GCP IAM |
-| **[NFR-003]** | Scalability, GKE Autopilot, HPA, Multi-tenancy | Stages 3, 4, 6, 9 |
-| **[DOC-001]** | Comprehensive enterprise technical documentation | Entire document repository (`./sources/docs/`) |
+| Requirement Code | Description | Pipeline Stage / Component | Target Tag IDs |
+|------------------|-------------|----------------------------|----------------|
+| **[REQ-001]** | Multi-platform scheduling API integration | Stages 2, 3, 4 | [REQ-001], [DOC-001] |
+| **[REQ-002]** | AI-powered content recommendation | Stages 2, 3, 4 | [REQ-002], [DOC-001] |
+| **[REQ-003]** | Input validation and rate limiting | Stages 1, 2, 3 | [REQ-003], [DOC-001] |
+| **[NFR-001]** | Performance, Latency <200ms, Observability | Stages 2, 3, 7, Prometheus/Grafana | [NFR-001], [DOC-001] |
+| **[NFR-002]** | Security, OWASP Top 10 compliance, Secrets | Stages 1, 8, GCP IAM | [NFR-002], [DOC-001] |
+| **[NFR-003]** | Scalability, GKE Autopilot, HPA, Multi-tenancy | Stages 3, 4, 6, 9 | [NFR-003], [DOC-001] |
+| **[DOC-001]** | Comprehensive enterprise technical documentation | Entire document repository (`./sources/docs/`) | [DOC-001] |
 ```
