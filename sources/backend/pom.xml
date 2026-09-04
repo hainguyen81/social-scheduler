@@ -1,123 +1,97 @@
-```xml
 <project>
-    <model>
-        <groupId>org.nlh4j.socialscheduler</groupId>
-        <artifactId>user-service</artifactId>
-        <version>1.0.0</version>
-        <name>user-service</name>
-        <packaging>jar</packaging>
-        <parent>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-parent</artifactId>
-            <version>3.3.5</version>
-            <relativePath/>
-        </parent>
-        <properties>
-            <java.version>21</java.version>
-            <spring-boot.version>3.3.5</spring-boot.version>
-            <spring-cloud.version>2023.0.3</spring-cloud.version>
-            <flyway.version>10.20.1</flyway.version>
-            <postgresql.version>42.7.5</postgresql.version>
-            <kafka.version>3.7.0</kafka.version>
-            <redis.version>7.0.0</redis.version>
-            <bucket4j.version>8.10.1</bucket4j.version>
-            <openai.version>0.18.0</openai.version>
-            <testcontainers.version>1.19.8</testcontainers.version>
-        </properties>
-        <dependencyManagement>
-            <dependencies>
-                <!-- Spring Boot Starters -->
-                <dependency>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-dependencies</artifactId>
-                    <version>${spring-boot.version}</version>
-                    <type>pom</type>
-                </dependency>
-                <dependency>
-                    <groupId>org.springframework.cloud</groupId>
-                    <artifactId>spring-cloud-dependencies</artifactId>
-                    <version>${spring-cloud.version}</version>
-                    <type>pom</type>
-                </dependency>
-                <!-- Database -->
-                <dependency>
-                    <groupId>org.postgresql</groupId>
-                    <artifactId>postgresql</artifactId>
-                    <version>${postgresql.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.flyway</groupId>
-                    <artifactId>flyway-core</artifactId>
-                    <version>${flyway.version}</version>
-                </dependency>
-                <!-- Kafka -->
-                <dependency>
-                    <groupId>org.apache.kafka</groupId>
-                    <artifactId>kafka-clients</artifactId>
-                    <version>${kafka.version}</version>
-                </dependency>
-                <!-- Redis -->
-                <dependency>
-                    <groupId>io.lettuce</groupId>
-                    <artifactId>lettuce-core</artifactId>
-                    <version>${redis.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.bucket4j</groupId>
-                    <artifactId>bucket4j-core</artifactId>
-                    <version>${bucket4j.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>com.bucket4j</groupId>
-                    <artifactId>bucket4j-redis</artifactId>
-                    <version>${bucket4j.version}</version>
-                </dependency>
-                <!-- OpenAI -->
-                <dependency>
-                    <groupId>com.theokanning</groupId>
-                    <artifactId>openai-java</artifactId>
-                    <version>${openai.version}</version>
-                </dependency>
-                <!-- Testcontainers -->
-                <dependency>
-                    <groupId>org.testcontainers</groupId>
-                    <artifactId>testcontainers-bom</artifactId>
-                    <version>${testcontainers.version}</version>
-                    <type>pom</type>
-                </dependency>
-            </dependencies>
-        </dependencyManagement>
+    <name>social-scheduler</name>
+    <version>1.0 (Cơ sở)</version>
+    <description>Khởi tạo khung dự án Microservices (Social Scheduler) với descriptor build cha-con chuẩn Spring Boot 3, Spring Cloud, Kafka client, JPA, Flyway, OAuth2 Resource Server, Redis. Di trú schema ban đầu cho bốn dịch vụ nghiệp vụ cốt lõi: user-service, schedule-service, ai-service, rate-limit-service.</description>
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <spring-boot.version>3.3.5</spring-boot.version>
+        <spring-cloud.version>2023.0.3</spring-cloud.version>
+        <flyway.version>10.20.x</flyway.version>
+        <postgresql.driver.version>42.7.x</postgresql.driver.version>
+        <kafka.client.version>3.7.x</kafka.client.version>
+        <lettuce.redis.client.version>6.4.x</lettuce.redis.client.version>
+        <oauth2.resource.server.version>6.3.x</oauth2.resource.server.version>
+        <bucket4j.core.version>8.10.x</bucket4j.core.version>
+        <openai.java.sdk.version>0.18.x</openai.java.sdk.version>
+    </properties>
+    <dependencyManagement>
         <dependencies>
-            <!-- Spring Boot Web -->
+            <!-- Spring Boot Parent -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-web</artifactId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
-            <!-- Spring Boot Data JPA -->
+
+            <!-- Spring Cloud -->
             <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-data-jpa</artifactId>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
-            <!-- Spring Boot Security -->
+
+            <!-- Flyway Core -->
             <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-security</artifactId>
-            </dependency>
-            <!-- Spring Boot OAuth2 Resource Server -->
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
-            </dependency>
-            <!-- Spring Boot Validation -->
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-validation</artifactId>
-            </dependency>
-            <!-- Flyway -->
-            <dependency>
-                <groupId>org.flyway</groupId>
+                <groupId>org.flywaydb</groupId>
                 <artifactId>flyway-core</artifactId>
+                <version>${flyway.version}</version>
             </dependency>
+
             <!-- PostgreSQL Driver -->
             <dependency>
-                <groupId>org.postgresql</
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.driver.version}</version>
+            </dependency>
+
+            <!-- Apache Kafka Client -->
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>${kafka.client.version}</version>
+            </dependency>
+
+            <!-- Lettuce Redis Client -->
+            <dependency>
+                <groupId>io.lettuce</groupId>
+                <artifactId>lettuce-core</artifactId>
+                <version>${lettuce.redis.client.version}</version>
+            </dependency>
+
+            <!-- OAuth2 Resource Server -->
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-oauth2-resource-server</artifactId>
+                <version>${oauth2.resource.server.version}</version>
+            </dependency>
+
+            <!-- Bucket4j Core -->
+            <dependency>
+                <groupId>com.bucket4j</groupId>
+                <artifactId>bucket4j-core</artifactId>
+                <version>${bucket4j.core.version}</version>
+            </dependency>
+
+            <!-- OpenAI Java SDK -->
+            <dependency>
+                <groupId>com.openai</groupId>
+                <artifactId>openai-java</artifactId>
+                <version>${openai.java.sdk.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <modules>
+        <module>user-service</module>
+        <module>schedule-service</module>
+        <module>ai-service</module>
+        <module>rate-limit-service</module>
+        <module>api-gateway</module>
+    </modules>
+</project>
