@@ -11,9 +11,12 @@
     <!-- Model version for Maven POM. -->
     <modelVersion>4.0.0</modelVersion>
     <name>social-scheduler</name>
-    <version>1.0 (Cơ sở)</version>
+	<groupId>org.nlh4j.socialscheduler</groupId>
+	<artifactId>social-scheduler</artifactId>
+    <version>1.0.0</version>
     <description>Khởi tạo khung dự án Microservices (Social Scheduler) với descriptor build cha-con chuẩn Spring Boot 3, Spring Cloud, Kafka client, JPA, Flyway, OAuth2 Resource Server, Redis. Di trú schema ban đầu cho bốn dịch vụ nghiệp vụ cốt lõi: user-service, schedule-service, ai-service, rate-limit-service.</description>
-    <properties>
+    
+	<properties>
         <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
@@ -27,7 +30,8 @@
         <bucket4j.core.version>8.10.x</bucket4j.core.version>
         <openai.java.sdk.version>0.18.x</openai.java.sdk.version>
     </properties>
-    <dependencyManagement>
+    
+	<dependencyManagement>
         <dependencies>
             <!-- Spring Boot Parent -->
             <dependency>
