@@ -8,7 +8,11 @@
 # request agent_helper from `.libs/project_agents_package_loader.py`
 # super agent
 from _0d_ai._0d_agents._0d_sub_0u_agents.agent_0u_super import AbstractSubAgent
-from _0d_ai._0d_agents.agent_0u_helper import parse_args, resolve_absolute_path
+from _0d_ai._0d_agents.agent_0u_helper import (
+    parse_args,
+    resolve_absolute_path,
+    splitAIResponseData,
+)
 
 # ==============================================================================
 # GLOBAL CONFIGURATION PATHS - CONFIG HERE TO CUSTOMIZE DIRECTORY STRUCTURE
@@ -46,7 +50,7 @@ class DocumentationAgent(AbstractSubAgent):
     # @ override
     def clean_response(self, raw_response, **kwargs):
         # TODO Doc Agent should keep original raw response, due to it's technical document markdown
-        return raw_response
+        return splitAIResponseData(raw_response)
 
 if __name__ == "__main__":
     def add_known_arguments(parser):
