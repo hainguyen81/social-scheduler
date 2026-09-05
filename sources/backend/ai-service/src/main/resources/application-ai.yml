@@ -1,0 +1,27 @@
+# Traceability Tags: [REQ-002], [ARC-005]
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  base-url: https://api.openai.com/v1
+  model: gpt-4o-mini
+resilience4j:
+  circuitbreaker:
+    instances:
+      openai:
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+  retry:
+    instances:
+      openai:
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show: always
+    prometheus:
+      enabled: true

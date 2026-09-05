@@ -1,0 +1,22 @@
+```markdown
+# 📋 **Enterprise System Documentation – Social Scheduler Blueprint**
+
+## 📊 **Document Control**
+
+| Item | Details |
+| :--- | :--- |
+| **Blueprint ID** | ARCH-20260831151355 |
+| **Project Name** | social-scheduler |
+| **Version** | 1 .0 (Cơ sở) |
+| **Date Time** | 2026/08/31 15:13:55 |
+| **Author** | Enterprise System Architect (SA Agent) |
+| **Approval** | Chờ phê duyệt quản trị kỹ thuật |
+
+## 📊 **1. TỔNG QUAN HỆ THỐNG & MÔ HÌNH KIẾN TRÚC CỐT LÕI**
+
+### ⚙️ **1.1. Mô hình hệ thống cốt lõi & Kiến trúc điều phối**
+
+- Kiến trúc tổng thể theo mô hình **Microservices hướng sự kiện (Event-Driven)** kết hợp **CQRS** trên nền **Reactive** để xử lý khối lượng đăng bài lớn theo thời gian thực.
+- Hệ thống được phân tách thành các bounded context nghiệp vụ độc lập: `user-service`, `scheduler-service`, `content-service`, `integration-service`, `analytics-service`, `notification-service`, `auth-service` và một API Gateway trung tâm.
+- Lớp truy cập dữ liệu sử dụng **PostgreSQL** phân vùng theo schema, tích hợp **Redis** cho caching phiên và giới hạn tỷ lệ; giao tiếp bất đồng bộ qua **Apache Kafka** với các topic chuyên dụng theo miền nghiệp vụ.
+- Mô hình AI/ML được đóng gói như một microservice độc lập (`ai-recommender-service`) giao tiếp qua Kafka, cho phép tách biệt hoàn toàn giữa workload

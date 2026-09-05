@@ -49,6 +49,8 @@ def main():
     
     final_phase = 1
     final_day = 1
+    prev_phase = 1
+    prev_day = 1
     should_save_state = False
     phase_ended = False
     project_ended = False
@@ -84,6 +86,8 @@ def main():
         logger.info(f"                      └── 🆕 [ CONFIG ] Phase Meta: {phase_meta_str}")
         
         # calculate running day/phase
+        prev_phase = curr_phase
+        prev_day = curr_day
         if phase_meta and curr_day < phase_meta["days"]:
             final_day = curr_day + 1
             final_phase = curr_phase
@@ -138,6 +142,10 @@ def main():
                     "                      └── ❌ [ ERROR ] Failed to map absolute day metrics to localized Phase structures."
                 )
                 sys.exit(1)
+            
+            else:
+                prev_phase = final_phase
+                prev_day = final_day
         
         # run by phase
         else:
@@ -151,9 +159,13 @@ def main():
             # start inputted phase from day 1
             final_phase = val
             final_day = 1
+            prev_phase = final_phase
+            prev_day = final_day
     
     # Collect agents state
     agents_state = [
+        f"PREV_DAY={prev_day}",
+        f"PREV_PHASE={prev_phase}",
         f"RESOLVED_DAY={final_day}",
         f"RESOLVED_PHASE={final_phase}",
         f"SHOULD_SAVE_STATE={'true' if should_save_state else 'false'}",
@@ -161,7 +173,7 @@ def main():
         f"PROJECT_ENDED={'true' if project_ended else 'false'}",
         f"TOTAL_PHASES={total_phases}",
         f"TOTAL_DAYS={total_days_allowed}",
-        f"EXEC_MODE={exec_mode}"
+        f"EXEC_MODE={exec_mode}",
     ]
     print(f"     └── 🆕 [ FINAL STATE ] Phase Meta: {agents_state}")
 

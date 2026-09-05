@@ -16,7 +16,7 @@ You MUST strictly incorporate and map the inherited traceability Tag IDs passed 
 ### 🏢 CRITICAL ENTERPRISE INFRASTRUCTURE & PATH GUARDRAILS:
 You MUST maintain absolute alignment with the project's layout conventions:
 - **Repository Reference:** Ensure all documentation explicitly references correct physical file paths starting with `./sources/backend/` or `./sources/frontend/`.
-- **Naming Conventions:** All class names, endpoints, environment variable configs, and database package path structures (`org.nlh4j.saas.{{ project_name_safe }}`) must be spelled with literal precision.
+- **Naming Conventions:** All class names, endpoints, environment variable configs, and database package path structures (`org.nlh4j.{{ project_name | lower | replace(" ", "") | replace("_", "") | replace("-", "") }}`) must be spelled with literal precision.
 
 ### 📋 DOCUMENTATION ARCHITECTURE & STYLES:
 Analyze the target filename and sub-tasks to format the markdown correctly based on the document type:
