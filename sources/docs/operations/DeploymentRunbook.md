@@ -1,286 +1,105 @@
 ```markdown
-# Social Scheduler - Production Deployment Runbook
+# Deployment Runbook - Social Scheduler Production GCP
 
-**Document ID:** DOC-001  
-**Target Environment:** Google Cloud Platform (GCP) — Production  
-**Last Updated:** 2026-08-31  
-**Author:** Enterprise System Architect (SA Agent)  
-**Status:** Approved  
-
----
-
-## Table of Contents
-
-1. [Prerequisites](#1-prerequisites)  
-2. [Infrastructure Provisioning via Terraform](#2-infrastructure-provisioning-via-terraform)  
-3. [Application Deployment to GKE](#3-application-deployment-to-gke)  
-4. [Rollback Procedures](#4-rollback-procedures)  
-5. [Post-Deployment Validation Checklist](#5-post-deployment-validation-checklist)  
-6. [Emergency Troubleshooting Guide](#6-emergency-troubleshooting-guide)  
-7. [Traceability Matrix Reference](#7-traceability-matrix-reference)
-
----
-
-## 1. Prerequisites
-
-Before initiating any deployment activities, ensure the following tools and permissions are available: [DOC-001]
-
-### Required Tools
-
-| Tool | Minimum Version | Purpose | Targeted Tag IDs |
-| :--- | :--- | :--- | :--- |
-| **Google Cloud CLI (`gcloud`)** | `450.0.0` | Authenticate and interact with GCP services | [DOC-001] |
-| **Kubernetes CLI (`kubectl`)** | `1.28` | Manage GKE cluster resources | [DOC-001] |
-| **Terraform CLI** | `1.6.0` | Provision infrastructure as code | [NFR-002], [DOC-001] |
-| **Docker** | `24.0.x` | Build and push container images | [NFR-001], [DOC-001] |
-| **Helm** | `3.12.x` | Install observability stack (Prometheus, Grafana) | [NFR-001], [DOC-001] |
-
-### IAM Permissions
-
-The deploying user or service account must hold the following roles: [NFR-002]
-
-| Role | Scope | Justification | Targeted Tag IDs |
-| :--- | :--- | :--- | :--- |
-| `roles/owner` | Project-wide | Full administrative access for initial setup | [NFR-002] |
-| `roles/container.admin` | GKE cluster | Deploy and manage Kubernetes workloads | [NFR-003] |
-| `roles/cloudsql.admin` | Cloud SQL instances | Manage database lifecycle | [DAT-001] |
-| `roles/storage.admin` | GCS buckets | Access Terraform state backend | [DOC-001] |
-| `roles/artifactregistry.writer` | Artifact Registry | Push container images | [NFR-001] |
-| `roles/monitoring.viewer` | Monitoring | View metrics and dashboards | [NFR-001] |
-| `roles/logging.viewer` | Logging | Access logs for troubleshooting | [NFR-001] |
-
-> 🔒 **Security Note:** In production environments, replace `roles/owner` with least-privilege custom roles scoped to specific resources [NFR-002].
-
----
-
-## 2. Infrastructure Provisioning via Terraform
-
-This section outlines the process for provisioning the foundational GCP infrastructure using Terraform modules located at `./sources/infra/terraform/gcp/` [NFR-002].
-
-### Step-by-Step Instructions
-
-#### 2.1 Authenticate with GCP
-
-```bash
-gcloud auth login
-gcloud config set project social-scheduler-prod
-```
-
-#### 2.2 Initialize Terraform Backend
-
-Navigate to the Terraform root directory `./sources/infra/terraform/gcp` and initialize the backend: [DOC-001]
-
-```bash
-cd ./sources/infra/terraform/gcp
-terraform init
-```
-
-> ✅ This step initializes the GCS backend (`socialscheduler-tfstate`) and downloads required providers (`google`, `google-beta`).
-
-#### 2.3 Preview Changes
-
-Generate an execution plan to preview all infrastructure changes: [DOC-001]
-
-```bash
-terraform plan -out=tfplan
-```
-
-> 📋 Review the output carefully. Confirm that VPC networks, subnets, GKE clusters, Cloud SQL instances, and Memorystore Redis instances are correctly defined.
-
-#### 2.4 Apply Infrastructure
-
-Apply the planned changes to provision the infrastructure [NFR-002]:
-
-```bash
-terraform apply tfplan
-```
-
-> ⏱️ This operation may take 10–15 minutes depending on resource complexity.
-
-### Provisioned Resources Summary
-
-| Resource | Module File Path | Targeted Tag IDs |
+## 📋 TRACEABILITY MATRIX REFERENCE
+| Section | Targeted Tag IDs | Description |
 | :--- | :--- | :--- |
-| Custom VPC Network | `./sources/infra/terraform/gcp/vpc.tf` | [NFR-002] |
-| GKE Autopilot Cluster | `./sources/infra/terraform/gcp/gke.tf` | [NFR-002], [NFR-003] |
-| Cloud SQL Instance | `./sources/infra/terraform/gcp/cloudsql.tf` | [NFR-002], [DAT-001] |
-| Memorystore Redis | `./sources/infra/terraform/gcp/memorystore.tf` | [NFR-002], [REQ-003] |
+| Prerequisites & Tooling | [DOC-001] | Software dependencies, versions, and IAM role requirements |
+| Infrastructure Provisioning (Terraform) | [NFR-002], [DOC-001] | GCP infrastructure deployment via Terraform (VPC, GKE, Cloud SQL, Memorystore) |
+| Application Deployment (Kubernetes) | [NFR-003], [DOC-001] | Application manifests deployment, namespace, and rollout verification |
+| Rollback & Post-Deployment Verification | [NFR-003], [DOC-001] | Rollback procedures, smoke testing, Prometheus metrics, and Grafana verification |
+| Emergency Commands & Incident Response | [NFR-001], [NFR-002], [EXC-001], [EXC-002], [EXC-003], [EXC-005], [DOC-001] | Incident response for HTTP 429 rate limit spikes, Kafka failures, DB pool exhaustion, and storage expansion |
+| Deployment Workflow Sequence | [NFR-001], [NFR-002], [NFR-003], [DOC-001] | End-to-end deployment lifecycle sequence diagram |
 
 ---
 
-## 3. Application Deployment to GKE
+## 🔄 DEPLOYMENT LIFECYCLE SEQUENCE DIAGRAM [NFR-001], [NFR-002], [NFR-003], [DOC-001]
 
-Once the infrastructure is provisioned, deploy the microservices to the GKE cluster using Kubernetes manifests stored under `./sources/infra/kubernetes/socialscheduler/` [NFR-003].
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Ops as DevOps Engineer
+    participant GCP as Google Cloud Platform
+    participant GKE as GKE Cluster
+    participant Prom as Prometheus
+    participant Graf as Grafana
 
-### Step-by-Step Instructions
-
-#### 3.1 Configure Kubeconfig
-
-Authenticate `kubectl` with the newly created GKE cluster: [NFR-003]
-
-```bash
-gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1
-```
-
-#### 3.2 Create Namespace
-
-Create a dedicated namespace for the application: [NFR-003]
-
-```bash
-kubectl create namespace socialscheduler
-```
-
-#### 3.3 Apply Kubernetes Manifests
-
-Deploy all base manifests and overlays using Kustomize: [NFR-003]
-
-```bash
-kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/prod
-```
-
-> 🧩 This command applies Deployments, Services, HPAs, Ingress, and ConfigMaps from `./sources/infra/kubernetes/socialscheduler/base/`.
-
-#### 3.4 Verify Deployment Rollout Status
-
-Monitor the rollout status of core services to ensure successful pod initialization [NFR-003]:
-
-```bash
-kubectl rollout status deployment/schedule-service -n socialscheduler
-kubectl rollout status deployment/user-service -n socialscheduler
-kubectl rollout status deployment/ai-service -n socialscheduler
-kubectl rollout status deployment/rate-limit-service -n socialscheduler
+    Ops->>GCP: gcloud auth login & gcloud config set project
+    Ops->>GCP: cd ./sources/infra/terraform/gcp && terraform init/plan/apply
+    GCP-->>Ops: VPC, GKE, Cloud SQL, Memorystore Provisioned
+    Ops->>GKE: gcloud container clusters get-credentials socialscheduler-gke
+    Ops->>GKE: kubectl create namespace socialscheduler
+    Ops->>GKE: kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/prod
+    GKE-->>Ops: Deployments, Services, HPA, Ingress & ConfigMaps Applied
+    Ops->>GKE: kubectl rollout status deployment/schedule-service -n socialscheduler
+    GKE-->>Ops: Deployment successfully rolled out
+    Ops->>Prom: GET /api/v1/query?query=up
+    Prom-->>Ops: 200 OK (All metrics scraping targets active)
+    Ops->>Graf: Import & verify dashboard socialscheduler-overview.json
+    Graf-->>Ops: Verification complete (Latency P95 < 200ms)
 ```
 
 ---
 
-## 4. Rollback Procedures
+## 🏗️ PART 1: PREREQUISITES & TOOLING [DOC-001]
 
-If a newly deployed version exhibits critical failures, execute the rollback procedure immediately to restore service stability [NFR-003], [EXC-003].
+### 1.1. Required tool versions
+- **gcloud CLI**: Version `450.0.0` or later. Install and authenticate: `gcloud auth login`.
+- **kubectl**: Version `1.28` or later. Must match the GKE cluster version.
+- **Terraform**: Version `1.6.0` or later. Download from HashiCorp releases.
+- **IAM roles**: The executing account needs:
+  - `roles/owner` (or `roles/container.admin` for GKE operations)
+  - `roles/cloudsql.admin` (manage Cloud SQL instances)
+  - `roles/redis.admin` (manage Memorystore instances)
+  - `roles/iam.serviceAccountUser` (assign service accounts to workloads)
 
-### 4.1 Rollback Deployment via Kubectl
-
-Roll back the deployment to the previous stable revision:
-
+### 1.2. Environment verification
 ```bash
-kubectl rollout undo deployment/schedule-service -n socialscheduler
-kubectl rollout undo deployment/user-service -n socialscheduler
-kubectl rollout undo deployment/ai-service -n socialscheduler
-kubectl rollout undo deployment/rate-limit-service -n socialscheduler
+# Verify gcloud version
+gcloud version
+
+# Verify kubectl client version
+kubectl version --client
+
+# Verify terraform version
+terraform version
 ```
 
-### 4.2 Verify Rollback Status
-
-Confirm that all pods have successfully reverted to the stable image version:
-
+### 1.3. Authentication steps
 ```bash
-kubectl get pods -n socialscheduler -o wide
+# Login to Google Cloud
+gcloud auth login
+
+# Set default project (replace with actual project ID)
+gcloud config set project social-scheduler-prod
+
+# Set default region for Asia‑Southeast1
+gcloud config set region asia-southeast1
 ```
 
 ---
 
-## 5. Post-Deployment Validation Checklist
+## 🏗️ PART 2: INFRASTRUCTURE PROVISIONING (TERRAFORM) [NFR-002], [DOC-001]
 
-After completing the deployment to GKE, execute the following validation steps to ensure system health and performance compliance [NFR-001], [DOC-001]:
-
-### 5.1 Smoke Test Health Endpoints
-
-Perform HTTP GET requests to verify that all service health endpoints return HTTP 200 UP status:
-
+### 2.1. Initialize Terraform backend (GCS)
 ```bash
-curl -i https://api.socialscheduler.local/api/v1/schedules/health
-curl -i https://api.socialscheduler.local/api/v1/ai/recommendations/health
+# Navigate to the Terraform GCP directory
+cd ./sources/infra/terraform/gcp
+
+# Initialize backend for state management in GCS bucket
+terraform init \
+  -backend-config="bucket=socialscheduler-tfstate" \
+  -backend-config="prefix=terraform/state/prod"
 ```
 
-### 5.2 Validate Prometheus Metrics Collection
-
-Query Prometheus via the API to verify metric collection across all microservices [NFR-001]:
-
+### 2.2. Create an execution plan (plan)
 ```bash
-curl -G "http://prometheus.observability.svc.cluster.local:9090/api/v1/query" --data-urlencode "query=up"
+# Generate an execution plan file
+terraform plan -out=tfplan
+
+# Review the planned resources
+terraform show tfplan
 ```
 
-> ✅ Expected output: A list of active targets with value `1` for all deployed services.
-
-### 5.3 Grafana Dashboard Verification
-
-Access the Grafana web console and load the `socialscheduler-overview.json` dashboard located at `./sources/infra/observability/grafana-dashboard.json`. Verify that:
-- P95 Latency remains below 200ms [NFR-001].
-- HTTP 429 Rate Limit error counts are within normal operating bounds [REQ-003].
-- CPU and Memory utilizations per pod are stable and well within HPA thresholds [NFR-003].
-
----
-
-## 6. Emergency Troubleshooting Guide
-
-This section provides operational runbooks for resolving critical production incidents.
-
-### 6.1 Scenario A: HTTP 429 Rate Limit Flooding
-
-* **Symptom:** Clients report widespread HTTP 429 Too Many Requests errors; rate-limit service metrics spike [EXC-005], [REQ-003].
-* **Root Cause:** Traffic surge exceeding the Redis Token Bucket capacity or potential DDoS attack.
-* **Resolution Steps:**
-  1. Inspect Redis memory and connection pool status in Memorystore.
-  2. Temporarily increase token bucket capacity in `./sources/backend/rate-limit-service/src/main/resources/application.yml` or via ConfigMap update:
-     ```bash
-     kubectl set env deployment/rate-limit-service RATE_LIMIT_CAPACITY=200 -n socialscheduler
-     ```
-  3. If traffic is malicious, enable Google Cloud Armor security policy on the Ingress gateway.
-
-### 6.2 Scenario B: Kafka Consumer Lag Spike
-
-* **Symptom:** Scheduled posts are not published on time; Kafka consumer lag exceeds 1000 messages [NFR-001].
-* **Root Cause:** Upstream third-party social platform API (Facebook, Instagram, TikTok) throttling or downtime [EXC-001].
-* **Resolution Steps:**
-  1. Check Kafka consumer group status:
-     ```bash
-     kubectl exec -it kafka-broker-0 -n kafka -- kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group schedule-consumer-group
-     ```
-  2. Inspect application logs for `SocialPlatformException` errors:
-     ```bash
-     kubectl logs -l app=schedule-service -n socialscheduler --tail=100 | grep "SocialPlatformException"
-     ```
-  3. Scale up `schedule-service` replicas to handle backlog processing:
-     ```bash
-     kubectl scale deployment/schedule-service --replicas=10 -n socialscheduler
-     ```
-
-### 6.3 Scenario C: Cloud SQL Database Storage Exhaustion
-
-* **Symptom:** Database connections fail; application logs report SQL connection timeouts or disk full errors [DAT-001], [EXC-003].
-* **Root Cause:** Unbounded growth of `performance_metrics` or audit logs.
-* **Resolution Steps:**
-  1. Check Cloud SQL instance disk utilization in GCP Console.
-  2. Resize storage interactively via Terraform (`./sources/infra/terraform/gcp/cloudsql.tf`) or GCP Console.
-  3. Execute data cleanup script for expired rate limit windows or old performance metrics:
-     ```sql
-     DELETE FROM rate_limit_schema.rate_limits WHERE window_end < NOW() - INTERVAL '7 days';
-     ```
-
----
-
-## 7. Traceability Matrix Reference
-
-| Requirement ID | Architectural Domain | Description / Compliance Target | Document Section |
-| :--- | :--- | :--- | :--- |
-| **[DOC-001]** | Enterprise Documentation | Production deployment runbook and operational guidelines | Sections 1, 2, 3, 4, 5, 6 |
-| **[NFR-001]** | Performance & Observability | P95 latency < 200ms, Prometheus/Grafana monitoring | Sections 1, 5 |
-| **[NFR-002]** | Security & Compliance | Terraform GCP provisioning, least-privilege IAM, OWASP Top 10 | Sections 1, 2 |
-| **[NFR-003]** | Cloud Architecture | GKE Autopilot, Kubernetes manifests, HPA, horizontal scaling | Sections 2, 3, 4 |
-| **[REQ-001]** | Core Business Logic | Multi-platform scheduling (Facebook, Instagram, TikTok) | Sections 5, 6 |
-| **[REQ-003]** | Rate Limiting | Redis Token Bucket rate limiter, HTTP 429 response handling | Sections 5, 6 |
-| **[DAT-001]** | Database & Persistence | Schema-per-tenant, Cloud SQL PostgreSQL persistence | Sections 1, 6 |
-| **[EXC-001]** | Fault Tolerance | Handling third-party SDK and network failures | Section 6 |
-| **[EXC-005]** | Rate Limit Exception | Proper HTTP 429 formatting and `Retry-After` header | Section 6 |
-```
-```properties:cross_audit_ledger
-[AUTOMATED_SELF_AUDIT_REPORT]
-TOTAL_PHASES_DECLARED_IN_SECTION_4_2=5
-TOTAL_PHASES_EXPECTED_BY_PARAMETERS=5
-PHASE_COUNT_COMPLIANCE_STATUS=Verified_5
-MAX_DAYS_PER_PHASE_LIMIT_PARAMETER=7
-ACTUAL_MAX_DAY_INDEX_DETECTED_IN_TIMELINE=2
-TIMELINE_DAY_CAP_COMPLIANCE_STATUS=Verified_All_Phase_Durations_Within_Ceiling
-TOTAL_TASKS_REGISTERED_IN_MASTER_BACKLOG_4_1=8
-TOTAL_DISCRETE_SUB_TASKS_GENERATED_IN_SECTION_5=8
-SUB_TASK_QUANTUM_COMPLIANCE_STATUS=Verified_Symmetry_Enforced_With_100_Percent_Symmetry
-```
+### 2.3. Apply the infrastructure (apply)
+```bash
