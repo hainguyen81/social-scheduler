@@ -11,7 +11,7 @@
 ## 📑 Mục Lục (Table of Contents)
 1. [Sơ đồ Ngữ cảnh Hệ thống (System Context)](#1-sơ-đồ-ngữ-cảnh-hệ-thống-system-context) [DOC-001]
 2. [Sơ đồ Container (Container Diagram)](#2-sơ-đồ-container-container-diagram) [DOC-001]
-3. [Sơ đồ Thành phần (Component Diagram - Schedule Service)](#3-sơ-đồ- thành-phần-component-diagram---schedule-service) [DOC-001]
+3. [Sơ đồ Thành phần (Component Diagram - Schedule Service)](#3-sơ-đồ-thành-phần-component-diagram---schedule-service) [DOC-001]
 4. [Sơ đồ Tuần tự Nghiệp vụ (Sequence Diagrams)](#4-sơ-đồ-tuần-tự-nghiệp-vụ-sequence-diagrams) [DOC-001]
 5. [Ma trận Phân quyền RBAC & Bảo mật OWASP](#5-ma-trận-phân-quyền-rbac--bảo-mật-owasp) [DOC-001]
 6. [Chỉ tiêu Hiệu năng, Phi chức năng & Ma trận Truy vết Tag ID](#6-chỉ-tiêu-hiệu-năng-phi-chức-năng--ma-trận-truy-vết-tag-id) [DOC-001]
