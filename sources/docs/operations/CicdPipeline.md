@@ -1,7 +1,7 @@
 ```markdown
 # Social Scheduler - CI/CD Pipeline Documentation
 
-**Document Version:** 1.2
+**Document Version:** 1.3
 **Last Updated:** 2026-08-31
 **Author:** Enterprise System Architect (SA Agent) & Senior Technical Writer
 **Approval Status:** Approved for Technical Review

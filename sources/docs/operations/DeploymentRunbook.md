@@ -341,7 +341,7 @@ kubectl exec -n socialscheduler deployment/user-service -- \
 
 ## 📝 KẾT LUẬN & QUY TRÌNH VẬN HÀNH
 
-Tài liệu Runbook Vận hành này được tổng hợp cho hệ thống microservices `social-scheduler` phiên bản 1.0.0, tuân thủ nghiêm ngặt các tiêu chí phi chức năng và kiến trúc enterprise:
+Tài liệu Runbook Vận hành này được tổng hợp cho hệ thống microservices `social-scheduler` phiên bản 1.0.0, tuân thủ nghiêm ngstrict các tiêu chí phi chức năng và kiến trúc enterprise:
 - **[NFR-001]**: Tối ưu hóa hiệu năng container, đảm bảo độ trễ P95 dưới 200ms cho các tác vụ lên lịch bài đăng và thông lượng > 1000 req/phút.
 - **[NFR-002]**: Tuân thủ chuẩn bảo mật OWASP Top 10, cô lập VPC mạng riêng tư, mã hóa TLS 1.3 đầu cuối và quản lý quyền hạn theo nguyên tắc Least Privilege.
 - **[NFR-003]**: Kiến trúc đa doanh nghiệp (Multi-tenancy) cô lập theo schema PostgreSQL per tenant, hỗ trợ mở rộng ngang tự động với Kubernetes HPA.
