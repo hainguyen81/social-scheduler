@@ -1,4 +1,15 @@
-<project>
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   Traceability Tags: [ARC-000]
+   Description: Maven descriptor for user-service module of social-scheduler project.
+   This file defines parent relationship, dependencies, build plugins, and configuration for Spring Boot application.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!-- Model version for Maven POM. -->
+    <modelVersion>4.0.0</modelVersion>
     <name>social-scheduler</name>
     <version>1.0 (Cơ sở)</version>
     <description>Khởi tạo khung dự án Microservices (Social Scheduler) với descriptor build cha-con chuẩn Spring Boot 3, Spring Cloud, Kafka client, JPA, Flyway, OAuth2 Resource Server, Redis. Di trú schema ban đầu cho bốn dịch vụ nghiệp vụ cốt lõi: user-service, schedule-service, ai-service, rate-limit-service.</description>
