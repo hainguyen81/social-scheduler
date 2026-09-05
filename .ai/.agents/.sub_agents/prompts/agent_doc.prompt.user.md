@@ -1,5 +1,5 @@
 ### 🏢 ENTERPRISE SYSTEM DOCUMENT MATRIX INJECTION
-*   Target Project Identity Safe Name: {{ project_name_safe }}
+*   Target Project Identity Safe Name: {{ project_name }}
 *   Enforced Java Package Prefix Base: org.nlh4j.{{ project_name | lower | replace(" ", "") | replace("_", "") | replace("-", "") }}
 *   Target Documentation Destination Path: `{{ target_component }}`
 
