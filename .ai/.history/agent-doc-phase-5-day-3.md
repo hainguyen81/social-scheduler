@@ -51337,3 +51337,1045 @@ flowchart TD
 This compliance matrix is continuously validated through automated CI/CD pipeline gates, including SonarQube static analysis, OWASP Dependency-Check vulnerability scanning, and Testcontainers integration suites executed prior to production promotion.
 ```
 
+# Day 3: model models/gemini-flash-latest - API Endpoint https://generativelanguage.googleapis.com/v1beta/openai
+* **Production source codebase at SOURCE destination**: INTEGRATION_SCOPE
+* **Production source codebase generated at TARGET destination**: ./sources/docs/architecture/SocialSchedulerBlueprint.md
+* **📝 Prompt / Tasks / Data**:
+### 🏢 ENTERPRISE SYSTEM DOCUMENT MATRIX INJECTION
+*   Target Project Identity Safe Name: social-scheduler
+*   Enforced Java Package Prefix Base: org.nlh4j.socialscheduler
+*   Target Documentation Destination Path: `./sources/docs/architecture/SocialSchedulerBlueprint.md`
+
+
+### ENTERPRISE DOCUMENTATION RECOVERY WORKSPACE
+* **Target Document Disk Status:** INCREMENTAL_MAINTENANCE_APPEND
+* **Current Living Document Content:**
+<EXISTING_DOCUMENT_CONTENT>
+```markdown
+# Social Scheduler Enterprise Architecture Blueprint
+## 🏛️ System Architecture & Engineering Specifications
+- **Project Identity:** `social-scheduler` [DOC-001]
+- **Base Package Path:** `org.nlh4j.socialscheduler` [DOC-001]
+- **Target Documentation Path:** `./sources/docs/architecture/SocialSchedulerBlueprint.md` [DOC-001]
+- **Blueprint Version:** 1.0.0 [DOC-001]
+- **Traceability Baseline:** [REQ-001], [REQ-002], [REQ-003], [DAT-001], [DAT-002], [DAT-003], [EXC-001], [EXC-002], [EXC-003], [EXC-004], [EXC-005], [ARC-001], [ARC-002], [ARC-003], [ARC-004], [ARC-005], [ARC-006], [NFR-001], [NFR-002], [NFR-003], [DOC-001]
+
+---
+
+## 📑 Mục Lục (Table of Contents)
+1. [Sơ đồ Ngữ cảnh Hệ thống (System Context)](#1-sơ-đồ-ngữ-cảnh-hệ-thống-system-context) [DOC-001]
+2. [Sơ đồ Container (Container Diagram)](#2-sơ-đồ-container-container-diagram) [DOC-001]
+3. [Sơ đồ Thành phần (Component Diagram - Schedule Service)](#3-sơ-đồ-thành-phần-component-diagram---schedule-service) [DOC-001]
+4. [Sơ đồ Tuần tự Nghiệp vụ (Sequence Diagrams)](#4-sơ-đồ-tuần-tự-nghiệp-vụ-sequence-diagrams) [DOC-001]
+5. [Ma trận Phân quyền RBAC & Bảo mật OWASP](#5-ma-trận-phân-quyền-rbac--bảo-mật-owasp) [DOC-001]
+6. [Chỉ tiêu Hiệu năng, Phi chức năng & Ma trận Truy vết Tag ID](#6-chỉ-tiêu-hiệu-năng-phi-chức-năng--ma-trận-truy-vết-tag-id) [DOC-001]
+
+---
+
+## 1. Sơ đồ Ngữ cảnh Hệ thống (System Context)
+
+Hệ thống **social-scheduler** được thiết kế theo kiến trúc Microservices hướng sự kiện (Event-Driven Microservices), tách biệt hoàn toàn giữa các bounded context nghiệp vụ nhằm đảm bảo khả năng mở rộng ngang (horizontal scaling), độ cô lập cao và khả năng chịu lỗi tối ưu [ARC-000], [NFR-003].
+```
+</EXISTING_DOCUMENT_CONTENT>
+
+
+
+*   Documentation Context: Conceptual Init (Synthesize the architecture, guidelines, or specs based purely on the execution sub-tasks blueprint.)
+
+
+### 📋 EXECUTION SUB-TASKS & DOCUMENT CONTENT TO WRITE
+['Soạn thảo tài liệu Markdown tại ./sources/docs/architecture/SocialSchedulerBlueprint.md trình bày kiến trúc microservices của social-scheduler. Tài liệu phải bao gồm mục lục và sáu phần nội dung chính. Phần 1 trình bày sơ đồ ngữ cảnh (System Context) sử dụng sơ đồ Mermaid flowchart LR miêu tả User và Admin truy cập API Gateway, Gateway định tuyến đến bốn dịch vụ user-service, schedule-service, ai-service, rate-limit-service, schedule-service publish sự kiện vào Kafka topic schedule.events, ai-service tiêu thụ sự kiện từ Kafka, rate-limit-service sử dụng Redis Token Bucket, schedule-service kết nối Facebook Graph API, Instagram Graph API và TikTok Open API, ai-service gọi OpenAI Completion API, các dịch vụ lưu trữ dữ liệu trong Cloud SQL Postgres. Phần 2 trình bày sơ đồ container (Container Diagram) chi tiết các thành phần kỹ thuật bên trong mỗi microservice. Phần 3 trình bày sơ đồ thành phần (Component Diagram) cho schedule-service. Phần 4 trình bày hai sơ đồ tuần tự: luồng lập lịch đăng bài (User → Gateway → ScheduleService → Kafka → IntegrationService → SocialPlatform) và luồng đề xuất AI (User → Gateway → AIService → OpenAI). Phần 5 trình bày ma trận RBAC ánh xạ bốn vai trò [ARC-001] Admin, [ARC-002] User, [ARC-003] Scheduler, [ARC-004] Analyst sang quyền hạn cụ thể. Phần 6 trình bày chính sách bảo mật [ARC-006] tuân thủ OWASP Top 10 và chỉ tiêu hiệu năng [NFR-001], [NFR-002], [NFR-003]. Bảng cuối tài liệu ánh xạ các Tag ID [DAT-001], [DAT-002], [DAT-003] sang bảng dữ liệu tương ứng.']
+
+---
+
+### ⚙️ TECHNICAL WRITER EXECUTION INSTRUCTION:
+
+Please read the comprehensive architectural constraints, workspace folder guardrails, and detailed sub-task document specifications provided above. Analyze the `<EXISTING_DOCUMENT_CONTENT>` layout, you MUST precisely insert the new architectural specifications into their logical structural sections within the current document text. Do NOT overwrite or shrink the pre-existing enterprise content blocks.
+
+
+Ensure that you read the exact Tag IDs from the `['[DOC-001]']` variable, and permanently burn those codes into the generated documentation layout (inside the table columns or the dedicated Traceability Matrix Reference section). Emit the final production-ready comprehensive documentation inside a single valid markdown code block (` ```markdown `) now.
+* **📝 Response**:
+```markdown
+# Social Scheduler Enterprise Architecture Blueprint
+## 🏛️ System Architecture & Engineering Specifications
+- **Project Identity:** `social-scheduler` [DOC-001]
+- **Base Package Path:** `org.nlh4j.socialscheduler` [DOC-001]
+- **Target Documentation Path:** `./sources/docs/architecture/SocialSchedulerBlueprint.md` [DOC-001]
+- **Blueprint Version:** 1.0.0 [DOC-001]
+- **Traceability Baseline:** [REQ-001], [REQ-002], [REQ-003], [DAT-001], [DAT-002], [DAT-003], [EXC-001], [EXC-002], [EXC-003], [EXC-004], [EXC-005], [ARC-001], [ARC-002], [ARC-003], [ARC-004], [ARC-005], [ARC-006], [NFR-001], [NFR-002], [NFR-003], [DOC-001]
+
+---
+
+## 📑 Mục Lục (Table of Contents)
+1. [Sơ đồ Ngữ cảnh Hệ thống (System Context)](#1-sơ-đồ-ngữ-cảnh-hệ-thống-system-context) [DOC-001]
+2. [Sơ đồ Container (Container Diagram)](#2-sơ-đồ-container-container-diagram) [DOC-001]
+3. [Sơ đồ Thành phần (Component Diagram - Schedule Service)](#3-sơ-đồ-thành-phần-component-diagram---schedule-service) [DOC-001]
+4. [Sơ đồ Tuần tự Nghiệp vụ (Sequence Diagrams)](#4-sơ-đồ-tuần-tự-nghiệp-vụ-sequence-diagrams) [DOC-001]
+5. [Ma trận Phân quyền RBAC & Bảo mật OWASP](#5-ma-trận-phân-quyền-rbac--bảo-mật-owasp) [DOC-001]
+6. [Chỉ tiêu Hiệu năng, Phi chức năng & Ma trận Truy vết Tag ID](#6-chỉ-tiêu-hiệu-năng-phi-chức-năng--ma-trận-truy-vết-tag-id) [DOC-001]
+
+---
+
+## 1. Sơ đồ Ngữ cảnh Hệ thống (System Context)
+
+Hệ thống **social-scheduler** được thiết kế theo kiến trúc Microservices hướng sự kiện (Event-Driven Microservices), tách biệt hoàn toàn giữa các bounded context nghiệp vụ nhằm đảm bảo khả năng mở rộng ngang (horizontal scaling), độ cô lập cao và khả năng chịu lỗi tối ưu [ARC-000], [NFR-003].
+
+### 🌐 Mô hình Tương tác Ngữ cảnh Cấp cao (System Context Flowchart) [DOC-001]
+
+Người dùng doanh nghiệp (`User`) và quản trị viên (`Admin`) tương tác với hệ thống thông qua giao thức an toàn TLS 1.3 tới API Gateway trung tâm. API Gateway chịu trách nhiệm giải mã token JWT, phân quyền RBAC, kiểm tra hạn mức qua `rate-limit-service`, sau đó định tuyến lưu lượng vào các microservice chuyên trách. Dịch vụ lập lịch `schedule-service` giao tiếp bất đồng bộ qua Kafka broker, tích hợp trực tiếp với SDK Facebook, Instagram, TikTok. Dịch vụ đề xuất `ai-service` tiêu thụ số liệu hiệu suất lịch sử và tích hợp mô hình OpenAI để cung cấp nội dung thông minh.
+
+```mermaid
+flowchart LR
+    User([End User / Social Content Creator]) -->|HTTPS / REST / JWT| Gateway[API Gateway :8080]
+    Admin([System / Security Administrator]) -->|HTTPS / REST / JWT| Gateway
+
+    subgraph Core_Microservices [Social Scheduler Service Mesh]
+        Gateway -->|Proxy / Auth Header| UserSvc[user-service :8081]
+        Gateway -->|Proxy / Rate Checked| ScheduleSvc[schedule-service :8082]
+        Gateway -->|Proxy / Rate Checked| AISvc[ai-service :8083]
+        Gateway -->|Token Bucket In-flight| RateSvc[rate-limit-service :8084]
+
+        ScheduleSvc -->|Publish schedule.created / schedule.executed| KafkaBroker[(Kafka Topic: schedule.events)]
+        AISvc -->|Consume metrics.collected| KafkaBroker
+
+        RateSvc -->|Sliding Window Rate Limit| RedisCache[(Redis Token Bucket :6379)]
+        
+        UserSvc -->|Schema: user_schema| CloudSQL[(Cloud SQL PostgreSQL :5432)]
+        ScheduleSvc -->|Schema: schedule_schema| CloudSQL
+        AISvc -->|Schema: ai_schema| CloudSQL
+        RateSvc -->|Schema: rate_limit_schema| CloudSQL
+    end
+
+    subgraph External_Social_Providers [External Social Platforms]
+        ScheduleSvc -->|Graph API HTTPS POST /v19.0| FB[Facebook Graph API]
+        ScheduleSvc -->|Graph API HTTPS POST /v19.0| IG[Instagram Graph API]
+        ScheduleSvc -->|Open API HTTPS POST /v2| TT[TikTok Open API]
+    end
+
+    subgraph External_AI_Providers [AI Intelligence Platform]
+        AISvc -->|Chat Completion API HTTPS POST| OpenAI[OpenAI Completion API]
+    end
+```
+
+---
+
+## 2. Sơ đồ Container (Container Diagram)
+
+Mỗi microservice trong hệ sinh thái `social-scheduler` được đóng gói trong một container OCI độc lập thông qua Docker đa giai đoạn (Multi-stage Build), vận hành trên hạ tầng điều phối Kubernetes (GKE Autopilot) với môi trường Java 21 LTS (Eclipse Temurin) [NFR-001], [NFR-003].
+
+```mermaid
+flowchart TB
+    subgraph Client_Tier [Client & Gateway Tier]
+        ClientApp[Web Browser / Mobile Hybrid Capacitor] -->|HTTPS 443| IngressController[NGINX Ingress Controller / TLS 1.3]
+        IngressController --> GatewayApp[api-gateway Pod: Spring Cloud Gateway / Netty]
+    end
+
+    subgraph Security_And_Rate_Limit [Authentication & Guard Tier]
+        GatewayApp -->|RbacPredicate / JwtAuthFilter| SecurityFilter[Spring Security 6 OAuth2 Resource Server]
+        GatewayApp -->|Check Bucket| RateLimitApp[rate-limit-service Pod: Spring Boot Web]
+        RateLimitApp --> RedisBucket[(Redis Cluster Memorystore: Redis 7.x)]
+    end
+
+    subgraph Processing_Tier [Application Microservices Tier]
+        GatewayApp -->|Route: /api/v1/users| UserApp[user-service Pod: Spring Data JPA]
+        GatewayApp -->|Route: /api/v1/schedules| ScheduleApp[schedule-service Pod: Spring Data JPA & Web]
+        GatewayApp -->|Route: /api/v1/ai/recommendations| AIApp[ai-service Pod: Spring Data JPA & WebFlux]
+
+        ScheduleApp -->|Event Stream| KafkaCluster[(Apache Kafka Event Bus: KRaft / 3 Partitions)]
+        AIApp -.->|Event Ingestion| KafkaCluster
+    end
+
+    subgraph Persistence_Tier [Database Infrastructure Tier]
+        UserApp -->|Flyway V1__init_users.sql| PG_Users[(PostgreSQL Schema: user_schema)]
+        ScheduleApp -->|Flyway V1__init_schedules.sql| PG_Schedules[(PostgreSQL Schema: schedule_schema)]
+        AIApp -->|Flyway V1__init_performance_metrics.sql| PG_AI[(PostgreSQL Schema: ai_schema)]
+        RateLimitApp -->|Flyway V1__init_rate_limits.sql| PG_Rate[(PostgreSQL Schema: rate_limit_schema)]
+    end
+
+    subgraph Third_Party_Integrations [External Integration Tier]
+        ScheduleApp -->|Adapter REST| FBClient[FacebookClient.java]
+        ScheduleApp -->|Adapter REST| IGClient[InstagramClient.java]
+        ScheduleApp -->|Adapter REST| TTClient[TikTokClient.java]
+        AIApp -->|OpenAI SDK / Circuit Breaker| OpenAiAdapter[OpenAIClient.java]
+    end
+```
+
+### 📦 Chi tiết Thông số Kỹ thuật Container [DOC-001], [NFR-001], [NFR-003]
+
+| Dịch vụ Container | Base Image Runtime | Cổng Phơi bày | CPU Req/Limit | RAM Req/Limit | Cơ chế Giám sát Sức khỏe (Healthcheck) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `api-gateway` | `eclipse-temurin:21-jre-jammy` | `8080` | `250m / 500m` | `512Mi / 768Mi` | `GET /actuator/health/liveness` [NFR-001] |
+| `user-service` | `eclipse-temurin:21-jre-jammy` | `8081` | `250m / 500m` | `512Mi / 768Mi` | `GET /actuator/health/readiness` [NFR-001] |
+| `schedule-service` | `eclipse-temurin:21-jre-jammy` | `8082` | `500m / 1000m`| `768Mi / 1536Mi`| `GET /actuator/health/readiness` [NFR-001] |
+| `ai-service` | `eclipse-temurin:21-jre-jammy` | `8083` | `500m / 1000m`| `1024Mi / 2048Mi`| `GET /actuator/health/readiness` [NFR-001] |
+| `rate-limit-service`| `eclipse-temurin:21-jre-jammy` | `8084` | `250m / 500m` | `384Mi / 512Mi` | `GET /actuator/health/liveness` [NFR-001] |
+
+---
+
+## 3. Sơ đồ Thành phần (Component Diagram - Schedule Service)
+
+Dịch vụ `schedule-service` đóng vai trò hạt nhân điều phối việc lập lịch, chuyển đổi trạng thái và gửi bài đăng tới các nền tảng mạng xã hội [REQ-001]. Cấu trúc nội bộ của thành phần được tổ chức chặt chẽ theo nguyên tắc Clean Architecture và Single Responsibility Principle (SRP) [ARC-005].
+
+```mermaid
+flowchart TD
+    subgraph Package_ScheduleService [org.nlh4j.socialscheduler.scheduleservice]
+        Controller[ScheduleController.java]
+        Validator[SchedulePayloadValidator.java]
+        Service[ScheduleService.java]
+        Repository[(ScheduleRepository.java)]
+        Entity[ScheduleEntity.java]
+        GlobalExHandler[GlobalExceptionHandler.java]
+        
+        subgraph Integration_Submodule [Integration Adapters]
+            FB_Adapter[FacebookClient.java]
+            IG_Adapter[InstagramClient.java]
+            TT_Adapter[TikTokClient.java]
+            Dispatcher[SocialPlatformDispatcher.java]
+        end
+
+        subgraph Event_Submodule [Kafka Messaging Components]
+            KafkaProducer[ScheduleEventProducer.java]
+        end
+    end
+
+    Controller -->|DTO Validation @Valid| Validator
+    Controller -->|Delegates Logic| Service
+    Controller -.->|Handles Exceptions| GlobalExHandler
+    Service -->|CRUD Operations| Repository
+    Repository -->|Maps Schema| Entity
+    Service -->|Dispatches Network Call| Dispatcher
+    Dispatcher --> FB_Adapter
+    Dispatcher --> IG_Adapter
+    Dispatcher --> TT_Adapter
+    Service -->|Emits Audit Event| KafkaProducer
+    KafkaProducer -->|Publishes to| KafkaTopic[(Topic: schedule.events)]
+    
+    FB_Adapter -.->|Throws on failure| SocialPlatformEx[SocialPlatformException.java]
+    IG_Adapter -.->|Throws on failure| SocialPlatformEx
+    TT_Adapter -.->|Throws on failure| SocialPlatformEx
+    SocialPlatformEx --> GlobalExHandler
+```
+
+### 🧩 Phân tích Trách nhiệm Thành phần [DOC-001], [REQ-001]
+- **`ScheduleController.java`:** Tiếp nhận HTTP Request (`POST`, `PUT`, `DELETE`), thực thi kiểm tra bảo mật tiền điều kiện (`@PreAuthorize`), và ánh xạ dữ liệu sang DTO [ARC-001], [ARC-002], [ARC-003].
+- **`SchedulePayloadValidator.java`:** Rà soát ngữ nghĩa payload, ngăn chặn XSS, giới hạn độ dài nội dung tối đa 5000 ký tự và xác thực thời điểm đăng trong tương lai [REQ-003].
+- **`ScheduleService.java`:** Quản lý vòng đời trạng thái của bài đăng (`PENDING` ➔ `SENT` / `FAILED` / `CANCELLED`), tính toán cơ chế retry exponential backoff khi gặp lỗi [REQ-001], [EXC-001].
+- **`SocialPlatformDispatcher.java` & Adapters:** Định tuyến cuộc gọi mạng sang adapter nền tảng tương ứng (Facebook, Instagram, TikTok) bằng `RestClient`/`WebClient` có cấu hình timeout nghiêm ngặt [REQ-001].
+- **`GlobalExceptionHandler.java`:** Bắt chặn `SocialPlatformException`, `MethodArgumentNotValidException`, `JwtException` và chuyển hóa thành payload lỗi RFC 7807 chuẩn hóa [EXC-001], [EXC-002], [EXC-005].
+
+---
+
+## 4. Sơ đồ Tuần tự Nghiệp vụ (Sequence Diagrams)
+
+### 🔄 Luồng Lập lịch Đăng bài Tự động Đa nền tảng [REQ-001], [EXC-001], [EXC-002], [EXC-005]
+
+Luồng xử lý mô tả hành trình từ khi người dùng gửi yêu cầu lập lịch đăng bài qua API Gateway, qua bộ kiểm tra rate limit, xác thực JWT, lưu trạng thái `PENDING`, phát sự kiện Kafka, đến khi bộ tác vụ định thời thực hiện gửi bài qua Social Platform API.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Content Creator (User)
+    participant Gateway as API Gateway (JwtAuthFilter)
+    participant RateLimit as rate-limit-service (Redis)
+    participant SchedSvc as schedule-service
+    participant Database as PostgreSQL (Cloud SQL)
+    participant Kafka as Kafka (schedule.events)
+    participant Platform as Social Platform API (FB/IG/TikTok)
+
+    User->>Gateway: POST /api/v1/schedules (Bearer Token, Payload)
+    Note over Gateway: Kiểm tra chữ ký JWT & Claim Role [ARC-005]
+    alt Token Hết Hạn hoặc Không Hợp Lệ [EXC-002]
+        Gateway-->>User: 401 Unauthorized (TOKEN_EXPIRED)
+    end
+
+    Gateway->>RateLimit: Check User Token Bucket Rate Limit [REQ-003]
+    alt Vượt Ngưỡng Giới Hạn Tỷ Lệ [EXC-005]
+        RateLimit-->>Gateway: RateLimitExceededException (HTTP 429)
+        Gateway-->>User: 429 Too Many Requests (Retry-After: 60)
+    else Hạn Mức Hợp Lệ
+        RateLimit-->>Gateway: 200 OK (Allowed: true)
+    end
+
+    Gateway->>SchedSvc: Forward POST /api/v1/schedules
+    SchedSvc->>SchedSvc: Validate Payload via SchedulePayloadValidator [REQ-003]
+    SchedSvc->>Database: INSERT INTO schedules (status: 'PENDING') [DAT-001]
+    Database-->>SchedSvc: 1 Row Inserted (UUID generated)
+    SchedSvc->>Kafka: Publish Event [schedule.created]
+    SchedSvc-->>Gateway: 201 Created (ScheduleResponseDto)
+    Gateway-->>User: 201 Created (Status: PENDING)
+
+    Note over SchedSvc,Platform: Đến thời điểm đăng bài (Scheduler Trigger)
+    SchedSvc->>Platform: REST POST (Publish Content) [REQ-001]
+    alt Nền Tảng Mạng Xã Hội Trả Lỗi (5xx / Network Timeout) [EXC-001]
+        Platform-->>SchedSvc: HTTP 500 / Timeout Error
+        SchedSvc->>SchedSvc: Ném SocialPlatformException & Tăng retry_count [EXC-001]
+        SchedSvc->>Database: UPDATE schedules SET status='FAILED', retry_count = retry_count + 1
+        SchedSvc->>Kafka: Publish Event [post.failed]
+    else Nền Tảng Đăng Bài Thành Công
+        Platform-->>SchedSvc: HTTP 200 OK (Remote Post ID)
+        SchedSvc->>Database: UPDATE schedules SET status='SENT', actual_sent_time = CURRENT_TIMESTAMP
+        SchedSvc->>Kafka: Publish Event [post.published]
+    end
+```
+
+### 🧠 Luồng Đề xuất Nội dung bằng AI/ML & Fallback Phục hồi [REQ-002], [EXC-003], [EXC-004]
+
+Luồng xử lý mô tả cách `ai-service` tiếp nhận yêu cầu gợi ý nội dung, truy vấn dữ liệu hiệu suất lịch sử, gọi OpenAI Chat Completion API, và kích hoạt cơ chế `DefaultContentFallback` khi dịch vụ AI gặp sự cố.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Content Creator (User)
+    participant Gateway as API Gateway
+    participant AISvc as ai-service (RecommendationController)
+    participant RecService as RecommendationService
+    participant Analytics as PerformanceAnalyticsClient
+    participant OpenAI as OpenAI Completion API
+    participant Fallback as DefaultContentFallback
+    participant Database as PostgreSQL (ai_schema)
+
+    User->>Gateway: POST /api/v1/ai/recommendations (Topic, Platform, Tone)
+    Gateway->>AISvc: Forward Authorized Request (X-Tenant-Id)
+    AISvc->>RecService: generateRecommendation(RecommendationRequestDto)
+    
+    RecService->>Analytics: findTopPerformingPosts(userId, platform)
+    Analytics->>Database: SELECT FROM performance_metrics WHERE tenant_id = ? ORDER BY (likes+comments+shares) DESC [DAT-002]
+    Database-->>Analytics: Return Top 5 Posts Performance Data
+    Analytics-->>RecService: List<PerformanceMetricEntity>
+
+    RecService->>RecService: Build Optimized Prompt (Context + Metrics + Tone)
+    
+    RecService->>OpenAI: POST /v1/chat/completions (gpt-4o-mini) [REQ-002]
+    alt OpenAI Trả Lỗi / Quá Tải / Timeout [EXC-003]
+        OpenAI-->>RecService: HTTP 503 / 429 Too Many Requests / Timeout
+        RecService->>RecService: Ghi log cảnh báo cấu trúc & Bắt AiServiceException [EXC-003]
+        RecService->>Fallback: provide(RecommendationRequestDto) [EXC-004]
+        Fallback-->>RecService: RecommendationResponseDto (isFallback=true, confidenceScore=0.3)
+    else OpenAI Phản Hồi Thành Công
+        OpenAI-->>RecService: HTTP 200 OK (Generated Content)
+        RecService->>RecService: Parse Response (isFallback=false, confidenceScore=0.85)
+    end
+
+    RecService-->>AISvc: Return RecommendationResponseDto
+    AISvc-->>Gateway: HTTP 200 OK (Payload)
+    Gateway-->>User: HTTP 200 OK (Content, Confidence, isFallback)
+```
+
+---
+
+## 5. Ma trận Phân quyền RBAC & Bảo mật OWASP
+
+### 🛡️ Ma trận Phân quyền 4 Vai trò RBAC [ARC-001], [ARC-002], [ARC-003], [ARC-004]
+
+Hệ thống áp dụng mô hình phân quyền dựa trên vai trò (Role-Based Access Control) thông qua xác thực JWT Bearer Token, được ánh xạ vào danh sách quyền hạn chi tiết (Granted Authorities) tại tầng Spring Security 6 [ARC-005].
+
+| Chức năng Nghiệp vụ / Quyền hạn Cụ thể | Quản trị viên (ADMIN) [ARC-001] | Người dùng (USER) [ARC-002] | Lập lịch viên (SCHEDULER) [ARC-003] | Phân tích viên (ANALYST) [ARC-004] | Mã Định danh Truy vết |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| Quản lý tài khoản & gán quyền tenant | ✅ Toàn quyền | ❌ Từ chối | ❌ Từ chối | ❌ Từ chối | [ARC-001], [ARC-005] |
+| Đặt lại hạn mức giới hạn tỷ lệ (`/reset`) | ✅ Toàn quyền | ❌ Từ chối | ❌ Từ chối | ❌ Từ chối | [ARC-001], [REQ-003] |
+| Tạo mới và cập nhật lịch đăng bài | ✅ Cho phép | ✅ Cho phép | ✅ Cho phép | ❌ Từ chối | [ARC-002], [ARC-003], [REQ-001] |
+| Hủy bỏ và xóa lịch đăng bài | ✅ Cho phép | ✅ Cho phép | ✅ Cho phép | ❌ Từ chối | [ARC-002], [ARC-003], [REQ-001] |
+| Yêu cầu đề xuất nội dung AI (`/recommendations`) | ✅ Cho phép | ✅ Cho phép | ❌ Từ chối | ✅ Cho phép | [ARC-002], [ARC-004], [REQ-002] |
+| Truy vấn số liệu hiệu suất & Analytics Dashboard | ✅ Cho phép | ✅ Cho phép (Cá nhân) | ❌ Từ chối | ✅ Toàn tenant | [ARC-004], [DAT-002] |
+| Truy cập số liệu Prometheus & Actuator Endpoints | ✅ Toàn quyền | ❌ Từ chối | ❌ Từ chối | ❌ Từ chối | [ARC-001], [NFR-001] |
+
+### 🔒 Ma trận Tuân thủ OWASP Top 10 [ARC-006], [NFR-002]
+
+| Tiêu chuẩn Lỗ hổng OWASP Top 10 | Biện pháp Kỹ thuật Triển khai trong Hệ thống social-scheduler | Mã Định danh Ánh xạ |
+| :--- | :--- | :--- |
+| **A01: Broken Access Control** | Kiểm soát phân quyền khai báo thông qua `@PreAuthorize` tại tầng Controller, cô lập dữ liệu schema theo `tenant_id` tại mọi truy vấn PostgreSQL, kích hoạt Spring Security 6 JwtAuthFilter tại API Gateway. | [ARC-001] đến [ARC-004], [NFR-003] |
+| **A02: Cryptographic Failures** | Buộc mã hóa TLS 1.3 đầu cuối cho toàn bộ giao tiếp mạng; mật khẩu lưu trữ băm bằng BCrypt (work factor 12); bí mật JWT và API Keys lưu trong GCP Secret Manager và nạp qua Kubernetes Secrets. | [NFR-002], [ARC-005] |
+| **A03: Injection (SQLi & Command)** | Sử dụng 100% Prepared Statements / Hibernate Parameterized Binding; áp dụng whitelist trường sắp xếp tĩnh `ALLOWED_SORT_FIELDS`; Jakarta Validation loại bỏ ký tự điều khiển. | [DAT-001], [DAT-002], [DAT-003], [NFR-002] |
+| **A04: Insecure Design** | Triển khai phòng thủ đa lớp (Defense-in-Depth); áp dụng Rate Limiter Redis Token Bucket ngăn ngừa tấn công vũ phu và vét cạn tài nguyên. | [REQ-003], [EXC-005], [NFR-002] |
+| **A05: Security Misconfiguration** | Tiêu đề HTTP bảo mật nghiêm ngặt (CSP, HSTS 31536000, X-Content-Type-Options: nosniff); vô hiệu hóa cấu hình mặc định không an toàn; CORS Whitelist theo bảng `TENANT_ORIGINS`. | [NFR-002], [ARC-006] |
+| **A07: Identification and Authentication Failures** | Xác thực OAuth2 Resource Server; kiểm tra thời hạn token chặt chẽ; tự động từ chối token hết hạn với mã lỗi chuẩn `TOKEN_EXPIRED` và thu hồi token bị xâm phạm. | [ARC-005], [EXC-002] |
+| **A09: Security Logging and Monitoring Failures** | Ghi log có cấu trúc (Structured JSON Logging); lọc và che giấu dữ liệu PII qua `LogScrubbingInterceptor`; thu thập metric thời gian thực bằng Prometheus và hiển thị qua Grafana Dashboard. | [NFR-001], [NFR-002] |
+
+---
+
+## 6. Chỉ tiêu Hiệu năng, Phi chức năng & Ma trận Truy vết Tag ID
+
+### ⚡ Chỉ tiêu Phi Chức năng (Non-Functional Requirements) [NFR-001], [NFR-002], [NFR-003]
+
+1. **Hiệu năng & Độ trễ [NFR-001]:**
+   - Độ trễ phản hồi (Response Latency P95) cho các tác vụ lập lịch thông thường phải đạt mức **< 200ms**.
+   - Thông lượng hệ thống tối thiểu đạt **> 1000 requests/phút** trên toàn bộ API Gateway mà không gây suy giảm tài nguyên.
+   - Cơ chế thu dọn bộ nhớ Java (G1GC) được tối ưu hóa với tham số `-XX:+UseG1GC -XX:MaxRAMPercentage=1.0` trên toàn bộ pod runtime.
+
+2. **Bảo mật & Mã hóa [NFR-002]:**
+   - 100% dữ liệu truyền tải trên mạng công cộng và nội bộ cụm Kubernetes phải được bảo vệ qua kênh mã hóa **TLS 1.3 / mTLS**.
+   - Không xuất hiện bất kỳ chuỗi nhạy cảm (PII, Passwords, API Keys, JWT Tokens) dạng rõ (cleartext) trong hệ thống log tập trung.
+   - Các API nhạy cảm có khả năng thay đổi dữ liệu (`POST`, `PUT`, `DELETE`) đều phải áp dụng kiểm tra khóa Idempotency Key.
+
+3. **Cô lập Đa Tenant & Khả năng Mở rộng [NFR-003]:**
+   - Cơ sở dữ liệu Cloud SQL PostgreSQL áp dụng chiến lược phân vùng theo schema riêng biệt (`schema-per-tenant`) cho từng tenant doanh nghiệp.
+   - Mọi truy vấn đọc/ghi đều bắt buộc chứa điều kiện lọc `WHERE tenant_id = :tenantId`.
+   - Cụm GKE kích hoạt Horizontal Pod Autoscaler (HPA) tự động co giãn từ 3 đến 20 bản sao pod khi ngưỡng sử dụng CPU > 60% hoặc RAM > 70%.
+
+---
+
+### 🗄️ Ma trận Ánh xạ Thực thể Dữ liệu Lược đồ (Database Schema Matrix) [DOC-001]
+
+Dưới đây là bảng đặc tả ánh xạ chi tiết các bảng dữ liệu quan hệ được khởi tạo và quản lý bởi Flyway DDL sang các mã định danh kỹ thuật:
+
+| Bảng Cơ sở Dữ liệu | Schema PostgreSQL | Khóa Chính (Primary Key) | Khóa Ngoại (Foreign Keys) | Ràng buộc Miền (CHECK Constraints) | Mã Định danh Truy vết |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `users` | `user_schema` | `user_id (UUID)` | Không có | `role IN ('ADMIN', 'USER', 'SCHEDULER', 'ANALYST')` | **[DAT-001]**, **[DAT-ALL (1 to 3)]** |
+| `schedules` | `schedule_schema` | Phức hợp: `(schedule_id, user_id, platform, scheduled_time)` | `fk_schedules_user` ➔ `user_schema.users(user_id)` | `platform IN ('FACEBOOK', 'INSTAGRAM', 'TIKTOK')`<br/>`status IN ('PENDING', 'SENT', 'FAILED', 'CANCELLED')` | **[DAT-001]**, **[DAT-ALL (1 to 3)]** |
+| `performance_metrics`| `ai_schema` | Phức hợp: `(performance_id, post_id, collected_at)` | `fk_performance_schedule` ➔ `schedule_schema.schedules(schedule_id)` | `likes >= 0`<br/>`comments >= 0`<br/>`shares >= 0` | **[DAT-002]**, **[DAT-ALL (1 to 3)]** |
+| `rate_limits` | `rate_limit_schema` | Phức hợp: `(rate_limit_id, endpoint, window_start)` | `fk_rate_limits_user` ➔ `user_schema.users(user_id)` | `request_count >= 0`<br/>`endpoint IN ('/api/v1/schedules', '/api/v1/recommendations', '/api/v1/rate-limits', '/api/v1/users')` | **[DAT-003]**, **[DAT-ALL (1 to 3)]** |
+
+---
+
+### 📌 Bảng Tổng hợp Ma trận Truy vết Toàn diện (Traceability Matrix Reference) [DOC-001]
+
+Bảng ánh xạ 100% các mã định danh kỹ thuật (Tag IDs) kế thừa từ tài liệu SRS gốc sang các thành phần triển khai vật lý trong mã nguồn và hạ tầng của dự án `social-scheduler`:
+
+| Mã Tag ID | Phân loại | Tóm tắt Yêu cầu & Mục tiêu Kiến trúc | Đường dẫn Tệp Thành phần Thực thi Vật lý |
+| :--- | :--- | :--- | :--- |
+| **[REQ-001]** | Chức năng | Tự động hóa lịch đăng bài đa nền tảng Facebook, Instagram, TikTok với các trạng thái PENDING, SENT, FAILED, CANCELLED | `./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/service/ScheduleService.java`<br/>`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/controller/ScheduleController.java` |
+| **[REQ-002]** | Chức năng | Đề xuất nội dung bài đăng thông minh bằng OpenAI Completion API kết hợp phân tích số liệu hiệu suất lịch sử | `./sources/backend/ai-service/src/main/java/org/nlh4j/socialscheduler/aiservice/service/RecommendationService.java`<br/>`./sources/backend/ai-service/src/main/java/org/nlh4j/socialscheduler/aiservice/integration/OpenAIClient.java` |
+| **[REQ-003]** | Chức năng | Xác thực dữ liệu đầu vào nghiêm ngặt và giới hạn tỷ lệ sử dụng thuật toán Redis Token Bucket trả về HTTP 429 | `./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/strategy/RedisTokenBucketStrategy.java`<br/>`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/validator/SchedulePayloadValidator.java` |
+| **[DAT-001]** | Dữ liệu | Khởi tạo bảng `users` và `schedules` với các ràng buộc khóa chính UUID, khóa ngoại và chỉ mục phụ trợ | `./sources/backend/user-service/src/main/resources/db/migration/V1__init_users.sql`<br/>`./sources/backend/schedule-service/src/main/resources/db/migration/V1__init_schedules.sql` |
+| **[DAT-002]** | Dữ liệu | Khởi tạo bảng `performance_metrics` lưu trữ chỉ số tương tác bài đăng phục vụ mô hình học máy | `./sources/backend/ai-service/src/main/resources/db/migration/V1__init_performance_metrics.sql` |
+| **[DAT-003]** | Dữ liệu | Khởi tạo bảng `rate_limits` ghi nhận hạn mức và cửa sổ thời gian trượt của người dùng | `./sources/backend/rate-limit-service/src/main/resources/db/migration/V1__init_rate_limits.sql` |
+| **[EXC-001]** | Ngoại lệ | Bắt chặn và xử lý lỗi kết nối mạng, lỗi HTTP 5xx từ API bên thứ ba (Facebook, Instagram, TikTok) với cơ chế retry | `./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/exception/SocialPlatformException.java` |
+| **[EXC-002]** | Ngoại lệ | Phát hiện token JWT hết hạn hoặc không hợp lệ, tự động phản hồi HTTP 401 với mã lỗi `TOKEN_EXPIRED` | `./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/JwtAuthFilter.java`<br/>`./sources/backend/schedule-service/src/main/java/org/nlh4j/socialscheduler/scheduleservice/exception/GlobalExceptionHandler.java` |
+| **[EXC-003]** | Ngoại lệ | Xử lý lỗi gián đoạn từ OpenAI Completion API thông qua Resilience4j Circuit Breaker và ghi log cảnh báo | `./sources/backend/ai-service/src/main/java/org/nlh4j/socialscheduler/aiservice/exception/AiServiceException.java` |
+| **[EXC-004]** | Ngoại lệ | Kích hoạt bộ đề xuất nội dung dự phòng an toàn khi mô hình AI lỗi hoặc phản hồi không hợp lệ | `./sources/backend/ai-service/src/main/java/org/nlh4j/socialscheduler/aiservice/fallback/DefaultContentFallback.java` |
+| **[EXC-005]** | Ngoại lệ | Xử lý ngoại lệ vượt quá giới hạn tỷ lệ, trả về HTTP 429 kèm tiêu đề `Retry-After` và thông điệp giải thích | `./sources/backend/rate-limit-service/src/main/java/org/nlh4j/socialscheduler/ratelimitservice/exception/RateLimitExceededException.java` |
+| **[ARC-000]** | Kiến trúc | Khung cấu trúc dự án Microservices đa mô-đun Maven với Spring Boot 3 và Spring Cloud 2023 | `./sources/backend/pom.xml` |
+| **[ARC-001]** | Kiến trúc | Đặc tả và phân quyền hạn hạt nhân dành cho vai trò Quản trị viên hệ thống (`ADMIN`) | `./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/RbacPredicate.java` |
+| **[ARC-002]** | Kiến trúc | Đặc tả và phân quyền hạn dành cho vai trò Người dùng thông thường (`USER`) | `./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/RbacPredicate.java` |
+| **[ARC-003]** | Kiến trúc | Đặc tả và phân quyền hạn chuyên biệt cho vai trò Lập lịch viên nội dung (`SCHEDULER`) | `./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/RbacPredicate.java` |
+| **[ARC-004]** | Kiến trúc | Đặc tả và phân quyền hạn chuyên biệt cho vai trò Phân tích viên chỉ số (`ANALYST`) | `./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/RbacPredicate.java` |
+| **[ARC-005]** | Kiến trúc | Tích hợp Spring Security 6 với OAuth2 Resource Server, JWT Decoder và phân phối sự kiện Kafka | `./sources/backend/api-gateway/src/main/java/org/nlh4j/socialscheduler/gateway/SecurityConfig.java` |
+| **[ARC-006]** | Kiến trúc | Thiết lập kiến trúc bảo mật toàn diện tuân thủ tiêu chuẩn OWASP Top 10 | `./sources/docs/architecture/SecurityComplianceMatrix.md` |
+| **[NFR-001]** | Phi chức năng | Đảm bảo độ trễ P95 < 200ms, thông lượng > 1000 rpm và tích hợp Prometheus + Grafana giám sát | `./sources/infra/observability/prometheus.yaml`<br/>`./sources/infra/observability/grafana-dashboard.json` |
+| **[NFR-002]** | Phi chức năng | Tuân thủ bảo mật TLS 1.3, che giấu dữ liệu PII trong log và hạ tầng VPC Private Subnet trên GCP | `./sources/infra/terraform/gcp/vpc.tf`<br/>`./sources/infra/terraform/gcp/main.tf` |
+| **[NFR-003]** | Phi chức năng | Kiến trúc cô lập đa tenant theo schema cơ sở dữ liệu và khả năng tự co giãn ngang bằng HPA trên GKE | `./sources/infra/kubernetes/socialscheduler/base/hpa.yaml`<br/>`./sources/infra/kubernetes/socialscheduler/base/deployment.yaml` |
+| **[DOC-001]** | Tài liệu | Bộ hồ sơ tài liệu kiến trúc kỹ thuật, runbook vận hành và quy trình CI/CD hoàn chỉnh của dự án | `./sources/docs/architecture/SocialSchedulerBlueprint.md`<br/>`./sources/docs/operations/DeploymentRunbook.md`<br/>`./sources/docs/operations/CicdPipeline.md` |
+```
+
+# Day 3: model models/gemini-flash-lite-latest - API Endpoint https://generativelanguage.googleapis.com/v1beta/openai
+* **Production source codebase at SOURCE destination**: INTEGRATION_SCOPE
+* **Production source codebase generated at TARGET destination**: ./sources/docs/operations/DeploymentRunbook.md
+* **📝 Prompt / Tasks / Data**:
+### 🏢 ENTERPRISE SYSTEM DOCUMENT MATRIX INJECTION
+*   Target Project Identity Safe Name: social-scheduler
+*   Enforced Java Package Prefix Base: org.nlh4j.socialscheduler
+*   Target Documentation Destination Path: `./sources/docs/operations/DeploymentRunbook.md`
+
+
+### ENTERPRISE DOCUMENTATION RECOVERY WORKSPACE
+* **Target Document Disk Status:** INCREMENTAL_MAINTENANCE_APPEND
+* **Current Living Document Content:**
+<EXISTING_DOCUMENT_CONTENT>
+```markdown
+# Deployment Runbook - Social Scheduler Production GCP
+
+## 🔄 DEPLOYMENT LIFECYCLE SEQUENCE DIAGRAM [NFR-001], [NFR-002], [NFR-003], [DOC-001]
+```
+</EXISTING_DOCUMENT_CONTENT>
+
+
+
+*   Documentation Context: Conceptual Init (Synthesize the architecture, guidelines, or specs based purely on the execution sub-tasks blueprint.)
+
+
+### 📋 EXECUTION SUB-TASKS & DOCUMENT CONTENT TO WRITE
+['Soạn thảo runbook vận hành tại ./sources/docs/operations/DeploymentRunbook.md cho môi trường production GCP. Tài liệu gồm bốn phần chính. Phần 1 trình bày điều kiện tiên quyết: cài đặt công cụ gcloud CLI phiên bản 450.0.0 trở lên, kubectl phiên bản 1.28 trở lên, terraform phiên bản 1.6.0 trở lên, quyền truy cập IAM với các role roles/owner, roles/container.admin, roles/cloudsql.admin. Phần 2 trình bày quy trình triển khai hạ tầng [NFR-002]: chạy gcloud auth login, cd ./sources/infra/terraform/gcp, terraform init (khởi tạo backend GCS), terraform plan -out=tfplan (xem trước thay đổi), terraform apply tfplan (triển khai VPC, GKE, Cloud SQL, Memorystore). Phần 3 trình bày quy trình triển khai ứng dụng [NFR-003]: cấu hình kubeconfig với gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1, tạo namespace kubectl create namespace socialscheduler, áp dụng manifest kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/prod, kiểm tra trạng thái kubectl rollout status deployment/schedule-service -n socialscheduler. Phần 4 trình bày quy trình rollback bằng kubectl rollout undo deployment/schedule-service -n socialscheduler và danh sách kiểm tra sau triển khai gồm smoke test endpoint /actuator/health, kiểm tra metrics Prometheus qua GET /api/v1/query?query=up, kiểm tra dashboard Grafana. Cuối tài liệu liệt kê các câu lệnh khẩn cấp khi gặp sự cố HTTP 429 tràn ngập (tăng bucket capacity), khi job Kafka lỗi (kiểm tra consumer group lag), khi Cloud SQL vượt dung lượng (mở rộng instance).']
+
+---
+
+### ⚙️ TECHNICAL WRITER EXECUTION INSTRUCTION:
+
+Please read the comprehensive architectural constraints, workspace folder guardrails, and detailed sub-task document specifications provided above. Analyze the `<EXISTING_DOCUMENT_CONTENT>` layout, you MUST precisely insert the new architectural specifications into their logical structural sections within the current document text. Do NOT overwrite or shrink the pre-existing enterprise content blocks.
+
+
+Ensure that you read the exact Tag IDs from the `['[DOC-001]']` variable, and permanently burn those codes into the generated documentation layout (inside the table columns or the dedicated Traceability Matrix Reference section). Emit the final production-ready comprehensive documentation inside a single valid markdown code block (` ```markdown `) now.
+* **📝 Response**:
+```markdown
+# Deployment Runbook - Social Scheduler Production GCP
+
+## 🔄 DEPLOYMENT LIFECYCLE SEQUENCE DIAGRAM [NFR-001], [NFR-002], [NFR-003], [DOC-001]
+
+```mermaid
+sequenceDiagram
+    participant Ops as DevOps Engineer
+    participant GCP as Google Cloud
+    participant GKE as GKE Cluster
+    Ops->>GCP: gcloud auth login & gcloud config set project
+    Ops->>GCP: cd ./sources/infra/terraform/gcp && terraform init && terraform apply
+    GCP-->>Ops: VPC, GKE, Cloud SQL, Memorystore ready [NFR-002]
+    Ops->>GKE: gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1
+    Ops->>GKE: kubectl create namespace socialscheduler
+    Ops->>GKE: kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/prod
+    GKE-->>Ops: Deployments, Services, HPA, Ingress applied [NFR-003]
+    Ops->>GKE: kubectl rollout status deployment/schedule-service -n socialscheduler
+    Ops->>Prometheus: GET /api/v1/query?query=up
+    Prometheus-->>Ops: 200 OK [NFR-001]
+    Ops->>Grafana: Import dashboard socialscheduler-overview.json
+```
+
+---
+
+## 1. Prerequisites & Tooling Requirements [DOC-001], [NFR-002]
+
+Before initiating any infrastructure provisioning or application deployment within the Google Cloud Platform (GCP) production environment for the `social-scheduler` ecosystem (`org.nlh4j.socialscheduler`), the operating engineer must ensure that all local workstation tools and cloud IAM permissions strictly satisfy the baseline specifications.
+
+### 1.1 Local Workstation Tooling Versions
+- **Google Cloud SDK (`gcloud`):** Version `450.0.0` or higher. Required for IAM authentication, cluster credential fetching, and Artifact Registry interactions.
+- **Kubernetes CLI (`kubectl`):** Version `1.28.0` or higher. Required for managing GKE cluster resources, applying manifests, and monitoring pod rollouts.
+- **Terraform Core:** Version `1.6.0` or higher. Required for provisioning and orchestrating Infrastructure-as-Code (IaC) assets located in `./sources/infra/terraform/gcp/`.
+- **Git & Helm:** Git `2.40+` for version control synchronization and Helm `3.13+` for Prometheus operator deployments.
+
+### 1.2 IAM Roles & Security Boundaries
+The executing operator's Google Cloud Service Account or User Identity must be granted the following granular IAM roles at the project level to adhere to the principle of least privilege:
+- `roles/owner` or specific administrative scopes for root resource setup.
+- `roles/container.admin` (`Container Engine Admin`) for provisioning and modifying GKE clusters (`socialscheduler-gke`).
+- `roles/cloudsql.admin` (`Cloud SQL Admin`) for managing PostgreSQL database instances (`Cloud SQL`).
+- `roles/redis.admin` (`Memorystore Redis Admin`) for provisioning Redis caching layers.
+- `roles/artifactregistry.admin` for pushing and pulling multi-stage container images (`./sources/infra/docker/`).
+
+---
+
+## 2. Infrastructure Provisioning via Terraform [NFR-002], [DOC-001]
+
+The underlying cloud infrastructure is defined declaratively using Terraform within the `./sources/infra/terraform/gcp/` directory. This includes the Virtual Private Cloud (`vpc.tf`), Google Kubernetes Engine Autopilot cluster (`gke.tf`), Cloud SQL PostgreSQL instance (`cloudsql.tf`), and Memorystore Redis cluster (`memorystore.tf`).
+
+### 2.1 Step-by-Step Provisioning Workflow
+Execute the following commands sequentially from the project root workspace:
+
+1. **Authenticate with Google Cloud:**
+   ```bash
+   gcloud auth login
+   gcloud auth application-default login
+   gcloud config set project social-scheduler-prod
+   ```
+
+2. **Navigate to the Terraform Working Directory:**
+   ```bash
+   cd ./sources/infra/terraform/gcp/
+   ```
+
+3. **Initialize Terraform Backend (Google Cloud Storage Bucket):**
+   ```bash
+   terraform init
+   ```
+   *Note:* This initializes the GCS backend configured in `main.tf` (`bucket = "socialscheduler-tfstate"`).
+
+4. **Review the Execution Plan [NFR-002]:**
+   ```bash
+   terraform plan -out=tfplan
+   ```
+   Inspect the execution plan output to verify that VPC subnets, GKE autopilot clusters, Cloud SQL instances, and Memorystore endpoints match production security baselines without unauthorized public IP bindings.
+
+5. **Apply the Infrastructure Plan:**
+   ```bash
+   terraform apply tfplan
+   ```
+   This provisions all cloud resources in the `asia-southeast1` region and outputs the GKE endpoint, Redis host connection string, and Cloud SQL connection name.
+
+---
+
+## 3. Application Deployment via Kubernetes Manifests [NFR-003], [DOC-001]
+
+Once the cloud infrastructure is fully operational, application microservices (`user-service`, `schedule-service`, `ai-service`, `rate-limit-service`) are deployed onto the GKE cluster using Kustomize overlays.
+
+### 3.1 Step-by-Step Deployment Workflow
+
+1. **Configure `kubectl` Context for GKE:**
+   ```bash
+   gcloud container clusters get-credentials socialscheduler-gke --region asia-southeast1 --project social-scheduler-prod
+   ```
+
+2. **Create the Dedicated Application Namespace [NFR-003]:**
+   ```bash
+   kubectl create namespace socialscheduler --dry-run=client -o yaml | kubectl apply -f -
+   ```
+
+3. **Apply Kubernetes Manifests via Kustomize:**
+   ```bash
+   kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/prod
+   ```
+   This command provisions Deployments, Services, HorizontalPodAutoscalers (HPA), Ingress rules, ConfigMaps, and Secrets across all microservices.
+
+4. **Verify Deployment Rollout Status [NFR-003]:**
+   ```bash
+   kubectl rollout status deployment/schedule-service -n socialscheduler
+   kubectl rollout status deployment/user-service -n socialscheduler
+   kubectl rollout status deployment/ai-service -n socialscheduler
+   kubectl rollout status deployment/rate-limit-service -n socialscheduler
+   ```
+   Ensure all pods achieve a running and ready state without restart loops.
+
+---
+
+## 4. Rollback Procedures & Post-Deployment Verification [NFR-001], [NFR-003], [DOC-001]
+
+### 4.1 Rollback Procedures
+If a newly deployed microservice version introduces critical regressions or fails runtime health checks, operators can instantly revert to the previous stable release using Kubernetes native rollback mechanisms:
+
+```bash
+# Roll back schedule-service to the previous revision
+kubectl rollout undo deployment/schedule-service -n socialscheduler
+
+# Verify rollback status
+kubectl rollout status deployment/schedule-service -n socialscheduler
+```
+
+### 4.2 Post-Deployment Verification & Smoke Tests
+Following a successful deployment or rollback, engineers must execute the following verification steps:
+
+1. **Smoke Test Actuator Health Endpoints [NFR-001]:**
+   ```bash
+   kubectl port-forward svc/schedule-service 8082:80 -n socialscheduler &
+   curl -s http://localhost:8082/actuator/health | grep -q '"status":"UP"' && echo "Schedule Service Health: OK"
+   ```
+
+2. **Verify Prometheus Metrics Scraping [NFR-001]:**
+   Query the Prometheus API to ensure metrics collectors are actively scraping application services:
+   ```bash
+   curl -s "http://prometheus.observability.svc.cluster.local:9090/api/v1/query?query=up" | jq '.data.result[] | select(.metric.namespace=="socialscheduler")'
+   ```
+
+3. **Inspect Grafana Observability Dashboard:**
+   Access the Grafana web console (or port-forward the Grafana service) and verify that the `Social Scheduler - Service Overview` dashboard displays nominal HTTP latency P95 (<200ms) [NFR-001] and zero unexpected HTTP 429 surges.
+
+---
+
+## 5. Emergency Runbook & Incident Response
+
+| Incident Scenario | Root Cause Indicator | Immediate Mitigation & Corrective Action |
+| :--- | :--- | :--- |
+| **HTTP 429 Rate Limit Flooding** | Spike in traffic or abusive client requests exceeding Redis Token Bucket capacity (`rate-limit-service`) [REQ-003], [EXC-005]. | 1. Scale out `rate-limit-service` pods via `kubectl scale deployment rate-limit-service --replicas=5 -n socialscheduler`.<br>2. Inspect Redis memory and key distribution via `redis-cli`.<br>3. Temporarily increase bucket capacity in `ConfigMap` if traffic is legitimate. |
+| **Kafka Consumer Lag Spike** | Downstream integration endpoints (`FacebookClient`, `InstagramClient`, `TikTokClient`) timing out or returning HTTP 5xx [EXC-001]. | 1. Check Kafka consumer group lag using Kafka UI or CLI.<br>2. Verify Resilience4j Circuit Breaker status in actuator metrics (`/actuator/circuitbreakers`).<br>3. Inspect Dead Letter Queue (DLQ) topics for poisoned messages. |
+| **Cloud SQL Database Overload / Disk Full** | High connection pool utilization (>50 connections per instance) or un-indexed tenant queries [DAT-001], [DAT-002], [DAT-003]. | 1. Check HikariCP connection pool metrics via Prometheus.<br>2. Scale up Cloud SQL instance tier via Terraform (`cloudsql.tf`).<br>3. Terminate runaway long-running queries via PostgreSQL `pg_terminate_backend()`. |
+
+---
+
+## 6. Traceability Matrix Reference [DOC-001]
+
+| Document Section | Covered Requirement Tags | Target Component Paths / Modules |
+| :--- | :--- | :--- |
+| **Lifecycle Sequence** | `[NFR-001]`, `[NFR-002]`, `[NFR-003]`, `[DOC-001]` | `./sources/docs/operations/DeploymentRunbook.md` |
+| **Prerequisites & Tooling** | `[DOC-001]`, `[NFR-002]` | `./sources/infra/terraform/gcp/` |
+| **Infrastructure Provisioning** | `[NFR-002]`, `[DOC-001]` | `./sources/infra/terraform/gcp/*.tf` |
+| **Kubernetes Deployment** | `[NFR-003]`, `[DOC-001]` | `./sources/infra/kubernetes/socialscheduler/` |
+| **Rollback & Verification** | `[NFR-001]`, `[NFR-003]`, `[DOC-001]` | `./sources/infra/observability/` |
+| **Emergency Runbook** | `[REQ-003]`, `[EXC-001]`, `[EXC-005]`, `[DAT-001]` | `./sources/backend/rate-limit-service/`, `schedule-service/` |
+```
+
+# Day 3: model models/gemini-flash-lite-latest - API Endpoint https://generativelanguage.googleapis.com/v1beta/openai
+* **Production source codebase at SOURCE destination**: INTEGRATION_SCOPE
+* **Production source codebase generated at TARGET destination**: ./sources/docs/operations/CicdPipeline.md
+* **📝 Prompt / Tasks / Data**:
+### 🏢 ENTERPRISE SYSTEM DOCUMENT MATRIX INJECTION
+*   Target Project Identity Safe Name: social-scheduler
+*   Enforced Java Package Prefix Base: org.nlh4j.socialscheduler
+*   Target Documentation Destination Path: `./sources/docs/operations/CicdPipeline.md`
+
+
+### ENTERPRISE DOCUMENTATION RECOVERY WORKSPACE
+* **Target Document Disk Status:** INCREMENTAL_MAINTENANCE_APPEND
+* **Current Living Document Content:**
+<EXISTING_DOCUMENT_CONTENT>
+```markdown
+# Social Scheduler - CI/CD Pipeline Documentation
+**Document Version:** 1.3
+**Last Updated:** 2026-08-31
+**Author:** Enterprise System Architect (SA Agent) & Senior Technical Writer
+**Approval Status:** Approved for Technical Review
+**Target Tag IDs:** [DOC-001], [NFR-001], [NFR-002], [NFR-003], [REQ-001], [REQ-002], [REQ-003]
+
+---
+
+## 1. Overview
+
+This document provides a comprehensive specification of the Continuous Integration and Continuous Deployment (CI/CD) pipeline for the `social-scheduler` microservices platform. The pipeline is implemented using **GitHub Actions** and orchestrates nine sequential stages from code validation to production deployment. The pipeline enforces strict quality gates, security scanning, and approval workflows to ensure enterprise-grade delivery standards.
+
+**Traceability Matrix Reference:** All pipeline stages map to non-functional requirement **[NFR-001]** (Performance & Observability), **[NFR-002]** (Security & Compliance), **[NFR-003]** (Scalability & High Availability), functional requirements **[REQ-001]**, **[REQ-002]**, **[REQ-003]**, and documentation requirement **[DOC-001]**.
+
+---
+
+## 2. Pipeline Architecture
+
+### 2.1 Pipeline Stages Overview
+
+| Stage | Name | Purpose | Quality Gate | Target Tag IDs |
+|-------|------|---------|--------------|----------------|
+| 1 | `lint` | Static code analysis (Checkstyle, SpotBugs, ESLint) | Zero violations | [NFR-002], [DOC-001] |
+| 2 | `unit-test` | Unit test execution (JUnit 5, Mockito, Jest) | Coverage ≥ 85% | [NFR-001], [DOC-001] |
+| 3 | `integration-test` | Integration tests with Testcontainers | All tests pass | [NFR-001], [NFR-003], [DOC-001] |
+| 4 | `build-image` | Multi-stage Docker image build | Successful build | [NFR-001], [NFR-003], [DOC-001] |
+| 5 | `push-image` | Push images to Google Artifact Registry | Images pushed | [NFR-003], [DOC-001] |
+| 6 | `deploy-staging` | Deploy to GKE staging namespace | Pods ready | [NFR-003], [DOC-001] |
+| 7 | `smoke-test` | Health checks and metrics validation | All endpoints healthy | [NFR-001], [NFR-003], [DOC-001] |
+| 8 | `approval` | Manual approval gate (Technical Lead) | Approval granted | [NFR-002], [DOC-001] |
+| 9 | `deploy-prod` | Production deployment with rolling update | Rollout complete | [NFR-001], [NFR-003], [DOC-001] |
+
+### 2.2 Pipeline Flow Diagram
+```
+</EXISTING_DOCUMENT_CONTENT>
+
+
+
+*   Documentation Context: Conceptual Init (Synthesize the architecture, guidelines, or specs based purely on the execution sub-tasks blueprint.)
+
+
+### 📋 EXECUTION SUB-TASKS & DOCUMENT CONTENT TO WRITE
+['Tạo ./sources/docs/operations/CicdPipeline.md mô tả chi tiết pipeline GitHub Actions gồm chín giai đoạn tuần tự. Giai đoạn 1 lint chạy Checkstyle và SpotBugs trên mã nguồn Java, ESLint trên mã nguồn TypeScript. Giai đoạn 2 unit-test chạy JUnit 5 và Mockito cho backend services, Jest cho frontend. Giai đoạn 3 integration-test chạy Testcontainers với PostgreSQL, Redis, Kafka container thực tế. Giai đoạn 4 build-image xây dựng Docker image đa giai đoạn cho bốn dịch vụ. Giai đoạn 5 push-image đẩy image lên Google Artifact Registry tại asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/. Giai đoạn 6 deploy-staging áp dụng manifest Kubernetes cho môi trường staging. Giai đoạn 7 smoke-test gọi các endpoint /actuator/health và kiểm tra metrics. Giai đoạn 8 approval yêu cầu approval gate từ Technical Lead thông qua GitHub Environments. Giai đoạn 9 deploy-prod triển khai production với rolling update strategy. Tài liệu ghi rõ biến bí mật cần cấu hình trong GitHub Secrets: GCP_SA_KEY (service account key JSON), ARTIFACT_REGISTRY (path registry), KUBECONFIG_PROD (kubeconfig base64 encoded). Phần cuối trình bày chiến lược Git Flow với các nhánh main, develop, feature/*, release/*, hotfix/* và quy ước Conventional Commits (ví dụ feat(scheduler): add schedule validation). Tích hợp sơ đồ Mermaid flowchart TD minh họa chín giai đoạn trên.']
+
+---
+
+### ⚙️ TECHNICAL WRITER EXECUTION INSTRUCTION:
+
+Please read the comprehensive architectural constraints, workspace folder guardrails, and detailed sub-task document specifications provided above. Analyze the `<EXISTING_DOCUMENT_CONTENT>` layout, you MUST precisely insert the new architectural specifications into their logical structural sections within the current document text. Do NOT overwrite or shrink the pre-existing enterprise content blocks.
+
+
+Ensure that you read the exact Tag IDs from the `['[DOC-001]']` variable, and permanently burn those codes into the generated documentation layout (inside the table columns or the dedicated Traceability Matrix Reference section). Emit the final production-ready comprehensive documentation inside a single valid markdown code block (` ```markdown `) now.
+* **📝 Response**:
+```markdown
+# Social Scheduler - CI/CD Pipeline Documentation
+**Document Version:** 1.3
+**Last Updated:** 2026-08-31
+**Author:** Enterprise System Architect (SA Agent) & Senior Technical Writer
+**Approval Status:** Approved for Technical Review
+**Target Tag IDs:** [DOC-001], [NFR-001], [NFR-002], [NFR-003], [REQ-001], [REQ-002], [REQ-003]
+
+---
+
+## 1. Overview
+
+This document provides a comprehensive specification of the Continuous Integration and Continuous Deployment (CI/CD) pipeline for the `social-scheduler` microservices platform. The pipeline is implemented using **GitHub Actions** and orchestrates nine sequential stages from code validation to production deployment. The pipeline enforces strict quality gates, security scanning, and approval workflows to ensure enterprise-grade delivery standards.
+
+**Traceability Matrix Reference:** All pipeline stages map to non-functional requirement **[NFR-001]** (Performance & Observability), **[NFR-002]** (Security & Compliance), **[NFR-003]** (Scalability & High Availability), functional requirements **[REQ-001]**, **[REQ-002]**, **[REQ-003]**, and documentation requirement **[DOC-001]**.
+
+---
+
+## 2. Pipeline Architecture
+
+### 2.1 Pipeline Stages Overview
+
+| Stage | Name | Purpose | Quality Gate | Target Tag IDs |
+|-------|------|---------|--------------|----------------|
+| 1 | `lint` | Static code analysis (Checkstyle, SpotBugs, ESLint) | Zero violations | [NFR-002], [DOC-001] |
+| 2 | `unit-test` | Unit test execution (JUnit 5, Mockito, Jest) | Coverage ≥ 85% | [NFR-001], [DOC-001] |
+| 3 | `integration-test` | Integration tests with Testcontainers | All tests pass | [NFR-001], [NFR-003], [DOC-001] |
+| 4 | `build-image` | Multi-stage Docker image build | Successful build | [NFR-001], [NFR-003], [DOC-001] |
+| 5 | `push-image` | Push images to Google Artifact Registry | Images pushed | [NFR-003], [DOC-001] |
+| 6 | `deploy-staging` | Deploy to GKE staging namespace | Pods ready | [NFR-003], [DOC-001] |
+| 7 | `smoke-test` | Health checks and metrics validation | All endpoints healthy | [NFR-001], [NFR-003], [DOC-001] |
+| 8 | `approval` | Manual approval gate (Technical Lead) | Approval granted | [NFR-002], [DOC-001] |
+| 9 | `deploy-prod` | Production deployment with rolling update | Rollout complete | [NFR-001], [NFR-003], [DOC-001] |
+
+### 2.2 Pipeline Flow Diagram
+```mermaid
+flowchart TD
+    A[Push/PR] --> B[Stage 1: lint]
+    B --> C[Stage 2: unit-test]
+    C --> D[Stage 3: integration-test]
+    D --> E[Stage 4: build-image]
+    E --> F[Stage 5: push-image]
+    F --> G[Stage 6: deploy-staging]
+    G --> H[Stage 7: smoke-test]
+    H --> I{Stage 8: approval}
+    I -- Approved --> J[Stage 9: deploy-prod]
+    I -- Rejected --> K[Notify Failure]
+    J --> L[Post-Deploy Verification]
+```
+
+---
+
+## 3. Detailed Pipeline Stages & Execution Logic
+
+### 3.1 Stage 1: `lint`
+- **Purpose:** Enforces clean code metrics and static analysis.
+- **Tooling:** Checkstyle and SpotBugs for backend Java services (`./sources/backend/`), and ESLint with Prettier for frontend Next.js applications (`./sources/frontend/`).
+- **Quality Gate:** Zero rule violations allowed. Any compiler warnings or style check failures abort the pipeline immediately.
+- **Traceability Tag IDs:** [NFR-002], [DOC-001]
+
+### 3.2 Stage 2: `unit-test`
+- **Purpose:** Validates atomic unit logic and functional correctness.
+- **Tooling:** JUnit 5 and Mockito for backend services, Jest and React Testing Library for frontend components.
+- **Quality Gate:** Test code coverage must maintain an absolute baseline of **≥ 85%** across all modules.
+- **Traceability Tag IDs:** [NFR-001], [DOC-001]
+
+### 3.3 Stage 3: `integration-test`
+- **Purpose:** Evaluates system behavior against real infrastructure components in isolated containers.
+- **Tooling:** Testcontainers managing ephemeral instances of PostgreSQL, Redis, and Apache Kafka.
+- **Quality Gate:** All integration test assertions must pass without connection timeouts or data race conditions.
+- **Traceability Tag IDs:** [NFR-001], [NFR-003], [DOC-001]
+
+### 3.4 Stage 4: `build-image`
+- **Purpose:** Constructs optimized production container assets.
+- **Tooling:** Docker multi-stage builds referencing `./sources/infra/docker/*/Dockerfile`.
+- **Quality Gate:** Successful image compilation with minimal runtime layers (`eclipse-temurin:21-jre-jammy`).
+- **Traceability Tag IDs:** [NFR-001], [NFR-003], [DOC-001]
+
+### 3.5 Stage 5: `push-image`
+- **Purpose:** Publishes versioned container artifacts to the secure cloud registry.
+- **Tooling:** Google Artifact Registry (`asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler/`).
+- **Quality Gate:** Successful push authenticated via GCP Service Account credentials.
+- **Traceability Tag IDs:** [NFR-003], [DOC-001]
+
+### 3.6 Stage 6: `deploy-staging`
+- **Purpose:** Deploys artifacts into the staging Kubernetes namespace on GKE.
+- **Tooling:** `kubectl apply -k ./sources/infra/kubernetes/socialscheduler/overlays/staging`.
+- **Quality Gate:** All pods must reach `Running` status and pass readiness probes within 5 minutes.
+- **Traceability Tag IDs:** [NFR-003], [DOC-001]
+
+### 3.7 Stage 7: `smoke-test`
+- **Purpose:** Performs automated validation of deployed services.
+- **Tooling:** Automated HTTP script querying `/actuator/health` and Prometheus metrics endpoints.
+- **Quality Gate:** HTTP 200 OK responses from all microservices (`user-service`, `schedule-service`, `ai-service`, `rate-limit-service`).
+- **Traceability Tag IDs:** [NFR-001], [NFR-003], [DOC-001]
+
+### 3.8 Stage 8: `approval`
+- **Purpose:** Implements human-in-the-loop security and quality governance.
+- **Tooling:** GitHub Environments manual review gate.
+- **Quality Gate:** Explicit authorization granted by designated Technical Leads or Release Managers.
+- **Traceability Tag IDs:** [NFR-002], [DOC-001]
+
+### 3.9 Stage 9: `deploy-prod`
+- **Purpose:** Promotes verified workloads to production GKE clusters.
+- **Tooling:** Kubernetes rolling update deployment strategy (`maxSurge: 1`, `maxUnavailable: 0`).
+- **Quality Gate:** Complete zero-downtime rollout with no increase in HTTP 5xx error rates.
+- **Traceability Tag IDs:** [NFR-001], [NFR-003], [DOC-001]
+
+---
+
+## 4. Required GitHub Secrets Configuration
+
+To execute the CI/CD pipeline successfully, repository maintainers must configure the following encrypted secrets within the GitHub repository settings (`Settings > Secrets and variables > Actions`):
+
+1. **`GCP_SA_KEY`**: JSON key string for the Google Cloud Platform Service Account with permissions to push images to Artifact Registry and manage GKE clusters.
+2. **`ARTIFACT_REGISTRY`**: Base path for the container registry (`asia-southeast1-docker.pkg.dev/social-scheduler-prod/socialscheduler`).
+3. **`KUBECONFIG_PROD`**: Base64-encoded `kubeconfig` file providing cluster administrative access to the production GKE instance (`socialscheduler-gke`).
+
+---
+
+## 5. Git Flow & Branching Strategy
+
+The repository strictly enforces a structured Git Flow branching model combined with Conventional Commits specifications:
+
+- **`main`**: Production-ready branch. Direct pushes are strictly prohibited; changes enter exclusively via approved release or hotfix pull requests.
+- **`develop`**: Integration branch for ongoing feature development.
+- **`feature/*`**: Isolated branches for developing individual sub-tasks and user stories (e.g., `feature/development-phase-2-day-1`).
+- **`release/*`**: Stabilization branches prepared prior to production deployment.
+- **`hotfix/*`**: Emergency patching branches targeting immediate production defects.
+
+### Conventional Commits Rule
+All commit messages must follow the Conventional Commits specification to allow automated semantic versioning and changelog generation:
+```
+<type>(<scope>): <short description>
+```
+*Example:* `feat(scheduler): add schedule validation and rate-limiting filter` [REQ-003]
+
+---
+
+## 6. Traceability Summary Matrix
+
+| Requirement / Non-Functional Tag | Pipeline Stage / Component | Verification Artifact |
+|-----------------------------------|----------------------------|------------------------|
+| **[NFR-001]** | `unit-test`, `integration-test`, `smoke-test` | JUnit Reports, Prometheus Metrics |
+| **[NFR-002]** | `lint`, `approval` | Checkstyle, SpotBugs, GitHub Environments |
+| **[NFR-003]** | `integration-test`, `build-image`, `deploy-prod` | Testcontainers, GKE Deployment Manifests |
+| **[REQ-001]**, **[REQ-002]**, **[REQ-003]** | All Stages | Comprehensive Test Suites & API Contracts |
+| **[DOC-001]** | Documentation Generation | `./sources/docs/operations/CicdPipeline.md` |
+```
+
+# Day 3: model models/gemini-flash-lite-latest - API Endpoint https://generativelanguage.googleapis.com/v1beta/openai
+* **Production source codebase at SOURCE destination**: INTEGRATION_SCOPE
+* **Production source codebase generated at TARGET destination**: ./sources/docs/architecture/SecurityComplianceMatrix.md
+* **📝 Prompt / Tasks / Data**:
+### 🏢 ENTERPRISE SYSTEM DOCUMENT MATRIX INJECTION
+*   Target Project Identity Safe Name: social-scheduler
+*   Enforced Java Package Prefix Base: org.nlh4j.socialscheduler
+*   Target Documentation Destination Path: `./sources/docs/architecture/SecurityComplianceMatrix.md`
+
+
+### ENTERPRISE DOCUMENTATION RECOVERY WORKSPACE
+* **Target Document Disk Status:** INCREMENTAL_MAINTENANCE_APPEND
+* **Current Living Document Content:**
+<EXISTING_DOCUMENT_CONTENT>
+```markdown
+# Security Compliance Matrix - Social Scheduler Platform
+**Document Control:** `./sources/docs/architecture/SecurityComplianceMatrix.md`
+**Project:** social-scheduler
+**Version:** 1.0
+**Classification:** Enterprise Confidential
+**Targeted Tag IDs:** [DOC-001], [NFR-002]
+
+---
+
+## 1. Executive Summary
+
+This document establishes the formal security compliance matrix for the `social-scheduler` microservices platform, mapping each applicable OWASP Top 10 (2021) category to concrete, auditable mitigation controls implemented across the system architecture. The matrix serves as the authoritative reference for security auditors, compliance officers, and engineering teams to verify that the platform meets enterprise-grade security standards.
+
+**Scope:** All backend microservices (`user-service`, `schedule-service`, `ai-service`, `rate-limit-service`, `api-gateway`), infrastructure layer (GCP, GKE, Cloud SQL, Memorystore), and data pipelines (Kafka, Redis).
+
+**Compliance Baseline:** OWASP Top 10 2021 + NIST 800-53 Rev.5 controls mapping.
+
+---
+
+## 2. Traceability Matrix Reference
+
+| OWASP Category | OWASP ID | Mitigation Control | Implementation Location | Tag IDs |
+| :--- | :--- | :--- | :--- | :--- |
+| Broken Access Control | A01:2021 | RBAC 4-Role Enforcement (Admin, User, Scheduler, Analyst) | `api-gateway` SecurityConfig, `RbacPredicate`, Spring Security | [ARC-001], [ARC-002], [ARC-003], [ARC-004], [ARC-005], [ARC-006] |
+| Cryptographic Failures | A02:2021 | TLS 1.3 End-to-End, JWT RS256, Key Rotation 90-day | `api-gateway` JwtDecoder, GCP Load Balancer, Cloud KMS | [NFR-002], [ARC-005] |
+| Injection | A03:2021 | JPA Parameter Binding, Hibernate PreparedStatement, Whitelist Validation, HTML Sanitizer | `schedule-service` SchedulePayloadValidator, `user-service` Repository, `ai-service` OpenAIClient | [DAT-001], [DAT-002], [DAT-003], [REQ-003] |
+| Insecure Design | A04:2021 | Rate Limiter Redis Token Bucket, Defense-in-Depth Gateway Filter | `rate-limit-service` RedisTokenBucketStrategy, `api-gateway` RateLimitGatewayFilter | [REQ-003], [EXC-005], [ARC-006] |
+| Security Misconfiguration | A05:2021 | CORS Whitelist (No Wildcard), Security Headers (CSP, HSTS, X-Content-Type-Options) | `api-gateway` CorsFilter, Nginx Ingress ConfigMap, Spring Boot Actuator | [NFR-002], [NFR-003], [ARC-006] |
+| Identification & Authentication Failures | A07:2021 | OAuth2 Resource Server, JWT Decoder, Token Expiry Handling (HTTP 401) | `api-gateway` SecurityConfig, JwtAuthFilter, GlobalExceptionHandler | [ARC-005], [EXC-002], [NFR-002] |
+| Security Logging & Monitoring Failures | A09:2021 | Prometheus + Grafana, Structured Logging with Correlation ID, LogScrubbingInterceptor | `observability` Prometheus ConfigMap, Grafana Dashboard, SLF4J Logback | [NFR-001], [ARC-006], [EXC-001], [EXC-003] |
+
+---
+
+## 3. Detailed Control Mapping
+
+### 3.1 A01:2021 — Broken Access Control → RBAC 4-Role Enforcement
+
+**Threat Model:** Unauthorized access to administrative functions, cross-tenant data leakage, privilege escalation via API endpoint manipulation.
+
+**Mitigation Architecture:**
+```
+</EXISTING_DOCUMENT_CONTENT>
+
+
+
+*   Documentation Context: Conceptual Init (Synthesize the architecture, guidelines, or specs based purely on the execution sub-tasks blueprint.)
+
+
+### 📋 EXECUTION SUB-TASKS & DOCUMENT CONTENT TO WRITE
+['Tạo ./sources/docs/architecture/SecurityComplianceMatrix.md trình bày ma trận tuân thủ ánh xạ từng yêu cầu OWASP Top 10 sang biện pháp giảm thiểu cụ thể trong hệ thống social-scheduler. Tài liệu gồm bảy mục ánh xạ chính. Mục A01 (Broken Access Control) ánh xạ sang cơ chế RBAC bốn vai trò [ARC-001] Admin, [ARC-002] User, [ARC-003] Scheduler, [ARC-004] Analyst được thực thi bởi Spring Security và API Gateway. Mục A02 (Cryptographic Failures) ánh xạ sang mã hóa TLS 1.3 đầu cuối, JWT với thuật toán RS256, key rotation mỗi 90 ngày theo [NFR-002]. Mục A03 (Injection) ánh xạ sang sử dụng JPA Parameter Binding thông qua Hibernate PreparedStatement, whitelist domain cho mediaUrls, HTML Sanitizer cho nội dung bài đăng. Mục A04 (Insecure Design) ánh xạ sang cơ chế Rate Limiter với Redis Token Bucket theo [REQ-003], defense-in-depth thông qua Rate Limit Gateway Filter. Mục A05 (Security Misconfiguration) ánh xạ sang CORS Whitelist không sử dụng wildcard *, security headers nghiêm ngặt Content-Security-Policy, X-Content-Type-Options: nosniff, Strict-Transport-Security. Mục A07 (Identification and Authentication Failures) ánh xạ sang OAuth2 Resource Server với JWT Decoder, xử lý token hết hạn trả về HTTP 401. Mục A09 (Logging Failures) ánh xạ sang tích hợp Prometheus + Grafana, structured logging với correlation ID, LogScrubbingInterceptor tự động che giấu PII.']
+
+---
+
+### ⚙️ TECHNICAL WRITER EXECUTION INSTRUCTION:
+
+Please read the comprehensive architectural constraints, workspace folder guardrails, and detailed sub-task document specifications provided above. Analyze the `<EXISTING_DOCUMENT_CONTENT>` layout, you MUST precisely insert the new architectural specifications into their logical structural sections within the current document text. Do NOT overwrite or shrink the pre-existing enterprise content blocks.
+
+
+Ensure that you read the exact Tag IDs from the `['[DOC-001]', '[NFR-002]']` variable, and permanently burn those codes into the generated documentation layout (inside the table columns or the dedicated Traceability Matrix Reference section). Emit the final production-ready comprehensive documentation inside a single valid markdown code block (` ```markdown `) now.
+* **📝 Response**:
+```markdown
+# Security Compliance Matrix - Social Scheduler Platform
+**Document Control:** `./sources/docs/architecture/SecurityComplianceMatrix.md`
+**Project:** social-scheduler
+**Version:** 1.0
+**Classification:** Enterprise Confidential
+**Targeted Tag IDs:** [DOC-001], [NFR-002]
+
+---
+
+## 1. Executive Summary
+
+This document establishes the formal security compliance matrix for the `social-scheduler` microservices platform, mapping each applicable OWASP Top 10 (2021) category to concrete, auditable mitigation controls implemented across the system architecture. The matrix serves as the authoritative reference for security auditors, compliance officers, and engineering teams to verify that the platform meets enterprise-grade security standards.
+
+**Scope:** All backend microservices (`user-service`, `schedule-service`, `ai-service`, `rate-limit-service`, `api-gateway`), infrastructure layer (GCP, GKE, Cloud SQL, Memorystore), and data pipelines (Kafka, Redis).
+
+**Compliance Baseline:** OWASP Top 10 2021 + NIST 800-53 Rev.5 controls mapping.
+
+---
+
+## 2. Traceability Matrix Reference
+
+| OWASP Category | OWASP ID | Mitigation Control | Implementation Location | Tag IDs |
+| :--- | :--- | :--- | :--- | :--- |
+| Broken Access Control | A01:2021 | RBAC 4-Role Enforcement (Admin, User, Scheduler, Analyst) | `api-gateway` SecurityConfig, `RbacPredicate`, Spring Security | [ARC-001], [ARC-002], [ARC-003], [ARC-004], [ARC-005], [ARC-006] |
+| Cryptographic Failures | A02:2021 | TLS 1.3 End-to-End, JWT RS256, Key Rotation 90-day | `api-gateway` JwtDecoder, GCP Load Balancer, Cloud KMS | [NFR-002], [ARC-005] |
+| Injection | A03:2021 | JPA Parameter Binding, Hibernate PreparedStatement, Whitelist Validation, HTML Sanitizer | `schedule-service` SchedulePayloadValidator, `user-service` Repository, `ai-service` OpenAIClient | [DAT-001], [DAT-002], [DAT-003], [REQ-003] |
+| Insecure Design | A04:2021 | Rate Limiter Redis Token Bucket, Defense-in-Depth Gateway Filter | `rate-limit-service` RedisTokenBucketStrategy, `api-gateway` RateLimitGatewayFilter | [REQ-003], [EXC-005], [ARC-006] |
+| Security Misconfiguration | A05:2021 | CORS Whitelist (No Wildcard), Security Headers (CSP, HSTS, X-Content-Type-Options) | `api-gateway` CorsFilter, Nginx Ingress ConfigMap, Spring Boot Actuator | [NFR-002], [NFR-003], [ARC-006] |
+| Identification & Authentication Failures | A07:2021 | OAuth2 Resource Server, JWT Decoder, Token Expiry Handling (HTTP 401) | `api-gateway` SecurityConfig, JwtAuthFilter, GlobalExceptionHandler | [ARC-005], [EXC-002], [NFR-002] |
+| Security Logging & Monitoring Failures | A09:2021 | Prometheus + Grafana, Structured Logging with Correlation ID, LogScrubbingInterceptor | `observability` Prometheus ConfigMap, Grafana Dashboard, SLF4J Logback | [NFR-001], [ARC-006], [EXC-001], [EXC-003] |
+
+---
+
+## 3. Detailed Control Mapping
+
+### 3.1 A01:2021 — Broken Access Control → RBAC 4-Role Enforcement
+
+**Threat Model:** Unauthorized access to administrative functions, cross-tenant data leakage, privilege escalation via API endpoint manipulation.
+
+**Mitigation Architecture:**
+The platform enforces a strict Role-Based Access Control (RBAC) model across four distinct organizational tiers:
+- **[ARC-001] ADMIN:** Full administrative privileges across all multi-tenant boundaries, system configuration, and rate-limit resets.
+- **[ARC-002] USER:** Standard tenant user privileges for creating, updating, and executing social media schedules.
+- **[ARC-003] SCHEDULER:** Automated worker role with permissions to dispatch posts to external APIs (Facebook, Instagram, TikTok).
+- **[ARC-004] ANALYST:** Read-only access to performance metrics and AI recommendation endpoints for historical analysis.
+
+These roles are embedded directly within the JWT claims issued by `auth-service` and validated at the `api-gateway` via Spring Security's `RbacPredicate` and `@PreAuthorize` annotations on all microservice controllers. Multi-tenant isolation is enforced at the persistence layer using `tenant_id` column filters and schema-per-tenant isolation [DAT-001].
+
+---
+
+### 3.2 A02:2021 — Cryptographic Failures → TLS 1.3 & JWT RS256
+
+**Threat Model:** Eavesdropping on transit data, token forgery, session hijacking, compromise of cryptographic secrets.
+
+**Mitigation Architecture:**
+- **[NFR-002] Transport Encryption:** All incoming and inter-service communications mandate TLS 1.3 with Perfect Forward Secrecy (PFS) terminated at the Google Cloud HTTPS Load Balancer.
+- **Token Signing & Rotation:** JWT tokens are cryptographically signed using RS256 with 2048-bit RSA keys managed via GCP Cloud KMS. Cryptographic keys undergo an automated 90-day rotation cycle without service downtime.
+- **Data at Rest:** All PostgreSQL databases in Cloud SQL and Redis caches in Memorystore are encrypted using Google-managed encryption keys (GMEK) at the storage block level.
+
+---
+
+### 3.3 A03:2021 — Injection → JPA Parameter Binding & HTML Sanitizer
+
+**Threat Model:** SQL Injection (SQLi) via malicious payloads in schedule content or search parameters, Cross-Site Scripting (XSS) via injected JavaScript in social posts.
+
+**Mitigation Architecture:**
+- **SQL Injection Prevention:** All database operations utilize Spring Data JPA Repositories and Hibernate `PreparedStatement` parameter binding. Native queries are strictly forbidden unless vetted through `SafeSqlScanner`. Dynamic sorting is restricted via `ALLOWED_SORT_FIELDS` whitelists [DAT-001], [DAT-002], [DAT-003].
+- **Input Sanitization:** User-supplied post content (`content` field) passes through the `HtmlSanitizer` (OWASP Java HTML Sanitizer) within `SchedulePayloadValidator` to strip malicious script tags, event handlers, and unauthorized markup before persistence [REQ-003].
+
+---
+
+### 3.4 A04:2021 — Insecure Design → Redis Token Bucket Rate Limiter
+
+**Threat Model:** Denial of Service (DoS), API abuse, brute-force attacks on AI content generation endpoints.
+
+**Mitigation Architecture:**
+- **[REQ-003] Rate Limiting:** The `rate-limit-service` implements the Redis Token Bucket algorithm (`RedisTokenBucketStrategy`) maintaining atomicity via Lua scripts. Requests exceeding default thresholds (e.g., 100 tokens/minute per user) immediately trigger HTTP 429 (`RATE_LIMIT_EXCEEDED`) with a `Retry-After` header [EXC-005].
+- **Defense-in-Depth:** The `RateLimitGatewayFilter` intercepts requests at the API Gateway layer, blocking unauthorized traffic before reaching downstream business microservices [ARC-006].
+
+---
+
+### 3.5 A05:2021 — Security Misconfiguration → CORS & Security Headers
+
+**Threat Model:** Cross-Site Request Forgery (CSRF), MIME-sniffing, clickjacking, unauthorized cross-origin resource sharing.
+
+**Mitigation Architecture:**
+- **Strict CORS Policy:** Wildcard origins (`*`) are prohibited. `CorsFilter` dynamically validates incoming `Origin` headers against the tenant-specific whitelist stored in the `TENANT_ORIGINS` registry, enforcing exact matching and `Vary: Origin` response headers [NFR-003].
+- **Security Headers:** Nginx Ingress and Spring Security enforce strict HTTP response headers across all routes:
+  - `Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none';`
+  - `X-Content-Type-Options: nosniff`
+  - `Strict-Transport-Security: max-age=31536000; includeSubDomains` [ARC-006].
+
+---
+
+### 3.6 A07:2021 — Identification & Authentication Failures → OAuth2 & JWT
+
+**Threat Model:** Replay attacks, expired token abuse, stolen session exploitation, improper credential handling.
+
+**Mitigation Architecture:**
+- **OAuth2 Resource Server:** All microservices operate as stateless OAuth2 Resource Servers utilizing Spring Security 6 `JwtDecoder` to validate incoming Bearer tokens [ARC-005].
+- **Token Expiry & Invalidation:** When a token is expired or structurally malformed, `JwtAuthFilter` and `GlobalExceptionHandler` intercept the exception and immediately return HTTP 401 (`TOKEN_EXPIRED`) with a structured error payload and correlation ID, prompting client-side re-authentication [EXC-002].
+
+---
+
+### 3.7 A09:2021 — Security Logging & Monitoring Failures → Observability & PII Scrubbing
+
+**Threat Model:** Inadequate audit trails during security incidents, accidental exposure of PII in log aggregators, unmonitored upstream failures.
+
+**Mitigation Architecture:**
+- **[NFR-001] Observability Stack:** Prometheus and Grafana continuously monitor microservice health, P95 latencies, and HTTP 429 rate-limiting events.
+- **Structured Logging & Correlation:** All SLF4J/Logback emissions include a unique `correlationId` injected into MDC for distributed tracing across Kafka event brokers and REST calls [EXC-001], [EXC-003].
+- **PII Scrubbing:** The `LogScrubbingInterceptor` scans all log messages and API responses via regex patterns, automatically masking sensitive PII (emails, tokens, passwords) before emission to prevent leakage into log aggregators (Loki/Cloud Logging) [ARC-006].
+
+---
+*End of Security Compliance Matrix — [DOC-001], [NFR-002]*
+```
+

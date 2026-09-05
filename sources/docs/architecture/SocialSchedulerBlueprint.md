@@ -21,3 +21,7 @@
 ## 1. Sơ đồ Ngữ cảnh Hệ thống (System Context)
 
 Hệ thống **social-scheduler** được thiết kế theo kiến trúc Microservices hướng sự kiện (Event-Driven Microservices), tách biệt hoàn toàn giữa các bounded context nghiệp vụ nhằm đảm bảo khả năng mở rộng ngang (horizontal scaling), độ cô lập cao và khả năng chịu lỗi tối ưu [ARC-000], [NFR-003].
+
+### 🌐 Mô hình Tương tác Ngữ cảnh Cấp cao (System Context Flowchart) [DOC-001]
+
+Người dùng doanh nghiệp (`User`) và quản trị viên (`Admin`) tương tác với hệ thống thông qua giao thức an toàn TLS 1.3 tới API Gateway trung tâm. API Gateway chịu trách nhiệm giải mã token JWT, phân quyền RBAC, kiểm tra hạn mức qua `rate-limit-service`, sau đó định tuyến lưu lượng vào các microservice chuyên trách. Dịch vụ lập lịch `schedule-service` giao tiếp bất đồng bộ qua Kafka broker, tích hợp trực tiếp với SDK Facebook, Instagram, TikTok. Dịch vụ đề xuất `ai-service` tiêu thụ số liệu hiệu suất lịch sử và tích hợp mô hình OpenAI để cung cấp nội dung thông minh.
