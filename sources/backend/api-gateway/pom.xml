@@ -21,12 +21,11 @@ configuration for Spring Boot application.
 	</parent>
 
 	<!-- This module's artifact definition -->
-	<artifactId>ai-service</artifactId>
+	<artifactId>api-gateway</artifactId>
 	<packaging>jar</packaging>
 
-	<name>ai-service</name>
-	<description>AI/ML microservice for content recommendation in
-		social-scheduler project</description>
+	<name>api-gateway</name>
+	<description>API Gateway for social-scheduler project</description>
 
 	<!-- Dependency management for AI service, observability, and data access -->
 	<dependencies>
@@ -118,6 +117,7 @@ configuration for Spring Boot application.
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<version>${spring-boot.version}</version>
 				<configuration>
 					<!-- Fully qualified main class for the service -->
 					<mainClass>
@@ -137,6 +137,23 @@ configuration for Spring Boot application.
 			<plugin>
 				<groupId>org.flywaydb</groupId>
 				<artifactId>flyway-maven-plugin</artifactId>
+				<version>${flyway.version}</version>
+				<configuration>
+					<!-- Adjust connection details as per environment
+					(Docker/K8s) -->
+					<url>jdbc:postgresql://localhost:5432/socialscheduler</url>
+					<user>socialscheduler</user>
+					<password>secret</password>
+				</configuration>
+				<executions>
+					<execution>
+						<id>migrate</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>migrate</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

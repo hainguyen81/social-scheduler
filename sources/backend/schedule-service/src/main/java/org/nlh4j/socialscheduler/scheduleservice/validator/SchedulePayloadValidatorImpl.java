@@ -48,7 +48,7 @@ public class SchedulePayloadValidatorImpl implements ConstraintValidator<ValidSc
     
     // [REQ-003] OWASP A03 / XSS dangerous pattern regex matching malicious injection payloads.
     private static final Pattern XSS_DANGEROUS_PATTERN = Pattern.compile(
-            "(?i)(<script\\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>|javascript:|data:text/html|vbscript:|onload=|onerror=)",
+            "(?i)(<script\\b[^<]*(?:(?!</script>)<[^<]*)*</script>|javascript:|data:text/html|vbscript:|onload=|onerror=)",
             Pattern.CASE_INSENSITIVE
     );
 

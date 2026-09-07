@@ -1,113 +1,255 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
    Traceability Tags: [ARC-000]
-   Description: Maven descriptor for user-service module of social-scheduler project.
-   This file defines parent relationship, dependencies, build plugins, and configuration for Spring Boot application.
+   Description: Maven descriptor for user-service module of social-scheduler
+project.
+   This file defines parent relationship, dependencies, build plugins, and
+configuration for Spring Boot application.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
-                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <!-- Model version for Maven POM. -->
-    <modelVersion>4.0.0</modelVersion>
-    <name>social-scheduler</name>
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<!-- Model version for Maven POM. -->
+	<modelVersion>4.0.0</modelVersion>
+
+	<!-- Model version for Maven POM. -->
+	<name>social-scheduler</name>
 	<groupId>org.nlh4j.socialscheduler</groupId>
 	<artifactId>social-scheduler</artifactId>
-    <version>1.0.0</version>
-    <description>Khởi tạo khung dự án Microservices (Social Scheduler) với descriptor build cha-con chuẩn Spring Boot 3, Spring Cloud, Kafka client, JPA, Flyway, OAuth2 Resource Server, Redis. Di trú schema ban đầu cho bốn dịch vụ nghiệp vụ cốt lõi: user-service, schedule-service, ai-service, rate-limit-service.</description>
+	<version>1.0.0</version>
+	<description>Khởi tạo khung dự án Microservices (Social Scheduler) với
+		descriptor build cha-con chuẩn Spring Boot 3, Spring Cloud, Kafka
+		client, JPA, Flyway, OAuth2 Resource Server, Redis. Di trú schema ban
+		đầu cho bốn dịch vụ nghiệp vụ cốt lõi: user-service, schedule-service,
+		ai-service, rate-limit-service.</description>
 	<packaging>pom</packaging>
-    
+
 	<properties>
-        <java.version>21</java.version>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <spring-boot.version>3.3.5</spring-boot.version>
-        <spring-cloud.version>2023.0.3</spring-cloud.version>
-        <flyway.version>10.20.x</flyway.version>
-        <postgresql.driver.version>42.7.x</postgresql.driver.version>
-        <kafka.client.version>3.7.x</kafka.client.version>
-        <lettuce.redis.client.version>6.4.x</lettuce.redis.client.version>
-        <oauth2.resource.server.version>6.3.x</oauth2.resource.server.version>
-        <bucket4j.core.version>8.10.x</bucket4j.core.version>
-        <openai.java.sdk.version>0.18.x</openai.java.sdk.version>
-    </properties>
-    
+		<!-- JDK -->
+		<java.version>17</java.version>
+		<maven.compiler.source>${java.version}</maven.compiler.source>
+		<maven.compiler.target>${java.version}</maven.compiler.target>
+
+		<!-- SPRING -->
+		<spring-boot.version>3.3.5</spring-boot.version>
+		<spring-cloud.version>2023.0.3</spring-cloud.version>
+		<springdoc.version>2.6.0</springdoc.version>
+		<oauth2.resource.server.version>6.3.10</oauth2.resource.server.version>
+
+		<!-- PostgreSQL -->
+		<postgresql.driver.version>42.7.13</postgresql.driver.version>
+
+		<!-- Kafka -->
+		<kafka.client.version>3.7.2</kafka.client.version>
+
+		<!-- Redis -->
+		<lettuce.redis.client.version>6.4.2.RELEASE</lettuce.redis.client.version>
+
+		<!-- OpenAI -->
+		<bucket4j.version>8.10.1</bucket4j.version>
+		<openai.java.sdk.version>0.18.1</openai.java.sdk.version>
+		
+		<!-- Caffeine -->
+		<caffeine.version>3.1.8</caffeine.version>
+		
+		<!-- Resilience4j -->
+		<resilience4j.version>2.0.0</resilience4j.version>
+
+		<!-- Lombok -->
+		<lombok.version>1.18.34</lombok.version>
+
+		<!-- SLF4j -->
+		<org.slf4j.version>2.0.12</org.slf4j.version>
+
+		<!-- Maven Plugins -->
+		<maven.compiler.plugin.version>3.16.0</maven.compiler.plugin.version>
+
+		<!-- Flyway -->
+		<flyway.version>10.20.1</flyway.version>
+		<flyway.DB_URL>localhost:5432</flyway.DB_URL>
+		<flyway.DB_USER>postgres</flyway.DB_USER>
+		<flyway.DB_PASSWORD>postgres</flyway.DB_PASSWORD>
+		<flyway.cleanEnabled>true</flyway.cleanEnabled>
+		<flyway.validateOnMigrate>true</flyway.validateOnMigrate>
+		<flyway.skip>true</flyway.skip>
+	</properties>
+
 	<dependencyManagement>
-        <dependencies>
-            <!-- Spring Boot Parent -->
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-dependencies</artifactId>
-                <version>${spring-boot.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
+		<dependencies>
+			<!-- Spring Boot Parent -->
+			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-dependencies</artifactId>
+				<version>${spring-boot.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<!-- Springdoc OpenAPI UI -->
+			<dependency>
+				<groupId>org.springdoc</groupId>
+				<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+				<version>${springdoc.version}</version>
+			</dependency>
 
-            <!-- Spring Cloud -->
-            <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-dependencies</artifactId>
-                <version>${spring-cloud.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
+			<!-- Spring Cloud -->
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>${spring-cloud.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
 
-            <!-- Flyway Core -->
-            <dependency>
-                <groupId>org.flywaydb</groupId>
-                <artifactId>flyway-core</artifactId>
-                <version>${flyway.version}</version>
-            </dependency>
+			<!-- Flyway Core and PostgreSQL plugin -->
+			<dependency>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-core</artifactId>
+				<version>${flyway.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-database-postgresql</artifactId>
+				<version>${flyway.version}</version>
+			</dependency>
 
-            <!-- PostgreSQL Driver -->
-            <dependency>
-                <groupId>org.postgresql</groupId>
-                <artifactId>postgresql</artifactId>
-                <version>${postgresql.driver.version}</version>
-            </dependency>
+			<!-- PostgreSQL Driver -->
+			<dependency>
+				<groupId>org.postgresql</groupId>
+				<artifactId>postgresql</artifactId>
+				<version>${postgresql.driver.version}</version>
+			</dependency>
 
-            <!-- Apache Kafka Client -->
-            <dependency>
-                <groupId>org.apache.kafka</groupId>
-                <artifactId>kafka-clients</artifactId>
-                <version>${kafka.client.version}</version>
-            </dependency>
+			<!-- Lombok for compile-time annotations -->
+			<dependency>
+				<groupId>org.projectlombok</groupId>
+				<artifactId>lombok</artifactId>
+				<version>${lombok.version}</version>
+				<scope>provided</scope>
+			</dependency>
 
-            <!-- Lettuce Redis Client -->
-            <dependency>
-                <groupId>io.lettuce</groupId>
-                <artifactId>lettuce-core</artifactId>
-                <version>${lettuce.redis.client.version}</version>
-            </dependency>
+			<!-- Apache Kafka Client -->
+			<dependency>
+				<groupId>org.apache.kafka</groupId>
+				<artifactId>kafka-clients</artifactId>
+				<version>${kafka.client.version}</version>
+			</dependency>
 
-            <!-- OAuth2 Resource Server -->
-            <dependency>
-                <groupId>org.springframework.security</groupId>
-                <artifactId>spring-security-oauth2-resource-server</artifactId>
-                <version>${oauth2.resource.server.version}</version>
-            </dependency>
+			<!-- Lettuce Redis Client -->
+			<dependency>
+				<groupId>io.lettuce</groupId>
+				<artifactId>lettuce-core</artifactId>
+				<version>${lettuce.redis.client.version}</version>
+			</dependency>
 
-            <!-- Bucket4j Core -->
-            <dependency>
-                <groupId>com.bucket4j</groupId>
-                <artifactId>bucket4j-core</artifactId>
-                <version>${bucket4j.core.version}</version>
-            </dependency>
+			<!-- OAuth2 Resource Server -->
+			<dependency>
+				<groupId>org.springframework.security</groupId>
+				<artifactId>spring-security-oauth2-resource-server</artifactId>
+				<version>${oauth2.resource.server.version}</version>
+			</dependency>
 
-            <!-- OpenAI Java SDK -->
-            <dependency>
-                <groupId>com.openai</groupId>
-                <artifactId>openai-java</artifactId>
-                <version>${openai.java.sdk.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
+			<!-- Bucket4j Core -->
+			<dependency>
+				<groupId>com.bucket4j</groupId>
+				<artifactId>bucket4j-core</artifactId>
+				<version>${bucket4j.version}</version>
+			</dependency>
+	        <!-- Bucket4j Redis integration – enables distributed token bucket storage via Lettuce -->
+	        <dependency>
+	            <groupId>com.bucket4j</groupId>
+	            <artifactId>bucket4j-redis</artifactId>
+	            <version>${bucket4j.version}</version>
+	        </dependency>
 
-    <modules>
-        <module>user-service</module>
-        <module>schedule-service</module>
-        <module>ai-service</module>
-        <module>rate-limit-service</module>
-        <module>api-gateway</module>
-    </modules>
+			<!-- OpenAI Java SDK -->
+			<dependency>
+				<groupId>com.openai</groupId>
+				<artifactId>openai-java</artifactId>
+				<version>${openai.java.sdk.version}</version>
+			</dependency>
+
+		    <!-- Caffeine caching for performance -->
+		    <dependency>
+		      <groupId>com.github.ben-manes.caffeine</groupId>
+		      <artifactId>caffeine</artifactId>
+		      <version>${caffeine.version}</version>
+		    </dependency>
+
+		    <!-- Resilience4j for circuit breaker, retry, bulkhead -->
+		    <dependency>
+		      <groupId>io.github.resilience4j</groupId>
+		      <artifactId>resilience4j-spring-boot3-starter</artifactId>
+		      <version>${resilience4j.version}</version>
+		    </dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<!-- Spring Boot Maven Plugin -->
+				<plugin>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-maven-plugin</artifactId>
+					<version>${spring-boot.version}</version>
+				</plugin>
+
+				<!-- Maven Compiler Plugin -->
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>${maven.compiler.plugin.version}</version>
+					<configuration>
+						<source>${maven.compiler.source}</source>
+						<target>${maven.compiler.target}</target>
+						<annotationProcessorPaths>
+							<path>
+								<groupId>org.projectlombok</groupId>
+								<artifactId>lombok</artifactId>
+								<version>${lombok.version}</version>
+							</path>
+						</annotationProcessorPaths>
+					</configuration>
+				</plugin>
+
+				<!-- Flyway Maven Plugin -->
+				<plugin>
+					<groupId>org.flywaydb</groupId>
+					<artifactId>flyway-maven-plugin</artifactId>
+					<version>${flyway.version}</version>
+					<configuration>
+						<!-- Database connection parameters sourced from
+						environment
+						variables -->
+						<url>${flyway.DB_URL}</url>
+						<user>${flyway.DB_USER}</user>
+						<password>${flyway.DB_PASSWORD}</password>
+						<!-- Enable clean and validate phases -->
+						<cleanEnabled>${flyway.cleanEnabled}</cleanEnabled>
+						<validateOnMigrate>${flyway.validateOnMigrate}</validateOnMigrate>
+						<!-- Location of migration scripts -->
+						<locations>filesystem:src/main/resources/db/migration</locations>
+						<skip>${flyway.skip}</skip>
+					</configuration>
+					<executions>
+						<execution>
+							<id>migrate</id>
+							<phase>validate</phase>
+							<goals>
+								<goal>migrate</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+
+	<modules>
+		<module>user-service</module>
+		<module>schedule-service</module>
+		<module>ai-service</module>
+		<module>rate-limit-service</module>
+		<module>api-gateway</module>
+	</modules>
 </project>
