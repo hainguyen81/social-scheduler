@@ -76,7 +76,7 @@ public class RateLimitGatewayFilter extends AbstractGatewayFilterFactory<RateLim
                 String userId = jwt.getClaimAsString("sub");
 
                 // Step 4: Call RateLimiterService (Reactive)
-                return rateLimiterService.checkRateLimit(userId, path)
+                return rateLimiterService.checkRateLimit(UUID.fromString(userId), path)
                         .flatMap(result -> {
                             if (!result.isAllowed()) {
                                 // Step 5: Handle Rate Limit Exceeded [EXC-005]

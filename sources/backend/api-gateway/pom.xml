@@ -34,15 +34,10 @@ configuration for Spring Boot application.
 			<groupId>org.nlh4j.socialscheduler</groupId>
 			<artifactId>rate-limit-service</artifactId>
 		</dependency>
-		
-		<!-- Spring Boot Web & Reactive (WebClient for OpenAI) -->
+		<!-- Spring Cloud Gateway -->
 		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webflux</artifactId>
+		    <groupId>org.springframework.cloud</groupId>
+		    <artifactId>spring-cloud-starter-gateway</artifactId>
 		</dependency>
 		<!-- Spring Boot Security -->
 		<dependency>
