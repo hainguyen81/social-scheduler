@@ -15,15 +15,10 @@
  */
 package org.nlh4j.socialscheduler.aiservice.integration;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.nlh4j.socialscheduler.aiservice.exception.AiServiceException;
+import java.util.UUID;
+
+import org.nlh4j.socialscheduler.common.Platform;
+import org.nlh4j.socialscheduler.exception.AiServiceException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -33,7 +28,15 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
-import java.util.UUID;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * OpenAI Client for Chat Completions API integration.
@@ -89,9 +92,6 @@ public class OpenAIClient {
 
     /** Error code for AI service unavailability. */
     private static final String ERROR_CODE_AI_UNAVAILABLE = "AI_SERVICE_UNAVAILABLE";
-
-    /** Platform identifier for OpenAI. */
-    private static final String PLATFORM_OPENAI = "OPENAI";
 
     /** MDC key for correlation ID tracking. */
     private static final String MDC_CORRELATION_ID = "correlationId";
@@ -223,8 +223,7 @@ public class OpenAIClient {
         throw new AiServiceException(
                 ERROR_CODE_AI_UNAVAILABLE,
                 "OpenAI service unavailable after retry attempts. Fallback triggered.",
-                PLATFORM_OPENAI,
-                ex.getClass().getSimpleName(),
+                Platform.OPENAI,
                 ex
         );
     }
@@ -313,7 +312,7 @@ public class OpenAIClient {
             );
         } catch (Exception ex) {
             throw new HttpClientErrorException(
-                    HttpStatus.resolve(response.getStatusCode().value()),
+                    HttpStatus.INTERNAL_SERVER_ERROR,
                     "OpenAI API client error (body unreadable)",
                     response.getHeaders(),
                     new byte[0],
@@ -343,7 +342,7 @@ public class OpenAIClient {
             );
         } catch (Exception ex) {
             throw new HttpServerErrorException(
-                    HttpStatus.resolve(response.getStatusCode().value()),
+                    HttpStatus.INTERNAL_SERVER_ERROR,
                     "OpenAI API server error (body unreadable)",
                     response.getHeaders(),
                     new byte[0],
@@ -360,7 +359,6 @@ public class OpenAIClient {
      * @return AiServiceException with structured error information
      */
     private AiServiceException mapToAiServiceException(Exception ex) {
-        String errorType = ex.getClass().getSimpleName();
         String message;
 
         if (ex instanceof HttpClientErrorException httpEx) {
@@ -376,6 +374,6 @@ public class OpenAIClient {
         }
 
         // Preserve original exception as cause (Exception Cause Chain Preservation Law)
-        return new AiServiceException(ERROR_CODE_AI_UNAVAILABLE, message, PLATFORM_OPENAI, errorType, ex);
+        return new AiServiceException(ERROR_CODE_AI_UNAVAILABLE, message, Platform.OPENAI, ex);
     }
 }

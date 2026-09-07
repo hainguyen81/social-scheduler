@@ -1,11 +1,5 @@
 package org.nlh4j.socialscheduler.ratelimitservice.controller;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.nlh4j.socialscheduler.ratelimitservice.dto.RateLimitCheckRequestDto;
 import org.nlh4j.socialscheduler.ratelimitservice.dto.RateLimitCheckResponseDto;
 import org.nlh4j.socialscheduler.ratelimitservice.dto.RateLimitResetRequestDto;
@@ -14,9 +8,17 @@ import org.nlh4j.socialscheduler.ratelimitservice.service.RateLimiterService;
 import org.slf4j.MDC;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Controller responsible for managing and checking API rate limits.

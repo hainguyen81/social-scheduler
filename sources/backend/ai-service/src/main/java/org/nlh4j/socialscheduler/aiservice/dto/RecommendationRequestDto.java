@@ -5,14 +5,21 @@
  * Supports immutable record semantics with Lombok Builder for service layer instantiation.
  * @traceability [REQ-002]
  */
-package org.nlh4j.socialscheduler.ai.service.dto;
+package org.nlh4j.socialscheduler.aiservice.dto;
 
-import jakarta.validation.constraints.*;
 import java.util.UUID;
-import org.nlh4j.socialscheduler.ai.service.dto.enums.Platform;
-import org.nlh4j.socialscheduler.ai.service.dto.enums.Tone;
-import lombok.*;
+
+import org.nlh4j.socialscheduler.aiservice.dto.enums.Tone;
+import org.nlh4j.socialscheduler.common.Platform;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 /**
  * Lombok @Builder generates a static inner builder class enabling fluent, immutable construction

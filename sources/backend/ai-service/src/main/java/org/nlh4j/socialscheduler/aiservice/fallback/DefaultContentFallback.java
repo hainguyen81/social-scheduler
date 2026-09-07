@@ -8,7 +8,8 @@ import java.util.UUID;
 
 import org.nlh4j.socialscheduler.aiservice.dto.RecommendationRequestDto;
 import org.nlh4j.socialscheduler.aiservice.dto.RecommendationResponseDto;
-import org.nlh4j.socialscheduler.aiservice.exception.FallbackContentException;
+import org.nlh4j.socialscheduler.common.Platform;
+import org.nlh4j.socialscheduler.exception.FallbackContentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -88,8 +89,8 @@ public class DefaultContentFallback {
      * @throws FallbackContentException if template resolution fails
      */
     public RecommendationResponseDto provide(RecommendationRequestDto request) {
-        String platform = request.getPlatform().name();
-        String tone = request.getTone().name();
+        Platform platform = request.platform();
+        String tone = request.tone().name();
         String key = platform + "_" + tone;
         
         String template = FALLBACK_TEMPLATES.get(key);
@@ -106,11 +107,11 @@ public class DefaultContentFallback {
         }
 
         log.info("Fallback content provided for userId={} platform={} tone={}", 
-                request.getUserId(), platform, tone);
+                request.userId(), platform, tone);
 
         return RecommendationResponseDto.builder()
                 .recommendationId(UUID.randomUUID())
-                .userId(request.getUserId())
+                .userId(request.userId())
                 .platform(platform)
                 .content(template)
                 .confidenceScore(BigDecimal.valueOf(0.30))

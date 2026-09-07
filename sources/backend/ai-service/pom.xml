@@ -30,6 +30,30 @@ configuration for Spring Boot application.
 
 	<!-- Dependency management for AI service, observability, and data access -->
 	<dependencies>
+		<!-- Project -->
+		<dependency>
+			<groupId>org.nlh4j.socialscheduler</groupId>
+			<artifactId>common</artifactId>
+		</dependency>
+		
+		<!-- SPRING Boot -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot</artifactId>
+		</dependency>
+		
+		<!-- Spring Boot OAuth2 Resource Server -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+		</dependency>
+
+		<!-- SPRING Security -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-core</artifactId>
+		</dependency>
+			
 		<!-- Spring Boot Web & Reactive (WebClient for OpenAI) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -93,7 +117,7 @@ configuration for Spring Boot application.
 		<!-- Resilience4j for circuit breaker, retry, bulkhead -->
 		<dependency>
 			<groupId>io.github.resilience4j</groupId>
-			<artifactId>resilience4j-spring-boot3-starter</artifactId>
+			<artifactId>resilience4j-spring-boot3</artifactId>
 		</dependency>
 
 		<!-- Lombok for boilerplate reduction -->

@@ -29,6 +29,12 @@ configuration for Spring Boot application.
 
 	<!-- Dependency management for AI service, observability, and data access -->
 	<dependencies>
+		<!-- Project -->
+		<dependency>
+			<groupId>org.nlh4j.socialscheduler</groupId>
+			<artifactId>rate-limit-service</artifactId>
+		</dependency>
+		
 		<!-- Spring Boot Web & Reactive (WebClient for OpenAI) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -37,6 +43,16 @@ configuration for Spring Boot application.
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
+		<!-- Spring Boot Security -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<!-- Spring Boot OAuth2 Resource Server -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
 
 		<!-- JPA & Validation -->
@@ -92,7 +108,7 @@ configuration for Spring Boot application.
 		<!-- Resilience4j for circuit breaker, retry, bulkhead -->
 		<dependency>
 			<groupId>io.github.resilience4j</groupId>
-			<artifactId>resilience4j-spring-boot3-starter</artifactId>
+			<artifactId>resilience4j-spring-boot3</artifactId>
 		</dependency>
 
 		<!-- Lombok for boilerplate reduction -->
@@ -108,6 +124,11 @@ configuration for Spring Boot application.
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<!-- Build configuration: packaging, plugins, and Flyway migration -->
@@ -117,7 +138,6 @@ configuration for Spring Boot application.
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-				<version>${spring-boot.version}</version>
 				<configuration>
 					<!-- Fully qualified main class for the service -->
 					<mainClass>
@@ -137,23 +157,6 @@ configuration for Spring Boot application.
 			<plugin>
 				<groupId>org.flywaydb</groupId>
 				<artifactId>flyway-maven-plugin</artifactId>
-				<version>${flyway.version}</version>
-				<configuration>
-					<!-- Adjust connection details as per environment
-					(Docker/K8s) -->
-					<url>jdbc:postgresql://localhost:5432/socialscheduler</url>
-					<user>socialscheduler</user>
-					<password>secret</password>
-				</configuration>
-				<executions>
-					<execution>
-						<id>migrate</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>migrate</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>

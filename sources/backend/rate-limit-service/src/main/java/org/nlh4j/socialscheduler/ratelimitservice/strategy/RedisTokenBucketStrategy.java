@@ -1,12 +1,9 @@
 package org.nlh4j.socialscheduler.ratelimitservice.strategy;
 
-// [REQ-003] Rate limiting enforcement with Redis Token Bucket strategy
-// [EXC-005] Exception handling and retry-after calculation for rate limit exceedance
+import java.util.Collections;
+import java.util.List;
 
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import lombok.extern.slf4j.Slf4j;
-import org.nlh4j.socialscheduler.ratelimitservice.exception.RateLimitExceededException;
+import org.nlh4j.socialscheduler.exception.RateLimitExceededException;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
@@ -15,10 +12,13 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Component;
 
+// [REQ-003] Rate limiting enforcement with Redis Token Bucket strategy
+// [EXC-005] Exception handling and retry-after calculation for rate limit exceedance
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Enterprise Token Bucket Rate Limiting Strategy implemented using Redis and Lua scripting.
@@ -34,14 +34,15 @@ public class RedisTokenBucketStrategy {
     private static final String LUA_SCRIPT_PATH = "scripts/token-bucket.lua";
     private static final String METRIC_CONSUMED_TOTAL = "rate_limit.tokens.consumed.total";
     private static final String METRIC_EXCEEDED_TOTAL = "rate_limit.exceeded.total";
-    private static final String MDC_CORRELATION_ID = "correlationId";
+    // private static final String MDC_CORRELATION_ID = "correlationId";
     private static final String MDC_USER_ID = "userId";
     private static final String MDC_ENDPOINT = "endpoint";
     private static final String MDC_TOKENS_REQUESTED = "tokensRequested";
     private static final String MDC_TOKENS_REMAINING = "tokensRemaining";
 
     private final StringRedisTemplate redisTemplate;
-    private final DefaultRedisScript<List> redisScript;
+    @SuppressWarnings("rawtypes")
+	private final DefaultRedisScript<List> redisScript;
     private final MeterRegistry meterRegistry;
 
     // Configurable token bucket parameters injected from application properties
@@ -96,7 +97,8 @@ public class RedisTokenBucketStrategy {
      * @return RateLimitResult containing consumption status, remaining tokens, and retry window
      * @throws RateLimitExceededException if allowed evaluates to false
      */
-    public RateLimitResult tryConsume(String userId, String endpoint, int tokens) {
+    @SuppressWarnings("unchecked")
+	public RateLimitResult tryConsume(String userId, String endpoint, int tokens) {
         // Populate MDC logging context with tracing attributes for OWASP A09 logging compliance
         MDC.put(MDC_USER_ID, userId != null ? userId : "ANONYMOUS");
         MDC.put(MDC_ENDPOINT, endpoint != null ? endpoint : "UNKNOWN");
@@ -147,8 +149,7 @@ public class RedisTokenBucketStrategy {
                 throw new RateLimitExceededException(
                         userId,
                         endpoint,
-                        retryAfterSeconds,
-                        String.format("Rate limit exceeded. Please retry after %d seconds.", retryAfterSeconds)
+                        retryAfterSeconds
                 );
             }
 

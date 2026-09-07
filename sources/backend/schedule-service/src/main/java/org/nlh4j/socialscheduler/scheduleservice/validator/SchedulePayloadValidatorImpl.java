@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
@@ -100,7 +101,7 @@ public class SchedulePayloadValidatorImpl implements ConstraintValidator<ValidSc
             if (value.scheduledTime() != null) {
                 LocalDateTime now = LocalDateTime.now();
                 long daysBetween = ChronoUnit.DAYS.between(now, value.scheduledTime());
-                if (value.scheduledTime().isBefore(now) || daysBetween > MAX_SCHEDULING_DAYS_WINDOW) {
+                if (value.scheduledTime().isBefore(now.atOffset(ZoneOffset.UTC)) || daysBetween > MAX_SCHEDULING_DAYS_WINDOW) {
                     LOGGER.warn("[WARN] [EXC-002] [Correlation ID: {}] Scheduled time invalid: {}. Must be between now and {} days.",
                             correlationId, value.scheduledTime(), MAX_SCHEDULING_DAYS_WINDOW);
                     buildConstraintViolation(context, "Scheduled time must be in the future and within " + MAX_SCHEDULING_DAYS_WINDOW + " days.");

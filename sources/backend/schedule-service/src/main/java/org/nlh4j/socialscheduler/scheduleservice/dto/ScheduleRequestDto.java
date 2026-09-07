@@ -1,11 +1,20 @@
 package org.nlh4j.socialscheduler.scheduleservice.dto;
 
-import jakarta.validation.constraints.*;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+
+import org.nlh4j.socialscheduler.common.Platform;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
-import lombok.JsonInclude;
 
 /**
  * Data Transfer Object for creating a new publishing schedule request.
@@ -21,7 +30,7 @@ public record ScheduleRequestDto(
         // Platform must be one of the whitelisted social media services; blocks injection of arbitrary values per [REQ-003]
         @NotBlank(message = "platform is required")
         @Pattern(regexp = "^(Facebook|Instagram|TikTok)$", message = "platform must be one of Facebook, Instagram, TikTok")
-        String platform,
+        Platform platform,
 
         // Content body cannot be empty and must not exceed 5000 characters per business rule and database column limit
         @NotBlank(message = "content cannot be blank")

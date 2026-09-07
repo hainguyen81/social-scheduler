@@ -7,24 +7,34 @@
  */
 package org.nlh4j.socialscheduler.aiservice.controller;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Map;
+import java.util.UUID;
+
 import org.nlh4j.socialscheduler.aiservice.dto.RecommendationRequestDto;
 import org.nlh4j.socialscheduler.aiservice.dto.RecommendationResponseDto;
-import org.nlh4j.socialscheduler.aiservice.exception.AiServiceException;
-import org.nlh4j.socialscheduler.aiservice.exception.FallbackContentException;
 import org.nlh4j.socialscheduler.aiservice.service.RecommendationService;
+import org.nlh4j.socialscheduler.exception.AiServiceException;
+import org.nlh4j.socialscheduler.exception.FallbackContentException;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.annotations.ApiResponse;
-import io.swagger.v3.oas.annotations.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Controller handling AI-powered content recommendation requests.
@@ -88,18 +98,18 @@ public class RecommendationController {
 
         String correlationId = UUID.randomUUID().toString();
         // Initialize MDC context for distributed tracing and structured log correlation
-        MDC.put("userId", request.getUserId().toString());
-        MDC.put("platform", request.getPlatform().name());
+        MDC.put("userId", request.userId().toString());
+        MDC.put("platform", request.platform().name());
         MDC.put("correlationId", correlationId);
 
         try {
             log.info("Initiating AI recommendation generation for userId={}, platform={}, topic='{}'", 
-                    request.getUserId(), request.getPlatform(), request.getTopic());
+                    request.userId(), request.platform(), request.topic());
 
             RecommendationResponseDto response = recommendationService.generateRecommendation(request);
 
             log.info("AI recommendation generated successfully for userId={}, correlationId={}, contentLength={}", 
-                    request.getUserId(), correlationId, response.getContent().length());
+                    request.userId(), correlationId, response.getContent().length());
 
             return ResponseEntity.ok(response);
 
@@ -107,17 +117,17 @@ public class RecommendationController {
             // AiServiceException encapsulates OpenAI API failure, timeout, or model error
             // Per [EXC-003]: return HTTP 503 with explicit error code, do NOT attempt fallback here
             log.error("AI service unavailable for userId={}, correlationId={}, error: {}", 
-                    request.getUserId(), correlationId, ex.getMessage(), ex);
+                    request.userId(), correlationId, ex.getMessage(), ex);
 
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(new RecommendationResponseDto(
                             UUID.randomUUID(),
-                            request.getUserId(),
-                            request.getPlatform(),
+                            request.userId(),
+                            request.platform(),
                             "AI service temporarily unavailable. Please try again later.",
                             BigDecimal.valueOf(0.0),
                             false,
-                            System.currentTimeMillis()
+                            LocalDateTime.now().atOffset(ZoneOffset.UTC)
                     ));
 
         } catch (FallbackContentException ex) {
@@ -125,16 +135,16 @@ public class RecommendationController {
             // Per [EXC-004]: controller still returns 200 OK with isFallback=true to maintain seamless UX
             // rather than exposing 5xx errors to end users
             log.warn("Fallback content provider also failed for userId={}, correlationId={}, error: {}", 
-                    request.getUserId(), correlationId, ex.getMessage(), ex);
+                    request.userId(), correlationId, ex.getMessage(), ex);
 
             return ResponseEntity.ok(new RecommendationResponseDto(
                     UUID.randomUUID(),
-                    request.getUserId(),
-                    request.getPlatform(),
+                    request.userId(),
+                    request.platform(),
                     "Stay tuned for exciting updates from our brand!",
                     BigDecimal.valueOf(0.30),
                     true,
-                    System.currentTimeMillis()
+                    LocalDateTime.now().atOffset(ZoneOffset.UTC)
             ));
 
         } finally {
@@ -164,135 +174,5 @@ public class RecommendationController {
         );
         log.debug("AI Service health check requested, returning: {}", healthPayload);
         return ResponseEntity.ok(healthPayload);
-    }
-
-    /**
-     * Minimal inner DTO for AI recommendation requests.
-     * All fields validated via Jakarta annotations on the controller method parameter.
-     * Uses Java Record pattern for immutability and reduced boilerplate (JDK 21 compatible).
-     */
-    public static class RecommendationRequestDto {
-
-        private UUID userId;
-
-        /**
-         * Target social platform for content generation.
-         * Whitelisted values: FACEBOOK, INSTAGRAM, TIKTOK (enforced by @Pattern in full implementation)
-         */
-        private Platform platform;
-
-        /**
-         * Topic or theme for the recommended post.
-         * Must not be blank; max length enforced by @Size annotation in full implementation.
-         */
-        private String topic;
-
-        /**
-         * Desired tone of the generated content.
-         * Supported values: PROFESSIONAL, CASUAL, HUMOROUS, INSPIRATIONAL
-         */
-        private Tone tone;
-
-        /**
-         * Maximum character length for generated content.
-         * Range: 100-3000; validated by custom constraint in full implementation.
-         */
-        private Integer maxLength;
-
-        // Default constructor, getters, setters omitted for brevity;
-        // in production use Lombok @Data or manual builders with validation guards.
-        // All fields are private; access via getters/setters or component scanning.
-
-        /**
-         * Enum representing supported social media platforms.
-         * Whitelist enforcement prevents SSRF and injection via platform parameter.
-         */
-        public enum Platform {
-            FACEBOOK,
-            INSTAGRAM,
-            TIKTOK
-        }
-
-        /**
-         * Enum representing supported content tones.
-         * Used by prompt engineering layer to shape AI output style.
-         */
-        public enum Tone {
-            PROFESSIONAL,
-            CASUAL,
-            HUMOROUS,
-            INSPIRATIONAL
-        }
-    }
-
-    /**
-     * Minimal inner DTO for AI recommendation responses.
-     * Carries the generated content, confidence metadata, and fallback flag.
-     * Designed for safe serialization; no sensitive data exposed in raw form.
-     */
-    public static class RecommendationResponseDto {
-
-        private UUID recommendationId;
-        private UUID userId;
-        private Platform platform;
-        private String content;
-        private BigDecimal confidenceScore;
-        private Boolean isFallback;
-        private Long generatedAt;
-
-        /**
-         * Constructs a full recommendation response.
-         *
-         * @param recommendationId unique identifier for this recommendation record
-         * @param userId           originating user identifier
-         * @param platform         target social media platform
-         * @param content          generated post content (may be fallback template)
-         * @param confidenceScore  AI model confidence score (0.0 - 1.0); lower for fallback
-         * @param isFallback       true if content derived from default template, not AI model
-         * @param generatedAt      epoch millisecond timestamp of generation
-         */
-        public RecommendationResponseDto(UUID recommendationId, UUID userId, Platform platform,
-                                         String content, BigDecimal confidenceScore, Boolean isFallback, Long generatedAt) {
-            this.recommendationId = recommendationId;
-            this.userId = userId;
-            this.platform = platform;
-            this.content = content;
-            this.confidenceScore = confidenceScore;
-            this.isFallback = isFallback;
-            this.generatedAt = generatedAt;
-        }
-
-        // Getters omitted for brevity; use Lombok @Getter or manual accessors in production.
-        public UUID getRecommendationId() { return recommendationId; }
-        public UUID getUserId() { return userId; }
-        public Platform getPlatform() { return platform; }
-        public String getContent() { return content; }
-        public BigDecimal getConfidenceScore() { return confidenceScore; }
-        public Boolean getFallback() { return isFallback; }
-        public Long getGeneratedAt() { return generatedAt; }
-
-        // Setters deliberately omitted to preserve immutability after construction.
-    }
-
-    /**
-     * Minimal inner ErrorResponse DTO for structured error payloads.
-     * Used by controller exception handlers to maintain consistent API error format.
-     * All fields are non-sensitive and safe for log aggregation and client display.
-     */
-    public static class ErrorResponse {
-
-        private String errorCode;
-        private String message;
-        private Long timestamp;
-
-        public ErrorResponse(String errorCode, String message, Long timestamp) {
-            this.errorCode = errorCode;
-            this.message = message;
-            this.timestamp = timestamp;
-        }
-
-        public String getErrorCode() { return errorCode; }
-        public String getMessage() { return message; }
-        public Long getTimestamp() { return timestamp; }
     }
 }

@@ -32,9 +32,12 @@ configuration for Spring Boot application.
 
 		<!-- SPRING -->
 		<spring-boot.version>3.3.5</spring-boot.version>
+		<spring-security.version>6.3.4</spring-security.version>
+		<spring-retry.version>2.0.13</spring-retry.version>
 		<spring-cloud.version>2023.0.3</spring-cloud.version>
 		<springdoc.version>2.6.0</springdoc.version>
 		<oauth2.resource.server.version>6.3.10</oauth2.resource.server.version>
+		<okhttp.version>4.12.0</okhttp.version>
 
 		<!-- PostgreSQL -->
 		<postgresql.driver.version>42.7.13</postgresql.driver.version>
@@ -48,18 +51,25 @@ configuration for Spring Boot application.
 		<!-- OpenAI -->
 		<bucket4j.version>8.10.1</bucket4j.version>
 		<openai.java.sdk.version>0.18.1</openai.java.sdk.version>
-		
+
 		<!-- Caffeine -->
 		<caffeine.version>3.1.8</caffeine.version>
-		
+
 		<!-- Resilience4j -->
-		<resilience4j.version>2.0.0</resilience4j.version>
+		<resilience4j.version>2.4.0</resilience4j.version>
 
 		<!-- Lombok -->
 		<lombok.version>1.18.34</lombok.version>
+		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+		
+		<!-- MapStruct -->
+		<mapstruct.version>1.6.3</mapstruct.version>
 
 		<!-- SLF4j -->
 		<org.slf4j.version>2.0.12</org.slf4j.version>
+
+		<!-- Junit -->
+		<junit-jupiter.version>5.10.5</junit-jupiter.version>
 
 		<!-- Maven Plugins -->
 		<maven.compiler.plugin.version>3.16.0</maven.compiler.plugin.version>
@@ -76,6 +86,18 @@ configuration for Spring Boot application.
 
 	<dependencyManagement>
 		<dependencies>
+			<!-- Project -->
+			<dependency>
+				<groupId>org.nlh4j.socialscheduler</groupId>
+				<artifactId>common</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.nlh4j.socialscheduler</groupId>
+				<artifactId>rate-limit-service</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			
 			<!-- Spring Boot Parent -->
 			<dependency>
 				<groupId>org.springframework.boot</groupId>
@@ -84,11 +106,42 @@ configuration for Spring Boot application.
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
+
+			<!-- SPRING Boot -->
+			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot</artifactId>
+				<version>${spring-boot.version}</version>
+			</dependency>
+
 			<!-- Springdoc OpenAPI UI -->
 			<dependency>
 				<groupId>org.springdoc</groupId>
 				<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 				<version>${springdoc.version}</version>
+			</dependency>
+
+			<!-- SPRING Security -->
+			<dependency>
+				<groupId>org.springframework.security</groupId>
+				<artifactId>spring-security-bom</artifactId>
+				<version>${spring-security.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+			<!-- SPRING Retry -->
+			<dependency>
+				<groupId>org.springframework.retry</groupId>
+				<artifactId>spring-retry</artifactId>
+				<version>${spring-retry.version}</version>
+			</dependency>
+
+			<!-- SPRING AOP (Required for @Retryable to work) -->
+			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-starter-aop</artifactId>
+				<version>${spring-boot.version}</version>
 			</dependency>
 
 			<!-- Spring Cloud -->
@@ -126,6 +179,14 @@ configuration for Spring Boot application.
 				<version>${lombok.version}</version>
 				<scope>provided</scope>
 			</dependency>
+			
+			<!-- MapStruct -->
+			<dependency>
+			    <groupId>org.mapstruct</groupId>
+			    <artifactId>mapstruct</artifactId>
+			    <version>${mapstruct.version}</version>
+			    <scope>compile</scope>
+			</dependency>
 
 			<!-- Apache Kafka Client -->
 			<dependency>
@@ -154,12 +215,13 @@ configuration for Spring Boot application.
 				<artifactId>bucket4j-core</artifactId>
 				<version>${bucket4j.version}</version>
 			</dependency>
-	        <!-- Bucket4j Redis integration – enables distributed token bucket storage via Lettuce -->
-	        <dependency>
-	            <groupId>com.bucket4j</groupId>
-	            <artifactId>bucket4j-redis</artifactId>
-	            <version>${bucket4j.version}</version>
-	        </dependency>
+			<!-- Bucket4j Redis integration – enables distributed token bucket
+			storage via Lettuce -->
+			<dependency>
+				<groupId>com.bucket4j</groupId>
+				<artifactId>bucket4j-redis</artifactId>
+				<version>${bucket4j.version}</version>
+			</dependency>
 
 			<!-- OpenAI Java SDK -->
 			<dependency>
@@ -168,19 +230,43 @@ configuration for Spring Boot application.
 				<version>${openai.java.sdk.version}</version>
 			</dependency>
 
-		    <!-- Caffeine caching for performance -->
-		    <dependency>
-		      <groupId>com.github.ben-manes.caffeine</groupId>
-		      <artifactId>caffeine</artifactId>
-		      <version>${caffeine.version}</version>
-		    </dependency>
+			<!-- Caffeine caching for performance -->
+			<dependency>
+				<groupId>com.github.ben-manes.caffeine</groupId>
+				<artifactId>caffeine</artifactId>
+				<version>${caffeine.version}</version>
+			</dependency>
 
-		    <!-- Resilience4j for circuit breaker, retry, bulkhead -->
-		    <dependency>
-		      <groupId>io.github.resilience4j</groupId>
-		      <artifactId>resilience4j-spring-boot3-starter</artifactId>
-		      <version>${resilience4j.version}</version>
-		    </dependency>
+			<!-- Resilience4j for circuit breaker, retry, bulkhead -->
+			<dependency>
+				<groupId>io.github.resilience4j</groupId>
+				<artifactId>resilience4j-spring-boot3</artifactId>
+				<version>${resilience4j.version}</version>
+				<scope>compile</scope>
+			</dependency>
+
+			<!-- SPRING Test -->
+			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-starter-test</artifactId>
+				<version>${spring-boot.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit</groupId>
+				<artifactId>junit-bom</artifactId>
+				<version>${junit-jupiter.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<!-- MockWebServer -->
+			<dependency>
+				<groupId>com.squareup.okhttp3</groupId>
+				<artifactId>okhttp-bom</artifactId>
+				<version>${okhttp.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -208,6 +294,18 @@ configuration for Spring Boot application.
 								<artifactId>lombok</artifactId>
 								<version>${lombok.version}</version>
 							</path>
+		                    <!-- Lombok-MapStruct binding (crucial for them to work together) -->
+		                    <path>
+		                        <groupId>org.projectlombok</groupId>
+		                        <artifactId>lombok-mapstruct-binding</artifactId>
+		                        <version>${lombok-mapstruct-binding.version}</version>
+		                    </path>
+		                    <!-- MapStruct annotation processor -->
+		                    <path>
+		                        <groupId>org.mapstruct</groupId>
+		                        <artifactId>mapstruct-processor</artifactId>
+		                        <version>${mapstruct.version}</version>
+		                    </path>
 						</annotationProcessorPaths>
 					</configuration>
 				</plugin>
@@ -246,6 +344,7 @@ configuration for Spring Boot application.
 	</build>
 
 	<modules>
+		<module>common</module>
 		<module>user-service</module>
 		<module>schedule-service</module>
 		<module>ai-service</module>

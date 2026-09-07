@@ -1,34 +1,44 @@
 package org.nlh4j.socialscheduler.aiservice.service;
 
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Timer;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import org.nlh4j.socialscheduler.aiservice.config.PromptTemplateConfig;
+import org.nlh4j.socialscheduler.aiservice.dto.RecommendationRequestDto;
+import org.nlh4j.socialscheduler.aiservice.dto.RecommendationResponseDto;
+import org.nlh4j.socialscheduler.aiservice.entity.PerformanceMetricEntity;
+import org.nlh4j.socialscheduler.aiservice.fallback.DefaultContentFallback;
+import org.nlh4j.socialscheduler.aiservice.integration.OpenAIClient;
+import org.nlh4j.socialscheduler.aiservice.integration.PerformanceAnalyticsClient;
+import org.nlh4j.socialscheduler.exception.AiServiceException;
+import org.nlh4j.socialscheduler.exception.FallbackContentException;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.ConfigurationProperties;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.OffsetDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
-import java.math.BigDecimal;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Timer;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Transactional(readOnly = true)
 @Slf4j
-@RequiredArgsConstructor
 public class RecommendationService {
 
     private final OpenAIClient openAIClient;
     private final PerformanceAnalyticsClient performanceAnalyticsClient;
     private final DefaultContentFallback defaultContentFallback;
     private final Counter recommendationCounter;
-    private final Timer recommendationTimer;
+    // private final Timer recommendationTimer;
+    
+    @Autowired
+    private PromptTemplateConfig promptTemplates;
 
     @Autowired
     public RecommendationService(OpenAIClient openAIClient,
@@ -40,7 +50,7 @@ public class RecommendationService {
         this.performanceAnalyticsClient = performanceAnalyticsClient;
         this.defaultContentFallback = defaultContentFallback;
         this.recommendationCounter = recommendationCounter;
-        this.recommendationTimer = recommendationTimer;
+        // this.recommendationTimer = recommendationTimer;
     }
 
     /**
@@ -71,7 +81,8 @@ public class RecommendationService {
             }
         } catch (AiServiceException e) {
             log.warn("OpenAI service unavailable, activating fallback for userId={}, correlationId={}", request.userId(), MDC.get("correlationId"), e);
-            generatedContent = defaultContentFallback.provide(request);
+            return defaultContentFallback.provide(request);
+        
         } catch (FallbackContentException ex) {
             log.error("Fallback content provider also failed for userId={}", request.userId(), ex);
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI_SERVICE_UNAVAILABLE", ex);
@@ -89,7 +100,7 @@ public class RecommendationService {
         RecommendationResponseDto response = RecommendationResponseDto.builder()
                 .recommendationId(recommendationId)
                 .userId(request.userId())
-                .platform(request.platform().name())
+                .platform(request.platform())
                 .content(generatedContent)
                 .confidenceScore(confidenceScore)
                 .isFallback(isFallback)
@@ -97,8 +108,9 @@ public class RecommendationService {
                 .build();
 
         // Log with MDC
-        MDC.put("correlationId", request.correlationId());
-        MDC.put("userId", request.userId());
+        MDC.put("tenantId", tenantId);
+        MDC.put("correlationId", request.topic());
+        MDC.put("userId", request.userId().toString());
         MDC.put("platform", request.platform().name());
         MDC.put("tone", request.tone().name());
         MDC.put("isFallback", String.valueOf(isFallback));
@@ -106,7 +118,7 @@ public class RecommendationService {
 
         // Record metrics
         recommendationCounter.increment();
-        recommendationTimer.record(() -> {}, Collections.emptyMap());
+        // recommendationTimer.record(() -> {}, Collections.emptyMap());
 
         return response;
     }
@@ -133,29 +145,5 @@ public class RecommendationService {
             }
         }
         return sb.toString();
-    }
-
-    @ConfigurationProperties(prefix = "prompt-templates")
-    private PromptTemplateConfig promptTemplates;
-
-    public static class PromptTemplateConfig {
-        private String systemPromptTemplate;
-        private String userPromptTemplate;
-
-        public String getSystemPromptTemplate() {
-            return systemPromptTemplate;
-        }
-
-        public void setSystemPromptTemplate(String systemPromptTemplate) {
-            this.systemPromptTemplate = systemPromptTemplate;
-        }
-
-        public String getUserPromptTemplate() {
-            return userPromptTemplate;
-        }
-
-        public void setUserPromptTemplate(String userPromptTemplate) {
-            this.userPromptTemplate = userPromptTemplate;
-        }
     }
 }

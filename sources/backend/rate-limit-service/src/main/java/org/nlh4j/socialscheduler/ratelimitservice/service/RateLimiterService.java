@@ -1,11 +1,9 @@
 package org.nlh4j.socialscheduler.ratelimitservice.service;
 
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-import lombok.extern.slf4j.Slf4j;
-import org.nlh4j.socialscheduler.ratelimitservice.dto.RateLimitResult;
+import java.util.UUID;
+
 import org.nlh4j.socialscheduler.ratelimitservice.strategy.RedisTokenBucketStrategy;
+import org.nlh4j.socialscheduler.ratelimitservice.strategy.RedisTokenBucketStrategy.RateLimitResult;
 import org.slf4j.MDC;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -13,7 +11,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service implementation for managing API rate limiting using Redis Token Bucket strategy.

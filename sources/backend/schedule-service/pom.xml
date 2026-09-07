@@ -8,7 +8,8 @@ configuration for Spring Boot application.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+						https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<!-- Model version for Maven POM. -->
 	<modelVersion>4.0.0</modelVersion>
 
@@ -26,10 +27,25 @@ configuration for Spring Boot application.
 
 	<!-- Runtime dependencies required for the user-service application. -->
 	<dependencies>
+		<!-- Project -->
+		<dependency>
+			<groupId>org.nlh4j.socialscheduler</groupId>
+			<artifactId>common</artifactId>
+		</dependency>
 		<!-- Spring Boot Web layer -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<!-- SPRING Retry -->
+		<dependency>
+			<groupId>org.springframework.retry</groupId>
+			<artifactId>spring-retry</artifactId>
+		</dependency>
+		<!-- SPRING AOP (Required for @Retryable to work) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-aop</artifactId>
 		</dependency>
 		<!-- Spring Boot Data JPA -->
 		<dependency>
@@ -71,6 +87,12 @@ configuration for Spring Boot application.
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<scope>provided</scope>
+		</dependency>
+		<!-- MapStruct -->
+		<dependency>
+		    <groupId>org.mapstruct</groupId>
+		    <artifactId>mapstruct</artifactId>
+		    <scope>compile</scope>
 		</dependency>
 		<!-- Springdoc OpenAPI UI for API documentation -->
 		<dependency>

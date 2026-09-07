@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   Traceability Tags: [ARC-000]
+   Description: Maven descriptor for user-service module of social-scheduler
+project.
+   This file defines parent relationship, dependencies, build plugins, and
+configuration for Spring Boot application.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<!-- Model version for Maven POM. -->
+	<modelVersion>4.0.0</modelVersion>
+
+	<!-- Parent pom reference for the social-scheduler enterprise suite -->
+	<parent>
+		<groupId>org.nlh4j.socialscheduler</groupId>
+		<artifactId>social-scheduler</artifactId>
+		<version>1.0.0</version>
+		<relativePath>../pom.xml</relativePath>
+	</parent>
+
+	<!-- This module's artifact definition -->
+	<artifactId>common</artifactId>
+	<packaging>jar</packaging>
+
+	<name>common</name>
+	<description>Common in social-scheduler project</description>
+
+	<!-- Dependency management for AI service, observability, and data access -->
+	<dependencies>
+		<!-- Spring Boot Web & Reactive (WebClient for OpenAI) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<!-- Spring Boot Security -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<!-- Spring Boot OAuth2 Resource Server -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+		</dependency>
+		
+		<!-- Lombok for boilerplate reduction -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
+</project>
