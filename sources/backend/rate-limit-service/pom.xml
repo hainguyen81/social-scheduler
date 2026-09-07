@@ -10,6 +10,7 @@
         <groupId>org.nlh4j.socialscheduler</groupId>
         <artifactId>social-scheduler</artifactId>
         <version>1.0.0</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>rate-limit-service</artifactId>
