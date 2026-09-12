@@ -2,7 +2,7 @@
     "project_name": "social-scheduler",
     "requirements": "sources/storage/business-analysis/social-scheduler/requirements.md",
     "num_phases": 5,
-    "total_days": 11,
+    "total_days": 10,
     "phases": [
         {
             "phase": 1,
@@ -22,7 +22,7 @@
         },
         {
             "phase": 5,
-            "days": 3
+            "days": 2
         }
     ]
 }
