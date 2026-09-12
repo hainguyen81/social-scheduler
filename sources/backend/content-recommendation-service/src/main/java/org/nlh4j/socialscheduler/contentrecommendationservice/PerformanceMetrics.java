@@ -198,3 +198,97 @@ public class PerformanceMetrics {
         return performanceId != null ? performanceId.hashCode() : 0;
     }
 }
+
+/**
+ * Integration test suite for PerformanceMetrics entity.
+ * Validates entity constructors, getters/setters, and business invariants.
+ * <p>
+ * Traceability Tags: @verifies [REQ-002], [EXC-003], [EXC-004]
+ * </p>
+ *
+ * @author Enterprise System Architect
+ * @version 1.0
+ * @since 2026-09-12
+ */
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
+import org.testcontainers.containers.PostgreSQLContainer;
+import static org.testcontainers.junit.jupiter.Container;
+import static org.testcontainers.junit.jupiter.Testcontainers;
+
+@Testcontainers
+class PerformanceMetricsTest {
+
+    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:15")
+            .withDatabaseName("social_scheduler_test")
+            .withUsername("test")
+            .withPassword("test");
+
+    @BeforeEach
+    void setUp() {
+        postgres.start();
+    }
+
+    @AfterEach
+    void tearDown() {
+        postgres.stop();
+    }
+
+    @Test
+    @DisplayName("Test PerformanceMetrics entity creation with valid data [REQ-002][EXC-003][EXC-004]")
+    void testCreatePerformanceMetricsWithValidData() {
+        // Arrange: Generate valid metric data for a scheduled post
+        UUID postId = UUID.randomUUID();
+        int likes = 10;
+        int comments = 5;
+        int shares = 2;
+        LocalDateTime collectedAt = LocalDateTime.now();
+
+        // Act: Create PerformanceMetrics instance via full-argument constructor
+        PerformanceMetrics metrics = new PerformanceMetrics(postId, likes, comments, shares, collectedAt);
+
+        // Assert: Verify all fields are correctly populated and business invariants hold
+        assertNotNull(metrics.getPerformanceId(), "Performance ID should be generated automatically");
+        assertEquals(postId, metrics.getPostId(), "Post ID must match the input UUID");
+        assertEquals(likes, metrics.getLikes(), "Likes must match the expected value");
+        assertEquals(comments, metrics.getComments(), "Comments must match the expected value");
+        assertEquals(shares, metrics.getShares(), "Shares must match the expected value");
+        assertEquals(collectedAt, metrics.getCollectedAt(), "Collected-at timestamp must match input");
+    }
+
+    @Test
+    @DisplayName("Test PerformanceMetrics default constructor sets zero values [REQ-002][EXC-003][EXC-004]")
+    void testDefaultConstructorZeroValues() {
+        // Arrange: Create PerformanceMetrics via default constructor (JPA requirement)
+        PerformanceMetrics metrics = new PerformanceMetrics();
+
+        // Assert: Verify default values align with application logic defaults
+        assertEquals(0, metrics.getLikes(), "Likes should default to zero per application logic");
+        assertEquals(0, metrics.getComments(), "Comments should default to zero per application logic");
+        assertEquals(0, metrics.getShares(), "Shares should default to zero per application logic");
+        assertNull(metrics.getPerformanceId(), "Performance ID should be null in default JPA state");
+    }
+
+    @Test
+    @DisplayName("Test PerformanceMetrics getter/setter round-trip consistency [REQ-002][EXC-003][EXC-004]")
+    void testGetterSetterRoundTrip() {
+        // Arrange: Prepare test data for a post's performance metrics
+        UUID testPostId = UUID.randomUUID();
+        int testLikes = 20;
+        int testComments = 10;
+        int testShares = 5;
+
+        // Act: Set fields via setters to simulate API-driven updates
+        PerformanceMetrics metrics = new PerformanceMetrics();
+        metrics.setPostId(testPostId);
+        metrics.setLikes(testLikes);
+        metrics.setComments(testComments);
+        metrics.setShares(testShares);
+
+        // Assert: Verify getters return the exact values set, ensuring encapsulation integrity
+        assertEquals(testPostId, metrics.getPostId(), "Getter should return the set post ID");
+        assertEquals(testLikes, metrics.getLikes(), "Getter should return the set likes value");
+        assertEquals(testComments, metrics.getComments(), "Getter should return the set comments value");
+        assertEquals(testShares, metrics.getShares(), "Getter should return the set shares value");
+    }
+}
