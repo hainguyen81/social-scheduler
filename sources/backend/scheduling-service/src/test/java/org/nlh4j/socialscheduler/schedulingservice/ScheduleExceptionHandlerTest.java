@@ -207,6 +207,143 @@ class ScheduleExceptionHandlerTest {
     }
 
     /**
+     * Tests {@link ScheduleExceptionHandler#handleResourceNotFoundException(Exception, WebRequest)}
+     * for {@link org.springframework.dao.EmptyResultDataAccessException}.
+     * <p>
+     * Asserts that a JPA EmptyResultDataAccessException (thrown when a schedule entity is not found
+     * by ID) is transformed into an HTTP 404 response with a structured payload containing
+     * error type "Resource Not Found", the raw exception message, request path, and business
+     * error code SCHED-404. Validates that resource-not-found compliance is enforced at the
+     * persistence layer before propagating to the API gateway.
+     *
+     * @verifies [REQ-001] [EXC-001] [EXC-002]
+     */
+    @Test
+    void testHandleResourceNotFoundException_EmptyResultDataAccessException() {
+        // Arrange: Construct an EmptyResultDataAccessException representing a missing schedule entity
+        // This exception is typically thrown by Spring Data JPA when findById returns empty
+        org.springframework.dao.EmptyResultDataAccessException ex =
+                new org.springframework.dao.EmptyResultDataAccessException(
+                        "No Schedule entity found with id: 550e8400-e29b-41d4-a716-446655440000", 1);
+
+        // Act: Invoke the handler under test with mocked WebRequest
+        ResponseEntity<Object> response = handler.handleResourceNotFoundException(ex, request);
+
+        // Assert: Verify HTTP 404 NOT_FOUND status is returned for missing resource
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode(),
+                "handleResourceNotFoundException must return NOT_FOUND for EmptyResultDataAccessException");
+
+        // Assert: Response body is non-null and conforms to expected error payload structure
+        Object body = response.getBody();
+        assertNotNull(body, "Response body must not be null for error handling path");
+
+        // Assert: Body is a Map instance for field-by-field assertion
+        assertTrue(body instanceof java.util.Map,
+                "Response body must be a Map instance to support structured error serialization");
+
+        java.util.Map<String, Object> payload = (java.util.Map<String, Object>) body;
+
+        // Assert: Status field equals HTTP 404 NOT_FOUND value
+        Object status = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_STATUS);
+        assertNotNull(status, "Payload must contain status field");
+        assertEquals(HttpStatus.NOT_FOUND.value(), status,
+                "Status field must equal 404 per enterprise resource-not-found error schema");
+
+        // Assert: Error type field contains the predefined 'Resource Not Found' string
+        Object error = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_ERROR);
+        assertNotNull(error, "Payload must contain error field");
+        assertEquals("Resource Not Found", error,
+                "Error field must contain predefined 'Resource Not Found' string per contract");
+
+        // Assert: Message field carries the original EmptyResultDataAccessException message
+        Object message = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_MESSAGE);
+        assertNotNull(message, "Payload must contain message field");
+        assertEquals("No Schedule entity found with id: 550e8400-e29b-41d4-a716-446655440000", message,
+                "Message field must reflect the EmptyResultDataAccessException's original cause message");
+
+        // Assert: Path field extracted from WebRequest description is present and correct
+        Object path = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_PATH);
+        assertNotNull(path, "Payload must contain path field for request traceability");
+        assertEquals("POST /api/schedules", path,
+                "Path field must match stubbed WebRequest description for cross-tenant audit logging");
+
+        // Assert: Business code field maps to SCHED-404 resource not found code as hoisted constant
+        Object businessCode = payload.get("businessCode");
+        assertNotNull(businessCode, "Payload must contain businessCode field for resource-not-found error mapping");
+        assertEquals(ScheduleExceptionHandlerConstants.BUSINESS_CODE_RESOURCE_NOT_FOUND, businessCode,
+                "Business code must map to SCHED-404 as defined in class-level constants [0.2]");
+    }
+
+    /**
+     * Tests {@link ScheduleExceptionHandler#handleResourceNotFoundException(Exception, WebRequest)}
+     * for {@link org.springframework.web.server.ResponseStatusException} with HTTP 404 status.
+     * <p>
+     * Asserts that a ResponseStatusException (thrown when a schedule resource is explicitly
+     * not found via controller logic) is transformed into an HTTP 404 response with a structured
+     * payload containing error type "Resource Not Found", the raw exception message, request path,
+     * and business error code SCHED-404. Validates that explicit NOT_FOUND responses from
+     * controller layer are normalized consistently with persistence-layer not-found errors.
+     *
+     * @verifies [REQ-001] [EXC-001] [EXC-002]
+     */
+    @Test
+    void testHandleResourceNotFoundException_ResponseStatusException() {
+        // Arrange: Construct a ResponseStatusException with NOT_FOUND status representing
+        // an explicit controller-level resource-not-found scenario
+        org.springframework.web.server.ResponseStatusException ex =
+                new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Schedule with id 550e8400-e29b-41d4-a716-446655440000 does not exist");
+
+        // Act: Invoke the handler under test with mocked WebRequest
+        ResponseEntity<Object> response = handler.handleResourceNotFoundException(ex, request);
+
+        // Assert: Verify HTTP 404 NOT_FOUND status is returned for missing resource
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode(),
+                "handleResourceNotFoundException must return NOT_FOUND for ResponseStatusException with 404");
+
+        // Assert: Response body is non-null and conforms to expected error payload structure
+        Object body = response.getBody();
+        assertNotNull(body, "Response body must not be null for error handling path");
+
+        // Assert: Body is a Map instance for field-by-field assertion
+        assertTrue(body instanceof java.util.Map,
+                "Response body must be a Map instance to support structured error serialization");
+
+        java.util.Map<String, Object> payload = (java.util.Map<String, Object>) body;
+
+        // Assert: Status field equals HTTP 404 NOT_FOUND value
+        Object status = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_STATUS);
+        assertNotNull(status, "Payload must contain status field");
+        assertEquals(HttpStatus.NOT_FOUND.value(), status,
+                "Status field must equal 404 per enterprise resource-not-found error schema");
+
+        // Assert: Error type field contains the predefined 'Resource Not Found' string
+        Object error = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_ERROR);
+        assertNotNull(error, "Payload must contain error field");
+        assertEquals("Resource Not Found", error,
+                "Error field must contain predefined 'Resource Not Found' string per contract");
+
+        // Assert: Message field carries the original ResponseStatusException message
+        Object message = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_MESSAGE);
+        assertNotNull(message, "Payload must contain message field");
+        assertEquals("Schedule with id 550e8400-e29b-41d4-a716-446655440000 does not exist", message,
+                "Message field must reflect the ResponseStatusException's original cause message");
+
+        // Assert: Path field extracted from WebRequest description is present and correct
+        Object path = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_PATH);
+        assertNotNull(path, "Payload must contain path field for request traceability");
+        assertEquals("POST /api/schedules", path,
+                "Path field must match stubbed WebRequest description for cross-tenant audit logging");
+
+        // Assert: Business code field maps to SCHED-404 resource not found code as hoisted constant
+        Object businessCode = payload.get("businessCode");
+        assertNotNull(businessCode, "Payload must contain businessCode field for resource-not-found error mapping");
+        assertEquals(ScheduleExceptionHandlerConstants.BUSINESS_CODE_RESOURCE_NOT_FOUND, businessCode,
+                "Business code must map to SCHED-404 as defined in class-level constants [0.2]");
+    }
+
+    /**
      * Tests {@link ScheduleExceptionHandler#handleAllUncaughtException(Exception, WebRequest)}.
      * <p>
      * Asserts that any uncaught generic exception is wrapped into a new {@link ScheduleException}
@@ -270,5 +407,196 @@ class ScheduleExceptionHandlerTest {
         assertNotNull(businessCode, "Payload must contain businessCode field for domain error mapping");
         assertEquals(ScheduleExceptionHandlerConstants.BUSINESS_CODE_SCHEDULING_FAILURE, businessCode,
                 "Business code must map to SCHED-500 as defined in class-level constants [0.2]");
+    }
+
+    /**
+     * Tests {@link ScheduleExceptionHandler#handleAllUncaughtException(Exception, WebRequest)}
+     * with a {@link NullPointerException} to verify cause chain preservation for NPE scenarios.
+     * <p>
+     * Asserts that a NullPointerException is wrapped into a ScheduleException preserving the
+     * original cause, logged at ERROR level with traceability tag IDs, and returns an HTTP 500
+     * response with the wrapped exception message and business code SCHED-500. This edge case
+     * validates the handler's robustness against the most common runtime exception in Java.
+     *
+     * @verifies [REQ-001] [EXC-001] [EXC-002]
+     */
+    @Test
+    void testHandleAllUncaughtException_NullPointerException() {
+        // Arrange: Construct a NullPointerException representing a common runtime failure
+        NullPointerException ex = new NullPointerException("scheduleRepository must not be null");
+
+        // Act: Invoke the global fallback handler under test with mocked WebRequest
+        ResponseEntity<Object> response = handler.handleAllUncaughtException(ex, request);
+
+        // Assert: Verify HTTP 500 INTERNAL_SERVER_ERROR status is returned
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode(),
+                "handleAllUncaughtException must return INTERNAL_SERVER_ERROR for NullPointerException");
+
+        // Assert: Response body is non-null and conforms to error payload contract
+        Object body = response.getBody();
+        assertNotNull(body, "Response body must not be null for global error handling path");
+
+        // Assert: Body is a Map instance for structured field assertion
+        assertTrue(body instanceof java.util.Map,
+                "Response body must be a Map instance to support enterprise error serialization");
+
+        java.util.Map<String, Object> payload = (java.util.Map<String, Object>) body;
+
+        // Assert: Status field equals HTTP 500 value
+        Object status = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_STATUS);
+        assertNotNull(status, "Payload must contain status field");
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), status,
+                "Status field must equal 500 per global uncaught-exception error schema");
+
+        // Assert: Error type field contains the generic 'Internal Server Error' string
+        Object error = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_ERROR);
+        assertNotNull(error, "Payload must contain error field");
+        assertEquals("Internal Server Error", error,
+                "Error field must contain predefined 'Internal Server Error' string for top-level fallback");
+
+        // Assert: Message field contains the wrapped exception context string
+        Object message = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_MESSAGE);
+        assertNotNull(message, "Payload must contain message field");
+        assertTrue(message.toString().contains("Unexpected error while processing scheduling request"),
+                "Message field must contain the wrapped context string preserving exception cause chain");
+
+        // Assert: Path field extracted from WebRequest description is present
+        Object path = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_PATH);
+        assertNotNull(path, "Payload must contain path field for request traceability");
+        assertEquals("POST /api/schedules", path,
+                "Path field must match stubbed WebRequest description even in global fallback path");
+
+        // Assert: Business code field maps to SCHED-500 scheduling failure code
+        Object businessCode = payload.get("businessCode");
+        assertNotNull(businessCode, "Payload must contain businessCode field for domain error mapping");
+        assertEquals(ScheduleExceptionHandlerConstants.BUSINESS_CODE_SCHEDULING_FAILURE, businessCode,
+                "Business code must map to SCHED-500 as defined in class-level constants [0.2]");
+    }
+
+    /**
+     * Tests {@link ScheduleExceptionHandler#handleScheduleException(ScheduleException, WebRequest)}
+     * with a null cause to verify null-safety in cause chain handling.
+     * <p>
+     * Asserts that a ScheduleException constructed with a null cause is still transformed
+     * into an HTTP 500 response with a complete error payload. This edge case validates
+     * the handler's robustness when the root cause is not available (e.g., manually thrown
+     * ScheduleException without wrapping an underlying exception).
+     *
+     * @verifies [REQ-001] [EXC-001] [EXC-002]
+     */
+    @Test
+    void testHandleScheduleException_NullCause() {
+        // Arrange: Construct a ScheduleException with null cause (edge case)
+        ScheduleException ex = new ScheduleException("Scheduling operation failed without underlying cause", null);
+
+        // Act: Invoke the handler under test with mocked WebRequest
+        ResponseEntity<Object> response = handler.handleScheduleException(ex, request);
+
+        // Assert: Verify HTTP 500 INTERNAL_SERVER_ERROR status is returned
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode(),
+                "handleScheduleException must return INTERNAL_SERVER_ERROR even when cause is null");
+
+        // Assert: Response body is non-null and conforms to expected error payload structure
+        Object body = response.getBody();
+        assertNotNull(body, "Response body must not be null for error handling path");
+
+        // Assert: Body is a Map instance for field-by-field assertion
+        assertTrue(body instanceof java.util.Map,
+                "Response body must be a Map instance to support structured error serialization");
+
+        java.util.Map<String, Object> payload = (java.util.Map<String, Object>) body;
+
+        // Assert: Status field equals HTTP 500 value
+        Object status = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_STATUS);
+        assertNotNull(status, "Payload must contain status field");
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), status,
+                "Status field must equal 500 per enterprise error response schema");
+
+        // Assert: Error type field contains the predefined service failure string
+        Object error = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_ERROR);
+        assertNotNull(error, "Payload must contain error field");
+        assertEquals("Scheduling Service Failure", error,
+                "Error field must contain predefined 'Scheduling Service Failure' string");
+
+        // Assert: Message field carries the original ScheduleException message
+        Object message = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_MESSAGE);
+        assertNotNull(message, "Payload must contain message field");
+        assertEquals("Scheduling operation failed without underlying cause", message,
+                "Message field must reflect the ScheduleException's original message even with null cause");
+
+        // Assert: Path field extracted from WebRequest description is present
+        Object path = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_PATH);
+        assertNotNull(path, "Payload must contain path field for request traceability");
+        assertEquals("POST /api/schedules", path,
+                "Path field must match stubbed WebRequest description for audit logging");
+
+        // Assert: Business code field maps to SCHED-500 scheduling failure code
+        Object businessCode = payload.get("businessCode");
+        assertNotNull(businessCode, "Payload must contain businessCode field for domain error mapping");
+        assertEquals(ScheduleExceptionHandlerConstants.BUSINESS_CODE_SCHEDULING_FAILURE, businessCode,
+                "Business code must map to SCHED-500 as defined in class-level constants [0.2]");
+    }
+
+    /**
+     * Tests {@link ScheduleExceptionHandler#handleIllegalArgumentException(IllegalArgumentException, WebRequest)}
+     * with an empty message to verify null/empty message handling.
+     * <p>
+     * Asserts that an IllegalArgumentException with an empty message string is still transformed
+     * into an HTTP 400 response with a structured payload. This edge case validates the handler's
+     * robustness when validation logic throws an exception without a descriptive message.
+     *
+     * @verifies [REQ-001] [EXC-001] [EXC-002]
+     */
+    @Test
+    void testHandleIllegalArgumentException_EmptyMessage() {
+        // Arrange: Construct an IllegalArgumentException with empty message (edge case)
+        IllegalArgumentException ex = new IllegalArgumentException("");
+
+        // Act: Invoke the handler under test with mocked WebRequest
+        ResponseEntity<Object> response = handler.handleIllegalArgumentException(ex, request);
+
+        // Assert: Verify HTTP 400 BAD_REQUEST status is returned
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode(),
+                "handleIllegalArgumentException must return BAD_REQUEST even when message is empty");
+
+        // Assert: Response body is non-null and conforms to expected error payload structure
+        Object body = response.getBody();
+        assertNotNull(body, "Response body must not be null for error handling path");
+
+        // Assert: Body is a Map instance for field-by-field assertion
+        assertTrue(body instanceof java.util.Map,
+                "Response body must be a Map instance to support structured error serialization");
+
+        java.util.Map<String, Object> payload = (java.util.Map<String, Object>) body;
+
+        // Assert: Status field equals HTTP 400 BAD_REQUEST value
+        Object status = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_STATUS);
+        assertNotNull(status, "Payload must contain status field");
+        assertEquals(HttpStatus.BAD_REQUEST.value(), status,
+                "Status field must equal 400 per enterprise invalid-request error schema");
+
+        // Assert: Error type field contains the predefined 'Invalid Request' string
+        Object error = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_ERROR);
+        assertNotNull(error, "Payload must contain error field");
+        assertEquals("Invalid Request", error,
+                "Error field must contain predefined 'Invalid Request' string per contract");
+
+        // Assert: Message field carries the empty string (preserved from exception)
+        Object message = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_MESSAGE);
+        assertNotNull(message, "Payload must contain message field even when empty");
+        assertEquals("", message,
+                "Message field must reflect the IllegalArgumentException's empty message");
+
+        // Assert: Path field extracted from WebRequest description is present and correct
+        Object path = payload.get(ScheduleExceptionHandlerConstants.ERROR_PAYLOAD_PATH);
+        assertNotNull(path, "Payload must contain path field for request traceability");
+        assertEquals("POST /api/schedules", path,
+                "Path field must match stubbed WebRequest description for cross-tenant audit logging");
+
+        // Assert: Business code field maps to SCHED-400 invalid input code as hoisted constant
+        Object businessCode = payload.get("businessCode");
+        assertNotNull(businessCode, "Payload must contain businessCode field for validation error mapping");
+        assertEquals(ScheduleExceptionHandlerConstants.BUSINESS_CODE_INVALID_INPUT, businessCode,
+                "Business code must map to SCHED-400 as defined in class-level constants [0.2]");
     }
 }

@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -224,5 +225,271 @@ class ScheduleServiceTest {
         assertNotNull(cause, "Cause chain must preserve the NullPointerException or wrapped validation");
         assertTrue(cause.getMessage() != null && cause.getMessage().contains("Schedule time"), 
             "Root cause must reference schedule time constraint");
+    }
+
+    /**
+     * Test happy path: retrieve a schedule by valid ID.
+     * Business requirement: REQ-001 - System shall allow users to retrieve scheduled posts by ID.
+     * Expected: Schedule entity returned successfully.
+     */
+    @Test
+    @DisplayName("Find schedule by valid ID should return schedule")
+    void findScheduleById_validId_shouldReturnSchedule() {
+        // Arrange
+        UUID scheduleId = UUID.randomUUID();
+        Schedule expectedSchedule = new Schedule();
+        expectedSchedule.setScheduleId(scheduleId);
+        expectedSchedule.setUserId(testUserId);
+        expectedSchedule.setPlatform(ScheduleService.PLATFORM_FACEBOOK);
+        expectedSchedule.setContent("Test content");
+        expectedSchedule.setScheduledTime(LocalDateTime.now().plusDays(1));
+        expectedSchedule.setStatus(ScheduleService.STATUS_PENDING);
+        expectedSchedule.setCreatedAt(LocalDateTime.now());
+        expectedSchedule.setUpdatedAt(LocalDateTime.now());
+
+        when(scheduleRepository.findById(scheduleId)).thenReturn(java.util.Optional.of(expectedSchedule));
+
+        // Act
+        Schedule result = scheduleService.findScheduleById(scheduleId);
+
+        // Assert
+        assertNotNull(result, "Schedule should be found");
+        assertEquals(scheduleId, result.getScheduleId(), "Schedule ID should match");
+        assertEquals(testUserId, result.getUserId(), "User ID should match");
+        assertEquals(ScheduleService.PLATFORM_FACEBOOK, result.getPlatform(), "Platform should match");
+        verify(scheduleRepository, times(1)).findById(scheduleId);
+    }
+
+    /**
+     * Test edge case: retrieve a schedule with non-existent ID.
+     * Business requirement: REQ-001 / EXC-001 - System should handle missing schedules gracefully.
+     * Expected: ScheduleServiceException with NOT_FOUND error code.
+     */
+    @Test
+    @DisplayName("Find schedule by non-existent ID should throw ScheduleServiceException")
+    void findScheduleById_nonExistentId_shouldThrowException() {
+        // Arrange
+        UUID nonExistentId = UUID.randomUUID();
+        when(scheduleRepository.findById(nonExistentId)).thenReturn(java.util.Optional.empty());
+
+        // Act & Assert
+        ScheduleServiceException ex = assertThrows(ScheduleServiceException.class, () -> 
+            scheduleService.findScheduleById(nonExistentId));
+        
+        assertEquals(ErrorCode.NOT_FOUND, ex.getErrorCode(), "Error code should be NOT_FOUND");
+        assertTrue(ex.getMessage().contains("Schedule not found"), "Message should indicate schedule not found");
+        assertNull(ex.getCause(), "Cause should be null for not found scenario");
+        verify(scheduleRepository, times(1)).findById(nonExistentId);
+    }
+
+    /**
+     * Test happy path: retrieve all schedules when schedules exist.
+     * Business requirement: REQ-001 - System shall allow users to retrieve all scheduled posts.
+     * Expected: List of schedules returned.
+     */
+    @Test
+    @DisplayName("Find all schedules should return list of schedules")
+    void findAllSchedules_shouldReturnSchedulesList() {
+        // Arrange
+        Schedule schedule1 = new Schedule();
+        schedule1.setScheduleId(UUID.randomUUID());
+        schedule1.setUserId(testUserId);
+        schedule1.setPlatform(ScheduleService.PLATFORM_FACEBOOK);
+        schedule1.setContent("Content 1");
+        schedule1.setScheduledTime(LocalDateTime.now().plusDays(1));
+        schedule1.setStatus(ScheduleService.STATUS_PENDING);
+        schedule1.setCreatedAt(LocalDateTime.now());
+        schedule1.setUpdatedAt(LocalDateTime.now());
+
+        Schedule schedule2 = new Schedule();
+        schedule2.setScheduleId(UUID.randomUUID());
+        schedule2.setUserId(testUserId);
+        schedule2.setPlatform(ScheduleService.PLATFORM_INSTAGRAM);
+        schedule2.setContent("Content 2");
+        schedule2.setScheduledTime(LocalDateTime.now().plusDays(2));
+        schedule2.setStatus(ScheduleService.STATUS_PENDING);
+        schedule2.setCreatedAt(LocalDateTime.now());
+        schedule2.setUpdatedAt(LocalDateTime.now());
+
+        List<Schedule> expectedSchedules = List.of(schedule1, schedule2);
+        when(scheduleRepository.findAll()).thenReturn(expectedSchedules);
+
+        // Act
+        List<Schedule> result = scheduleService.findAllSchedules();
+
+        // Assert
+        assertNotNull(result, "Schedules list should not be null");
+        assertEquals(2, result.size(), "Should return 2 schedules");
+        assertTrue(result.stream().anyMatch(s -> s.getPlatform().equals(ScheduleService.PLATFORM_FACEBOOK)), 
+            "Should contain Facebook schedule");
+        assertTrue(result.stream().anyMatch(s -> s.getPlatform().equals(ScheduleService.PLATFORM_INSTAGRAM)), 
+            "Should contain Instagram schedule");
+        verify(scheduleRepository, times(1)).findAll();
+    }
+
+    /**
+     * Test edge case: retrieve all schedules when no schedules exist.
+     * Business requirement: REQ-001 - System should handle empty schedule list gracefully.
+     * Expected: Empty list returned.
+     */
+    @Test
+    @DisplayName("Find all schedules when none exist should return empty list")
+    void findAllSchedules_emptyList_shouldReturnEmptyList() {
+        // Arrange
+        when(scheduleRepository.findAll()).thenReturn(List.of());
+
+        // Act
+        List<Schedule> result = scheduleService.findAllSchedules();
+
+        // Assert
+        assertNotNull(result, "Schedules list should not be null");
+        assertTrue(result.isEmpty(), "Should return empty list");
+        verify(scheduleRepository, times(1)).findAll();
+    }
+
+    /**
+     * Test happy path: update a pending schedule successfully.
+     * Business requirement: REQ-001 - System shall allow users to update scheduled posts.
+     * Expected: Updated schedule returned with new content and time.
+     */
+    @Test
+    @DisplayName("Update pending schedule should succeed")
+    void updateSchedule_pendingSchedule_shouldUpdateSuccessfully() {
+        // Arrange
+        UUID scheduleId = UUID.randomUUID();
+        Schedule existingSchedule = new Schedule();
+        existingSchedule.setScheduleId(scheduleId);
+        existingSchedule.setUserId(testUserId);
+        existingSchedule.setPlatform(ScheduleService.PLATFORM_FACEBOOK);
+        existingSchedule.setContent("Original content");
+        existingSchedule.setScheduledTime(LocalDateTime.now().plusDays(1));
+        existingSchedule.setStatus(ScheduleService.STATUS_PENDING);
+        existingSchedule.setCreatedAt(LocalDateTime.now());
+        existingSchedule.setUpdatedAt(LocalDateTime.now());
+
+        String newContent = "Updated content";
+        LocalDateTime newScheduleTime = LocalDateTime.now().plusDays(3);
+
+        when(scheduleRepository.findById(scheduleId)).thenReturn(java.util.Optional.of(existingSchedule));
+        when(scheduleRepository.save(any(Schedule.class))).thenReturn(existingSchedule);
+
+        // Act
+        Schedule result = scheduleService.updateSchedule(scheduleId, newContent, newScheduleTime);
+
+        // Assert
+        assertNotNull(result, "Updated schedule should not be null");
+        assertEquals(scheduleId, result.getScheduleId(), "Schedule ID should match");
+        assertEquals(newContent, result.getContent(), "Content should be updated");
+        assertEquals(newScheduleTime, result.getScheduledTime(), "Scheduled time should be updated");
+        assertEquals(ScheduleService.STATUS_PENDING, result.getStatus(), "Status should remain pending");
+        verify(scheduleRepository, times(1)).findById(scheduleId);
+        verify(scheduleRepository, times(1)).save(existingSchedule);
+    }
+
+    /**
+     * Test edge case: update a non-existent schedule.
+     * Business requirement: REQ-001 / EXC-001 - System should handle missing schedules during update.
+     * Expected: ScheduleServiceException with NOT_FOUND error code.
+     */
+    @Test
+    @DisplayName("Update non-existent schedule should throw ScheduleServiceException")
+    void updateSchedule_nonExistentSchedule_shouldThrowException() {
+        // Arrange
+        UUID nonExistentId = UUID.randomUUID();
+        String newContent = "New content";
+        LocalDateTime newScheduleTime = LocalDateTime.now().plusDays(1);
+
+        when(scheduleRepository.findById(nonExistentId)).thenReturn(java.util.Optional.empty());
+
+        // Act & Assert
+        ScheduleServiceException ex = assertThrows(ScheduleServiceException.class, () -> 
+            scheduleService.updateSchedule(nonExistentId, newContent, newScheduleTime));
+        
+        assertEquals(ErrorCode.NOT_FOUND, ex.getErrorCode(), "Error code should be NOT_FOUND");
+        assertTrue(ex.getMessage().contains("Schedule not found"), "Message should indicate schedule not found");
+        assertNull(ex.getCause(), "Cause should be null for not found scenario");
+        verify(scheduleRepository, times(1)).findById(nonExistentId);
+        verify(scheduleRepository, never()).save(any());
+    }
+
+    /**
+     * Test edge case: update a non-pending schedule (e.g., SENT).
+     * Business requirement: REQ-001 / EXC-001 - System should prevent updates to non-pending schedules.
+     * Expected: ScheduleServiceException with ILLEGAL_STATE error code.
+     */
+    @Test
+    @DisplayName("Update non-pending schedule should throw ScheduleServiceException")
+    void updateSchedule_nonPendingSchedule_shouldThrowException() {
+        // Arrange
+        UUID scheduleId = UUID.randomUUID();
+        Schedule existingSchedule = new Schedule();
+        existingSchedule.setScheduleId(scheduleId);
+        existingSchedule.setUserId(testUserId);
+        existingSchedule.setPlatform(ScheduleService.PLATFORM_FACEBOOK);
+        existingSchedule.setContent("Original content");
+        existingSchedule.setScheduledTime(LocalDateTime.now().plusDays(1));
+        existingSchedule.setStatus(ScheduleService.STATUS_SENT); // Non-pending status
+        existingSchedule.setCreatedAt(LocalDateTime.now());
+        existingSchedule.setUpdatedAt(LocalDateTime.now());
+
+        String newContent = "New content";
+        LocalDateTime newScheduleTime = LocalDateTime.now().plusDays(1);
+
+        when(scheduleRepository.findById(scheduleId)).thenReturn(java.util.Optional.of(existingSchedule));
+
+        // Act & Assert
+        ScheduleServiceException ex = assertThrows(ScheduleServiceException.class, () -> 
+            scheduleService.updateSchedule(scheduleId, newContent, newScheduleTime));
+        
+        assertEquals(ErrorCode.ILLEGAL_STATE, ex.getErrorCode(), "Error code should be ILLEGAL_STATE");
+        assertTrue(ex.getMessage().contains("Only pending schedules can be updated"), 
+            "Message should indicate only pending schedules can be updated");
+        assertNull(ex.getCause(), "Cause should be null for illegal state scenario");
+        verify(scheduleRepository, times(1)).findById(scheduleId);
+        verify(scheduleRepository, never()).save(any());
+    }
+
+    /**
+     * Test happy path: delete a schedule successfully.
+     * Business requirement: REQ-001 - System shall allow users to delete scheduled posts.
+     * Expected: Schedule deleted without exception.
+     */
+    @Test
+    @DisplayName("Delete schedule should succeed")
+    void deleteSchedule_validId_shouldDeleteSuccessfully() {
+        // Arrange
+        UUID scheduleId = UUID.randomUUID();
+        when(scheduleRepository.existsById(scheduleId)).thenReturn(true);
+        doNothing().when(scheduleRepository).deleteById(scheduleId);
+
+        // Act
+        scheduleService.deleteSchedule(scheduleId);
+
+        // Assert
+        verify(scheduleRepository, times(1)).existsById(scheduleId);
+        verify(scheduleRepository, times(1)).deleteById(scheduleId);
+    }
+
+    /**
+     * Test edge case: delete a non-existent schedule.
+     * Business requirement: REQ-001 / EXC-001 - System should handle missing schedules during deletion.
+     * Expected: ScheduleServiceException with NOT_FOUND error code.
+     */
+    @Test
+    @DisplayName("Delete non-existent schedule should throw ScheduleServiceException")
+    void deleteSchedule_nonExistentSchedule_shouldThrowException() {
+        // Arrange
+        UUID nonExistentId = UUID.randomUUID();
+        when(scheduleRepository.existsById(nonExistentId)).thenReturn(false);
+
+        // Act & Assert
+        ScheduleServiceException ex = assertThrows(ScheduleServiceException.class, () -> 
+            scheduleService.deleteSchedule(nonExistentId));
+        
+        assertEquals(ErrorCode.NOT_FOUND, ex.getErrorCode(), "Error code should be NOT_FOUND");
+        assertTrue(ex.getMessage().contains("Schedule not found"), "Message should indicate schedule not found");
+        assertNull(ex.getCause(), "Cause should be null for not found scenario");
+        verify(scheduleRepository, times(1)).existsById(nonExistentId);
+        verify(scheduleRepository, never()).deleteById(any());
     }
 }
