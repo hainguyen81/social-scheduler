@@ -1,0 +1,31 @@
+{
+    "project": "social-scheduler",
+    "requirement_tags": [
+        "[REQ-001]",
+        "[REQ-002]",
+        "[DAT-001]",
+        "[DAT-002]",
+        "[EXC-001]",
+        "[EXC-002]",
+        "[EXC-003]",
+        "[EXC-004]",
+        "[EXC-005]",
+        "[ARC-001]",
+        "[ARC-002]",
+        "[ARC-003]",
+        "[ARC-004]",
+        "[ARC-005]",
+        "[ARC-006]",
+        "[ARC-007]",
+        "[ARC-008]",
+        "[ARC-009]",
+        "[NFR-001]",
+        "[NFR-002]",
+        "[NFR-003]",
+        "[NFR-004]",
+        "[NFR-005]"
+    ],
+    "idea": "idea_d066d15f9b52",
+    "location": "sources/storage/business-analysis/social-scheduler",
+    "requirements": "sources/storage/business-analysis/social-scheduler/requirements.md"
+}
