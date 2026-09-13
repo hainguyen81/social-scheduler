@@ -1,10 +1,8 @@
+```java
 package org.nlh4j.socialscheduler.contentrecommendationservice;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -94,42 +92,4 @@ public class PerformanceMetricsService {
                     .collect(Collectors.toList());
 
             // Phase 3: Map ranked metrics back to full Schedule entities for downstream use
-            List<Schedule> recommendedSchedules = rankedMetrics.stream()
-                    .map(metric -> scheduleRepository.findById(metric.getScheduleId())
-                            .orElseThrow(() -> new IllegalStateException(
-                                    "Schedule not found for metric id=" + metric.getPerformanceId())))
-                    .collect(Collectors.toList());
-
-            // Exit‑point logging – includes the count of recommendations generated
-            logger.info("[REQ-002] Completed AI recommendation for userId={}; returned {} schedules.", userId, recommendedSchedules.size());
-            return recommendedSchedules;
-
-        } catch (Exception e) {
-            // Comprehensive error logging – preserves raw exception and traceability tag
-            logger.error("[REQ-002] AI content recommendation failed for userId={}. Raw error: {}", userId, e.getMessage(), e);
-            // Re‑throw as enterprise‑typed exception while preserving the original cause
-            throw new PerformanceMetricsServiceException("Failed to generate content recommendations", e);
-        }
-    }
-
-    /**
-     * Convenience overload that uses the default top‑N limit.
-     *
-     * @param userId Identifier of the user.
-     * @return Recommended schedules.
-     * @see #recommendContentForUser(Long, int)
-     */
-    public List<Schedule> recommendContentForUser(Long userId) {
-        return recommendContentForUser(userId, 0);
-    }
-
-    /**
-     * Custom enterprise exception for this service – ensures consistent error handling
-     * across the recommendation pipeline while preserving the original cause chain.
-     */
-    public static class PerformanceMetricsServiceException extends RuntimeException {
-        public PerformanceMetricsServiceException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
-}
+            List<Schedule
