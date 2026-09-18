@@ -274,8 +274,12 @@ class AbstractAgent(ABC):
             kwargs.pop("raw_response", None)
             clean_response = self.clean_response(raw_response=raw_response, **kwargs) if raw_response else None
         except Exception as e:
-            self.logger.error(f"💀 Exception parsing raw response: {exception_stacktrace(e)}")
-            self.logger.error(f"   └ ➡️ Raw response: {raw_response}")
+            ex_stack = exception_stacktrace(e)
+            self.logger.error(f"💀 Exception parsing raw response: {ex_stack}")
+            self.write_log(
+                data=f"# 💀 Exception parsing raw response:\n\n{ex_stack}\n\n---\n\n# 📥 Raw Response:\n\n{raw_response}\n\n---\n\n",
+                append=True,
+            )
         
         # result
         self.logger.debug("   - Parsed/Extracted: %s", clean_response)
@@ -341,12 +345,14 @@ class AbstractAgent(ABC):
         }
     
     def __handle_execute_exception__(self, e, **kwargs):
-        self.logger.error(f"💀 Exception caught on model {self.config_model_name()}: {exception_stacktrace(e)}")
-        # write log
+        ex_stack = exception_stacktrace(e)
+        model = self.config_model_name()
         raw_response = self.get_kwargs_by_key("raw_response", **kwargs)
+        self.logger.error(f"💀 Exception caught on model {model}: {ex_stack}")
+        # write log
         self.write_log(
-            data=f"# Exception:\n\n{exception_stacktrace(e)}\n\n---\n\nRaw Response:\n\n{raw_response}\n\n---\n\n",
-            append=True
+            data=f"# 💀 Exception caught on model {model}:\n\n{ex_stack}\n\n---\n\n# 📥 Raw Response:\n\n{raw_response}\n\n---\n\n",
+            append=True,
         )
     
     def __rotate_next_model__(self):
