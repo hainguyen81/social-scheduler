@@ -353,6 +353,20 @@ def parseAIResponseData(response):
     Safely parses text responses from OpenAI completion models.
     Protects the runtime from attribute errors if content fields are blank or null.
     """
+    get_logger().debug(
+        "[AI DEBUG] response_type=%s | response=%r | "
+        "has_choices=%s | choices=%r | response_error=%r",
+        type(response).__name__,
+        response,
+        hasattr(response, "choices"),
+        getattr(response, "choices", None),
+        getattr(response, "error", None),
+    )
+    # Case 1: Upstream already returned the raw text content.
+    if isinstance(response, str):
+        return response.strip()
+
+    # Case 2: Upstream returned an OpenAI-compatible response object.
     first_choice = validateAIResponse(response)
     
     # Guard against malformed message blocks or unexpected payload closures
