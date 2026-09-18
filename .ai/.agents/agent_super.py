@@ -261,14 +261,24 @@ class AbstractAgent(ABC):
                 raw_response = self.__parse_ai_response__(response=response) if response else None
                 success = True   # success
             except Exception as e:
-                self.logger.error(f"💀 Exception caught on model {self.config_model_name()}: {str(e)}")
+                self.logger.error(f"💀 Exception caught on model {self.config_model_name()}: {e!s}")
                 # rotate next model
                 if not self.__rotate_next_model__():
                     raise # re-throw exception to super
         
         # remove old raw_response if existing
-        kwargs.pop("raw_response", None)
-        clean_response = self.clean_response(raw_response=raw_response, **kwargs) if raw_response else None
+        clean_response = None
+        try:
+            self.logger.info("⚙️ Clean/Extract AI Raw Response...")
+            self.logger.debug("   - Raw Response: %s", raw_response)
+            kwargs.pop("raw_response", None)
+            clean_response = self.clean_response(raw_response=raw_response, **kwargs) if raw_response else None
+        except Exception as e:
+            self.logger.error(f"💀 Exception parsing raw response: {exception_stacktrace(e)}")
+            self.logger.error(f"   └ ➡️ Raw response: {raw_response}")
+        
+        # result
+        self.logger.debug("   - Parsed/Extracted: %s", clean_response)
         return {
             **kwargs,
             # adapt new raw response
@@ -333,8 +343,9 @@ class AbstractAgent(ABC):
     def __handle_execute_exception__(self, e, **kwargs):
         self.logger.error(f"💀 Exception caught on model {self.config_model_name()}: {exception_stacktrace(e)}")
         # write log
+        raw_response = self.get_kwargs_by_key("raw_response", **kwargs)
         self.write_log(
-            data=f"# Exception:\n\n{exception_stacktrace(e)}\n\n---\n\n",
+            data=f"# Exception:\n\n{exception_stacktrace(e)}\n\n---\n\nRaw Response:\n\n{raw_response}\n\n---\n\n",
             append=True
         )
     

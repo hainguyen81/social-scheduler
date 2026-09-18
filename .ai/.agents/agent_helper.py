@@ -289,16 +289,27 @@ def regex_extract(pattern, data):
     extracted_data = reg_pattern.findall(data)
     return (len(extracted_data) if extracted_data else 0, extracted_data)
 
+
 def regex_extract_by_pair_tags(tag_start: str, tag_end: str, data):
     if not tag_start and tag_end:
         return regex_extract(pattern=rf"<!--\s*{tag_end}\s*-->", data=data)
-    elif tag_start:
+    elif tag_start and not tag_end:
         return regex_extract(pattern=rf"<!--\s*{tag_start}\s*-->", data=data)
     elif tag_start and tag_end:
         return regex_extract(
             pattern=rf"<!--\s*{tag_start}\s*-->(.*?)<!--\s*{tag_end}\s*-->", data=data
         )
     return (0, [])
+
+
+def regex_extract_by_name_pair_tags(tag_name: str, data):
+    if not tag_name:
+        return (0, [])
+    return regex_extract_by_pair_tags(
+        tag_start=f"{tag_name}_START",
+        tag_end=f"{tag_name}_END",
+        data=data,
+    )
 
 def regex_extract_by_tag(tag: str, data):
     return regex_extract_by_pair_tags(tag_start=tag, tag_end=None, data=data)
